@@ -70,7 +70,7 @@ for link in reversed(all_links):  # Reversed for processing from 1: latest on si
         sub_r = session.get(resp.url)
         # Find all links with key words in 'entry-content' class
         download_link_a = sub_r.html.find('.entry-content a', containing=['DOWNLOAD', 'Download', 'Right-click'])
-        # Calulate the number of links
+        # Calculate the number of links
         all_downloaded_links = len(download_link_a)
         # If there is one or more
         if all_downloaded_links > 0:
@@ -124,15 +124,19 @@ for link in reversed(all_links):  # Reversed for processing from 1: latest on si
             no_audio += 1
                 
 info_text = """
-\x1b[0;35;40mSome episodes are not available by links (but you can listen to it in player on the website). Here they are:\x1b[0m
-83. How to Swear in British English – VERY RUDE CONTENT (with James) -> \x1b[0;36;40mhttps://teacherluke.co.uk/2012/01/30/how-to-swear-in-british-english-very-rude-content/\x1b[0m
-128. Luke’s Stand-Up Comedy Show -> \x1b[0;36;40mhttps://teacherluke.co.uk/2013/04/07/795/\x1b[0m
+\x1b[0;35;40mThere are episodes which have no direct link for downloading, but you can listen to them in player on the website. Here are a couple of them:\x1b[0m
+128. Luke’s Stand-Up Comedy Show  (is lost by Luke, but remains online) -> \x1b[0;36;40mhttps://cutt.ly/LEP-ep128\x1b[0m
 Luke’s Interview on InglesPodcast -> \x1b[0;36;40mhttp://www.inglespodcast.com/2015/03/31/mansion-interviews-luke-thompson-from-lukes-english-podcast/\x1b[0m
-579. [2/2] IELTS Q&A with Ben Worthington from IELTS Podcast -> \x1b[0;36;40mhttps://teacherluke.co.uk/2019/03/01/579-2-2-ielts-qa-with-ben-worthington-from-ielts-podcast/\x1b[0m 
+[Website content] Luke on the RealLife English Podcast -> \x1b[0;36;40mhttps://teacherluke.co.uk/2017/09/24/website-content-luke-on-the-real-life-english-podcast/\x1b[0m
+I was invited onto the “English Across The Pond” Podcast -> \x1b[0;36;40mhhttps://teacherluke.co.uk/2017/05/26/i-was-invited-onto-the-english-across-the-pond-podcast/\x1b[0m
 
 \x1b[0;35;40mAnd one wrong link (typo):\x1b[0m
-London Olympics 2012 -> \x1b[0;36;40mhttps://teacherluke.co.uk/2012/08/06/london-olympics-2012/\x1b[0m 
-\x1b[0;35;40mRelevant: 13 March 2019\x1b[0m
+London Olympics 2012 -> \x1b[0;36;40mhttps://teacherluke.co.uk/2012/08/06/london-olympics-2012/\x1b[0m
+and so on...
+\x1b[0;35;40mRelevant: 19 October 2019\x1b[0m
+
+I highly recommend you the new version of this script cutt.ly/LEP-downlaoder
+It works much better and downloads all such episodes!
 """
 
 
