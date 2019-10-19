@@ -7,7 +7,7 @@ Contents:
 # DESCRIPTION
 **LEP-downloader** is a script for downloading the all FREE episodes of [Luke's ENGLISH Podcast](https://teacherluke.co.uk/archive-of-episodes-1-149/), which have audio, video or text (pdf) files. It requires the Python interpreter, version 3.5+, and it is not platform specific. It should work on your Unix box, on Windows or on macOS. Also you can download the one executable file for your platform. In this case you don't need to install Python (see [TBR page]() for details).
 
-It's released under the MIT License, which means you can modify it, redistribute it or use it however you like as long as you do mention the author of the original script.
+It's released under the [MIT License](LICENSE), which means you can modify it, redistribute it or use it however you like as long as you do mention the author of the original script.
 
 You can specify what episode (number) to download or for what period of time, and other options (see [OPTIONS](#options) below)
 
