@@ -82,7 +82,7 @@ To display the list of options, execute script with "-h" or "--help" argument.
 
     LEP-downloader.py -ep 128 -pdf
 
-For more examples and explanation of arguments, see [Home]((https://github.com/hotenov/LEP-downloader/wiki#Options)) wiki page
+For more examples and explanation of arguments, see [Home](https://github.com/hotenov/LEP-downloader/wiki#Options) wiki page
 
 **Demo screenshots of the script executions**:
 
