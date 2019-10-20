@@ -5,7 +5,7 @@ Contents:
 - [OPTIONS](#options)
 
 # DESCRIPTION
-**LEP-downloader** is a script for downloading the all FREE episodes of [Luke's ENGLISH Podcast](https://teacherluke.co.uk/archive-of-episodes-1-149/), which have audio, video or text (pdf) files. It requires the Python interpreter, version 3.5+, and it is not platform specific. It should work on your Unix box, on Windows or on macOS. Also you can download the one executable file for your platform. In this case you don't need to install Python (see [TBW page]() for details).
+**LEP-downloader** is a script for downloading the all FREE episodes of [Luke's ENGLISH Podcast](https://teacherluke.co.uk/archive-of-episodes-1-149/), which have audio, video or text (pdf) files. It requires the Python interpreter, version 3.5+, and it is not platform specific. It should work on your Unix box, on Windows or on macOS. Also you can download the one executable file for your platform. In this case you don't need to install Python (see [Home](https://github.com/hotenov/LEP-downloader/wiki#as-exe) wiki page for details).
 
 It's released under the [MIT License](LICENSE), which means you can modify it, redistribute it or use it however you like as long as you do mention the author of the original script.
 
@@ -15,6 +15,9 @@ You can specify what episode (number) to download or for what period of time, an
 
     python3 LEP-downloader.py [OPTIONS]
 
+**Usage for Windows users (usually with only python 3 installed)** - no need to type *python3*, simply:
+
+    LEP-downloader.py [OPTIONS]
 
 The script doesn't download file if the file already exists in the directory. So you can easily replenish your collection when a new episode is released. **Important:** ALL episodes (audio + pdf) will take up more than 33 GB *(relevant on moment when #621 is the latest episode)* on your drive (HDD, SSD, flash)  and process of downloading will take at least ~2 hours *(depends on the speed of internet connection)*. You must have enough free space for downloading all of them. And of course you will need even more space if you want to download video files. Don't forget about that.
 
@@ -79,7 +82,7 @@ To display the list of options, execute script with "-h" or "--help" argument.
 
     LEP-downloader.py -ep 128 -pdf
 
-For more examples and arguments explanation, see [TBW wiki page]()
+For more examples and explanation of arguments, see [Home]((https://github.com/hotenov/LEP-downloader/wiki#Options)) wiki page
 
 **Demo screenshots of the script executions**:
 
