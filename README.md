@@ -3,6 +3,8 @@ Contents:
 - [DESCRIPTION](#description)
 - [INSTALLATION](#installation)
 - [OPTIONS](#options)
+- [WHAT'S NEW](#whats-new)
+- [DEMO](#demo)
 
 # DESCRIPTION
 **LEP-downloader** is a script for downloading the all FREE episodes of [Luke's ENGLISH Podcast](https://teacherluke.co.uk/archive-of-episodes-1-149/), which have audio, video or text (pdf) files. It requires the Python interpreter, version 3.5+, and it is not platform specific. It should work on your Unix box, on Windows or on macOS. Also you can download the one executable file for your platform. In this case you don't need to install Python (see [Home](https://github.com/hotenov/LEP-downloader/wiki#as-exe) wiki page for details).
@@ -15,11 +17,12 @@ You can specify what episode (number) to download or for what period of time, an
 
     python3 LEP-downloader.py [OPTIONS]
 
-**Usage for Windows users (usually with only python 3 installed)** - no need to type *python3*, simply:
+**Usage for Windows users (usually with only python 3 installed)** - no need to type `python3`, simply:
 
     LEP-downloader.py [OPTIONS]
 
-The script doesn't download file if the file already exists in the directory. So you can easily replenish your collection when a new episode is released. **Important:** ALL episodes (audio + pdf) will take up more than 33 GB *(relevant on moment when #621 is the latest episode)* on your drive (HDD, SSD, flash)  and process of downloading will take at least ~2 hours *(depends on the speed of internet connection)*. You must have enough free space for downloading all of them. And of course you will need even more space if you want to download video files. Don't forget about that.
+The script doesn't download file if the file already exists in the directory. So you can easily replenish your collection when a new episode is released. **Important:** ALL episodes (audio + pdf) will take up more than 33 GB *(relevant on moment when #621 is the latest episode)* on your drive (HDD, SSD, flash)  and process of downloading will take at least ~2 hours *(depends on the speed of internet connection)*. You must have enough free space for downloading all of them. And of course you will need even more space if you want to download video files. Don't forget about that.  
+>The program also looks for files on the disc downloaded by the "first" version. If you want all file names to be in chronological order, I recommend you to delete the old files and download them with the new version.
 
 # INSTALLATION
 
@@ -78,12 +81,24 @@ To display the list of options, execute script with "-h" or "--help" argument.
 
     python3 LEP-downloader.py -ep 128 -pdf
 
-**For Windows users (usually with only python 3 installed)** - no need to type *python3*, simply:
+**For Windows users (usually with only python 3 installed)** - no need to type `python3`, simply:
 
     LEP-downloader.py -ep 128 -pdf
 
-For more examples and explanation of arguments, see [Home](https://github.com/hotenov/LEP-downloader/wiki#Options) wiki page
+For more examples and explanation of arguments, see [Home](https://github.com/hotenov/LEP-downloader/wiki#Options) wiki page.
 
+# <a id="whats-new"></a>WHAT'S NEW
+
+The second version was completely rewritten by me. It was divided into two parts for user convenience: **LEP-parser** and **LEP-downloader**. *I'll write about the "LEP-parser" later*.
+
+**LEP-downloader** does not require the installation of additional packages. All works with installed Python 3.5+ or with single [executable file](https://github.com/hotenov/LEP-downloader/wiki#as-exe). It includes several [options](https://github.com/hotenov/LEP-downloader/wiki#Options) to control the process.
+
+It downloads really all available episodes, comparing to the [first version](https://github.com/hotenov/LEP-downloader/wiki/Old-Readme), which skips many episodes.  
+Even 'website only' episodes and a couple lost by Luke =).
+
+> I don't want to financially harm Luke in any way, so consider donating to [Luke's English Podcast](https://www.paypal.com/donate/?token=TMJIcfvgEgxmnvr7WNkzDi_cxrZ2_Q_g0SPmsIe6Wc7PETq8T8WHB-Ak_eW03KnD_RBrq0&country.x=GB&locale.x=GB). I just want more people to listen to his podcasts, making them a little easier to download.
+
+# DEMO
 **Demo screenshots of the script executions**:
 
 ![ver-2-screenshot-01](img/ver-2-screenshot-01.png?raw=true "LEP downloader (ver. 2)")
@@ -91,3 +106,6 @@ For more examples and explanation of arguments, see [Home](https://github.com/ho
 ![ver-2-screenshot-02](img/ver-2-screenshot-02.png?raw=true "LEP downloader (ver. 2)")
 
 ![ver-2-screenshot-03](img/ver-2-screenshot-03.png?raw=true "LEP downloader (ver. 2)")
+
+
+
