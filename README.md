@@ -5,6 +5,11 @@ Contents:
 - [OPTIONS](#options)
 - [WHAT'S NEW](#whats-new)
 - [DEMO](#demo)
+- [CONTACTS](#contacts)
+
+Useful wiki pages:
+
+ - [How to open Terminal (or Command Prompt)](https://github.com/hotenov/LEP-downloader/wiki/How-to-open-Terminal-(or-Command-Prompt))
 
 # DESCRIPTION
 **LEP-downloader** is a script for downloading the all FREE episodes of [Luke's ENGLISH Podcast](https://teacherluke.co.uk/archive-of-episodes-1-149/), which have audio, video or text (pdf) files. It requires the Python interpreter, version 3.5+, and it is not platform specific. It should work on your Unix box, on Windows or on macOS. Also you can download the one executable file for your platform. In this case you don't need to install Python (see [Home](https://github.com/hotenov/LEP-downloader/wiki#as-exe) wiki page for details).
@@ -107,5 +112,8 @@ Even 'website only' episodes and a couple lost by Luke =).
 
 ![ver-2-screenshot-03](img/ver-2-screenshot-03.png?raw=true "LEP downloader (ver. 2)")
 
+# CONTACTS
 
+Any questions, issues and suggestions you can email me: qa@hotenov.com  
+Or send me private message: [Facebook](https://www.facebook.com/hotenov), [Twitter](https://twitter.com/_hotenov), [LinkedIn](https://www.linkedin.com/in/hotenov/)
 
