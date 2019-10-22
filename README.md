@@ -4,6 +4,7 @@ Contents:
 - [INSTALLATION](#installation)
 - [OPTIONS](#options)
 - [WHAT'S NEW](#whats-new)
+- [KNOWN ISSUES](#known-issues)
 - [DEMO](#demo)
 - [CONTACTS](#contacts)
 
@@ -102,6 +103,14 @@ It downloads really all available episodes, comparing to the [first version](htt
 Even 'website only' episodes and a couple lost by Luke =).
 
 > I don't want to financially harm Luke in any way, so consider donating to [Luke's English Podcast](https://www.paypal.com/donate/?token=TMJIcfvgEgxmnvr7WNkzDi_cxrZ2_Q_g0SPmsIe6Wc7PETq8T8WHB-Ak_eW03KnD_RBrq0&country.x=GB&locale.x=GB). I just want more people to listen to his podcasts, making them a little easier to download.
+
+# KNOWN ISSUES
+
+> Sometimes several episodes are marked as "NOT FOUND" but if you try to download them separately using `-ep` option they will most likely download successfully.  
+If they still "NOT FOUND" after repeating, please [write me](#contacts) a message. I'll try to solve this issue.
+
+[Issue #3](https://github.com/hotenov/LEP-downloader/issues/3)
+
 
 # DEMO
 **Demo screenshots of the script executions**:
