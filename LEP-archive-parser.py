@@ -277,12 +277,12 @@ else:
 info_data = OrderedDict()
 
 # Iteration counter for getting seqNumber
-iter_counter = items_in_lep_db
+iter_counter = 0
 
 # Iterate each URL and parse information from page
 for link_text, link_url in all_links.items():
     # Get seqNumber in reverse order
-    seq_number = len(all_links.items()) - iter_counter
+    seq_number = all_post_number - iter_counter
     iter_counter += 1
 
     prefix_id = "P" + str(seq_number).zfill(4) + "-"
