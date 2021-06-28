@@ -131,6 +131,8 @@ def find_appropriate_tag_a(tag):
             and not (re.compile("phrasal-verb-a-day").search(tag.attrs['href'])
             or re.compile(r"^.{0,2}\[VIDEO\]", re.I).search(tag.string)
             or re.compile(r"Website content\].?$").search(tag.string)
+            or re.compile(r"all Premium").search(tag.string)
+            or re.compile(r"LEP App").search(tag.string)
             or re.compile(r"episode 522").search(tag.string)))
     else:
         return tag.has_attr('href') and re.compile(r'rock-n-roll-english-podcast|dvd-commentary|british-pop').search(tag.attrs['href'])
