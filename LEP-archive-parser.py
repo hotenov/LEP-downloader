@@ -186,13 +186,15 @@ def ask_uer_to_print_json():
 def get_stat_dict(data_dict, result_key, result_val, has_key, negation = False):
     """Return filtered dict for statistics"""
     if negation:
-         filtered_dict = {
+        filtered_dict = {
             v[result_key] : v[result_val]
-            for k, v in data_dict.items() if not v[has_key]}
+            for k, v in data_dict.items() if not v[has_key]
+        }
     else:
         filtered_dict = {
             v[result_key] : v[result_val]
-            for k, v in data_dict.items() if v[has_key]}
+            for k, v in data_dict.items() if v[has_key]
+        }
     return filtered_dict
 
 
@@ -217,8 +219,8 @@ soup = get_bs_object(resp.text)
 posts_div = soup.find('div', {'class': 'entry-content'})
 if posts_div == None:
     print(bg("\nEMPTY", 88) +": Cannot find div container with class='entry-content' on this URL:\n"
-         + archive_page_url
-         + fg("\nQuit.\n", 228))
+        + archive_page_url
+        + fg("\nQuit.\n", 228))
     sys.exit(0)
 
 print(fg("\n... Parsing START ... \n\n", 208))
