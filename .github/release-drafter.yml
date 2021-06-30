@@ -1,0 +1,54 @@
+categories:
+  - title: ":boom: Breaking Changes"
+    label: "breaking"
+  - title: ":rocket: Features"
+    label: "enhancement"
+  - title: ":fire: Removals and Deprecations"
+    label: "removal"
+  - title: ":beetle: Fixes"
+    label: "bug"
+  - title: ":racehorse: Performance"
+    label: "performance"
+  - title: ":rotating_light: Testing"
+    label: "tests"
+  - title: ":construction_worker: Continuous Integration"
+    label: "ci"
+  - title: ":books: Documentation"
+    label: "doc"
+  - title: ":hammer: Refactoring"
+    label: "refactoring"
+  - title: ":lipstick: Style"
+    label: "style"
+  - title: ":package: Dependencies"
+    labels:
+      - "dependencies"
+      - "build"
+
+exclude-labels:
+  - 'release-pr'
+
+autolabeler:
+  - label: 'ci'
+    files:
+      - '.github/**/*.yml'
+    branch:
+      - '/^\d{1,7}-+(\S+[-])?ci(([-]\S+|-|$))/i'
+  - label: 'bug'
+    branch:
+      - '/^\d{1,7}-+(\S+[-])?fix(([-]\S+|-|$))/i'
+  - label: 'enhancement'
+    branch:
+      - '/^\d{1,7}-+(\S+[-])?feat(([-]\S+|-|$))/i'
+  - label: 'dependencies'
+    branch:
+      - '/^deps-\S+/'
+    title:
+      - '/bump\s/i'
+  - label: 'release-pr'
+    branch:
+      - '/^release-\S+/'
+
+template: |
+  ## What's Changed
+
+  $CHANGES

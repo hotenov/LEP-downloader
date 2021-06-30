@@ -1,0 +1,97 @@
+---
+# Labels names are important as they are used by Release Drafter to decide
+# regarding where to record them in changelog or if to skip them.
+#
+# The repository labels will be automatically configured using this file and
+# the GitHub Action https://github.com/marketplace/actions/github-labeler.
+
+# Release Drafter labels
+- name: breaking
+  description: Breaking Changes
+  color: bfd4f2
+- name: enhancement
+  description: New feature or request
+  color: A8D695
+- name: removal
+  description: Removals and Deprecations
+  color: 9ae7ea
+- name: bug
+  description: Something isn't working
+  color: d73a4a
+- name: performance
+  description: Performance
+  color: "016175"
+- name: tests
+  description: Changes in tests or testing configs
+  color: b1fc6f
+- name: ci
+  description: Continuous Integration
+  color: 4a97d6
+- name: doc
+  color: ffecdb
+  description: Improvements or additions to documentation
+  from_name: documentation
+- name: refactoring
+  description: Refactoring
+  color: ef67c4
+- name: style
+  description: Style
+  color: c120e5
+- name: dependencies
+  description: Pull requests that update a dependency file
+  color: 0366d6
+- name: build
+  description: Build System and Dependencies
+  color: bfdadc
+# Helpers Labels
+- name: duplicate
+  description: This issue or pull request already exists
+  color: cfd3d7
+- name: github_actions
+  description: Pull requests that update Github_actions code
+  color: "000000"
+- name: good first issue
+  description: Good for newcomers
+  color: 7057ff
+- name: help wanted
+  description: Extra attention is needed
+  color: 008672
+- name: invalid
+  description: This doesn't seem right
+  color: e4e669
+- name: wontfix
+  description: This will not be worked on
+  color: ffffff
+# Priority Labels
+- name: ASAP
+  color: FF0000
+  description: As Soon As Possible issues
+- name: High
+  color: DC143C
+  description: Very important task from business point of view
+- name: Normal
+  color: ff8c00
+  description: Normal (medium) priority task from business point of view
+- name: Low
+  color: FFDAB9
+  description: Low priority task from business point of view
+# Severity Labels
+- name: critical
+  color: FF4540
+  description: Critical bug severity
+- name: major
+  color: FFAC40
+  description: Major bug severity
+- name: moderate
+  color: E49744
+  description: Moderate (medium) bug severity
+- name: minor
+  color: E3FB71
+  description: Minor bug severity
+- name: cosmetic
+  color: 64B4D4
+  description: Cosmetic bug severity
+# Excluding labels
+- name: release-pr
+  color: 5B8386
+  description: PR with bumping new version
