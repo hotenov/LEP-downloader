@@ -1,3 +1,10 @@
+exclude: |
+  (?x)^(
+    LEP-archive-parser.py|
+    LEP-downloader.py|
+    luke_english_podcast_downloader.py|
+    dist/2.0.5/LEP-downloader.py
+  )$
 repos:
   - repo: local
     hooks:
