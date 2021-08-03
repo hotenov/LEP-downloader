@@ -25,26 +25,26 @@ categories:
       - "build"
 
 exclude-labels:
-  - 'release-pr'
+  - "release-pr"
 
 autolabeler:
-  - label: 'ci'
+  - label: "ci"
     files:
-      - '.github/**/*.yml'
+      - ".github/**/*.yml"
     branch:
       - '/^\d{1,7}-+(\S+[-])?ci(([-]\S+|-|$))/i'
-  - label: 'bug'
+  - label: "bug"
     branch:
       - '/^\d{1,7}-+(\S+[-])?fix(([-]\S+|-|$))/i'
-  - label: 'enhancement'
+  - label: "enhancement"
     branch:
       - '/^\d{1,7}-+(\S+[-])?feat(([-]\S+|-|$))/i'
-  - label: 'dependencies'
+  - label: "dependencies"
     branch:
       - '/^deps-\S+/'
     title:
       - '/bump\s/i'
-  - label: 'release-pr'
+  - label: "release-pr"
     branch:
       - '/^release-\S+/'
 
