@@ -48,6 +48,7 @@ sphinx-rtd-theme = "^0.5.2"
 sphinx-click = "^3.0.1"
 Pygments = "^2.9.0"
 requests-file = "^1.5.1"
+requests-mock = "^1.9.3"
 
 [tool.poetry.scripts]
 lep-downloader = "lep_downloader.__main__:main"
