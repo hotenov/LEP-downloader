@@ -1,1 +1,1 @@
-"""LEP module for general logic."""
+"""LEP module for general logic and classes."""
