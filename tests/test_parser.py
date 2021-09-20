@@ -1,9 +1,13 @@
 """Test cases for the parser module."""
 from pathlib import Path
+import typing as t
 
+from bs4 import BeautifulSoup
 import pytest
 import requests
 import requests_mock as req_mock
+from requests_mock.mocker import Mocker as rm_Mocker
+from requests_mock.response import _Context as rm_Context
 
 from lep_downloader import config as conf
 from lep_downloader import parser
@@ -63,18 +67,170 @@ LINK_FILE_MAPPING = {
         "2021-08-11_lep-e733-page-content-pretty.html",
 }
 
-MAPPING_KEYS = [*LINK_FILE_MAPPING]
+MAPPING_KEYS: t.List[str] = [*LINK_FILE_MAPPING]
+
+s = requests.Session()
 
 
-def mock_archive_page(request, context):
-    """"Callback for creating mocked Response."""
+def test_getting_success_page_response(requests_mock: rm_Mocker) -> None:
+    """It gets HTML content as text."""
+    requests_mock.get(req_mock.ANY, text="Response OK")
+    resp = parser.get_web_page_html_text(conf.ARCHIVE_URL, s)
+    assert resp == "Response OK"
+
+
+def test_getting_404_page_response(requests_mock: rm_Mocker) -> None:
+    """It raises HTTPError if page is not found."""
+    requests_mock.get(req_mock.ANY, text="Response OK", status_code=404)
+    with pytest.raises(requests.exceptions.HTTPError) as exc_info:
+        parser.get_web_page_html_text(conf.ARCHIVE_URL, s)
+    assert exc_info.typename == "HTTPError"
+
+
+def test_getting_503_page_response(requests_mock: rm_Mocker) -> None:
+    """It raises HTTPError if service is unavailable."""
+    requests_mock.get(req_mock.ANY, text="Response OK", status_code=503)
+    with pytest.raises(requests.exceptions.HTTPError) as exc_info:
+        parser.get_web_page_html_text(conf.ARCHIVE_URL, s)
+    assert exc_info.typename == "HTTPError"
+
+
+def test_retrieve_all_links_from_soup() -> None:
+    """It returns only <a> tags from soup object."""
+    html_doc = """<html><head><title>The Dormouse's story</title></head>
+        <body>
+            <p class="title"><b>The Dormouse's story</b></p>
+            <p class="story">Once upon a time there were three little sisters; and their names were
+                <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
+                <a href="http://example.com/Sara" class="sister" id="link2">Sara</a> and
+                <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+                and they lived at the bottom of a well.
+            </p>
+            <p class="story">...</p>
+    """
+    soup = BeautifulSoup(html_doc, "lxml")
+    only_links = parser.get_all_links_from_soup(soup)
+    assert len(only_links) == 3
+
+
+def test_replacing_misspelled_link() -> None:
+    """It replaces misspelled link and returns modified soup object."""
+    html_doc = """<html><head><title>The Dormouse's story</title></head>
+        <body>
+            <p class="story">Once upon a time there were three little sisters; and their names were
+                <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
+                <a href="https://teacherluke.co.ukm/2012/08/06/london-olympics-2012/" class="sister" id="link2">Sara</a> and
+                <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+                and they lived at the bottom of a well.
+            </p>
+    """
+    soup = BeautifulSoup(html_doc, "lxml")
+    modified_soup = parser.replace_misspelled_link(soup)
+    new_href = modified_soup("a")[1]["href"]
+    assert new_href == "https://teacherluke.co.uk/2012/08/06/london-olympics-2012/"
+
+
+def test_replacing_nothing_when_no_misspelled_link() -> None:
+    """It replaces nothing when there is no misspelled link and returns the same soup object."""
+    html_doc = """<html><head><title>The Dormouse's story</title></head>
+        <body>
+            <p class="story">Once upon a time there were three little sisters; and their names were
+                <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
+                <a href="https://teacherluke.co.uktest/2012/08/06/london-olympics-2012/" class="sister" id="link2">Sara</a> and
+                <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+                and they lived at the bottom of a well.
+            </p>
+    """
+    soup = BeautifulSoup(html_doc, "lxml")
+    modified_soup = parser.replace_misspelled_link(soup)
+    assert soup == modified_soup
+
+
+def test_removing_irrelevant_links() -> None:
+    """It removes known (from config list) irrelevant links."""
+    test_list: t.List[str] = [
+        "https://teacherluke.co.uk/2020/11/23/wisbolep/",
+        "https://wp.me/P4IuUx-82H",  # <- Link to app
+        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",
+        "https://teacherluke.co.uk/2021/03/26/711-william-from-france-%f0%9f%87%ab%f0%9f%87%b7-wisbolep-runner-up/",
+    ]
+    new_list: t.List[str] = parser.remove_irrelevant_links(test_list)
+    assert len(new_list) == 3
+
+
+def test_removing_not_episode_links() -> None:
+    """It removes links from list which are not match by regex pattern."""
+    test_list: t.List[str] = [
+        "https://teacherluke.co.uk/2020/11/23/wisbolep/",
+        "https://teacherluke.co.uk/premium/archive-comment-section/",  # <- bad
+        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",
+        "https://teacherluke.co.uk/2021/03/26/711-william-from-france-%f0%9f%87%ab%f0%9f%87%b7-wisbolep-runner-up/",
+        "http://wp.me/p4IuUx-7sg",
+        "http://teacherluke.wordpress.com/2012/09/27/113-setting-the-world-to-rights/",
+        "https://example.com/",  # <- bad
+    ]
+    new_list: t.List[str] = parser.remove_not_episode_links_by_regex_pattern(test_list)
+    assert len(new_list) == 5
+
+
+def test_getting_links_text_by_href() -> None:
+    """It gets list of link texts, searching by their 'href' attribute."""
+    html_doc: str = """<html><head><title>The Dormouse's story</title></head>
+        <body>
+            <p class="story">Once upon a time there were three little sisters; and their names were
+                <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
+                <a href="https://teacherluke.co.uk/2017/05/26/i-was-invited-onto-the-english-across-the-pond-podcast/" class="sister" id="link2">
+                    Link from dict</a> and
+                <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+                <a href="http://example.com/spaces" class="sister" id="link3">  Text with spaces   
+                    </a>;
+                and they lived at the bottom of a well.
+            </p>
+            <a href="http://example.com/john" class="sister" id="link3">4th sister is John!</a>;
+
+    """
+    search_links: t.List[str] = [
+        "https://teacherluke.co.uk/2017/05/26/i-was-invited-onto-the-english-across-the-pond-podcast/",
+        "http://example.com/spaces",
+        "http://example.com/john",
+    ]
+    soup = BeautifulSoup(html_doc, "lxml")
+    texts = parser.get_links_text_by_href(soup, search_links)
+    expected_texts: t.List[str] = [
+        "[Website content] I was invited onto the “English Across The Pond” Podcast",
+        "Text with spaces",
+        "4th sister is John!",
+    ]
+    assert texts == expected_texts
+
+
+def test_short_links_substitution() -> None:
+    """It replaces short links with links from config dictionary."""
+    test_list: t.List[str] = [
+        "http://wp.me/p4IuUx-7sg",
+        "https://wp.me/P4IuUx-82H",  # <- Link to app (no replacing)
+        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",
+        "https://wp.me/p4IuUx-29",
+    ]
+    replaced: t.List[str] = parser.substitute_short_links(test_list)
+    expected: t.List[str] = [
+        "https://teacherluke.co.uk/2017/01/10/415-with-the-family-part-3-more-encounters-with-famous-people/",
+        "https://wp.me/P4IuUx-82H",
+        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",
+        "https://teacherluke.co.uk/2011/10/11/notting-hill-carnival-video-frustration-out-takes/",
+    ]
+    assert replaced == expected
+
+
+def mock_archive_page(request: requests.Request, context: rm_Context) -> t.IO[bytes]:
+    """"Callback for creating mocked Response of archive page."""
     context.status_code = 200
     # resp = io.StringIO()
     resp = OFFLINE_HTML_DIR / conf.LOCAL_ARCHIVE_HTML
     return open(resp, "rb")
 
 
-def test_parsing_result(requests_mock) -> None:
+def test_parsing_result(requests_mock: rm_Mocker) -> None:
     """It parses mocked archived page."""
     requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
     parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
@@ -90,8 +246,16 @@ def test_parsing_result(requests_mock) -> None:
     assert len(link_strings) > 781
 
 
-def mocked_single_page_matcher(request):
-    """Return local file instead of real web page."""
+def test_parsing_invalid_html(requests_mock: rm_Mocker) -> None:
+    """It returns None if page does not comply with the parsing rules."""
+    markup: str = '<a class="entry" id="post">'
+    requests_mock.get(conf.ARCHIVE_URL, text=markup)
+    parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
+    assert parsing_result is None
+
+
+def mocked_single_page_matcher(request: requests.Request) -> t.Optional[requests.Response]:
+    """Return OK response if URL has mocked (pre-saved) local file."""
     url = request.url.lower()
     if url in MAPPING_KEYS:
         resp = requests.Response()
@@ -100,19 +264,19 @@ def mocked_single_page_matcher(request):
     return None
 
 
-def mock_single_page(request, context):
-    """"Callback for creating mocked Response."""
+def mock_single_page(request: requests.Request, context: rm_Context) -> t.IO[bytes]:
+    """"Callback for creating mocked Response of episode page."""
     # context.status_code = 200
     url = request.url.lower()
     local_path = OFFLINE_HTML_DIR / "ep_htmls" / LINK_FILE_MAPPING[url]
     return open(local_path, "rb")
 
 
-def test_mocking_single_page(requests_mock) -> None:
-    """It parses mocked archived page."""
+def test_mocking_single_page(requests_mock: rm_Mocker) -> None:
+    """It parses mocked episode page."""
     requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
-    parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
-    all_links = parsing_result[0]
+    parsing_result: t.Tuple[t.List[str], ...] = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
+    all_links: t.List[str] = parsing_result[0]
 
     session = requests.Session()
     titles = []
