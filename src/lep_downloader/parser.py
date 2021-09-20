@@ -3,8 +3,6 @@ import copy
 import re
 from typing import Any
 from typing import List
-from typing import Optional
-from typing import Tuple
 
 import requests
 from bs4 import BeautifulSoup
@@ -32,7 +30,7 @@ def get_web_page_html_text(page_url: str, session: requests.Session) -> Any:
             raise
         except requests.exceptions.ConnectionError:
             raise
-        except:
+        except Exception:
             raise
         else:
             resp.encoding = "utf-8"
@@ -50,7 +48,7 @@ def get_all_links_from_soup(soup_obj: BeautifulSoup) -> List[str]:
 
 
 def replace_misspelled_link(soup_obj: BeautifulSoup) -> BeautifulSoup:
-    """Replace link with '.ukm' misspelled LTD"""
+    """Replace link with '.ukm' misspelled LTD."""
     modified_soup = copy.copy(soup_obj)  # TODO: Really needs to copy?
     misspelled_tag_a = modified_soup.find(
         "a", href="https://teacherluke.co.ukm/2012/08/06/london-olympics-2012/"

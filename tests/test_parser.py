@@ -156,7 +156,6 @@ def test_getting_links_text_by_href() -> None:
                 and they lived at the bottom of a well.
             </p>
             <a href="http://example.com/john" class="sister" id="link3">4th sister is John!</a>;
-
     """
     search_links: t.List[str] = [
         "https://teacherluke.co.uk/2017/05/26/i-was-invited-onto-the-english-across-the-pond-podcast/",
@@ -192,7 +191,7 @@ def test_short_links_substitution() -> None:
 
 
 def mock_archive_page(request: requests.Request, context: rm_Context) -> t.IO[bytes]:
-    """"Callback for creating mocked Response of archive page."""
+    """Callback for creating mocked Response of archive page."""
     context.status_code = 200
     # resp = io.StringIO()
     resp = OFFLINE_HTML_DIR / conf.LOCAL_ARCHIVE_HTML
@@ -236,7 +235,7 @@ def mocked_single_page_matcher(
 
 
 def mock_single_page(request: requests.Request, context: rm_Context) -> t.IO[bytes]:
-    """"Callback for creating mocked Response of episode page."""
+    """Callback for creating mocked Response of episode page."""
     # context.status_code = 200
     url = request.url.lower()
     local_path = OFFLINE_HTML_DIR / "ep_htmls" / LINK_FILE_MAPPING[url]
