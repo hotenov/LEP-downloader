@@ -1,10 +1,14 @@
 """LEP module for parsing logic."""
 import copy
 import re
-from typing import Any, List, Optional, Tuple
+from typing import Any
+from typing import List
+from typing import Optional
+from typing import Tuple
 
-from bs4 import BeautifulSoup, SoupStrainer
 import requests
+from bs4 import BeautifulSoup
+from bs4 import SoupStrainer
 
 from lep_downloader import config as conf
 
@@ -48,9 +52,13 @@ def get_all_links_from_soup(soup_obj: BeautifulSoup) -> List[str]:
 def replace_misspelled_link(soup_obj: BeautifulSoup) -> BeautifulSoup:
     """Replace link with '.ukm' misspelled LTD"""
     modified_soup = copy.copy(soup_obj)  # TODO: Really needs to copy?
-    misspelled_tag_a = modified_soup.find("a", href="https://teacherluke.co.ukm/2012/08/06/london-olympics-2012/")
+    misspelled_tag_a = modified_soup.find(
+        "a", href="https://teacherluke.co.ukm/2012/08/06/london-olympics-2012/"
+    )
     if misspelled_tag_a:
-        misspelled_tag_a["href"] = "https://teacherluke.co.uk/2012/08/06/london-olympics-2012/"
+        misspelled_tag_a[
+            "href"
+        ] = "https://teacherluke.co.uk/2012/08/06/london-olympics-2012/"
     del misspelled_tag_a
     return modified_soup
 
