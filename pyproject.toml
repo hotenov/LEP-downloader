@@ -62,7 +62,7 @@ source = ["lep_downloader"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 100
+fail_under = 85
 
 [tool.mypy]
 strict = true
@@ -71,13 +71,15 @@ show_column_numbers = true
 show_error_codes = true
 show_error_context = true
 
-[mypy-desert]
-ignore_missing_imports = true
-
-[mypy-pytest]
-ignore_missing_imports = true
-
-[mypy-pytest_mock]
+[[tool.mypy.overrides]]
+module = [
+    'desert',
+    'pytest',
+    'pytest_mock.*',
+    'requests.*',
+    'bs4.*',
+    'requests_mock.*',
+]
 ignore_missing_imports = true
 
 [build-system]
