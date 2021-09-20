@@ -19,7 +19,7 @@ SHORT_LINKS_MAPPING_DICT = {
 
 # MISSPELLED_LTD = ".co.ukm"
 
-NOT_EPISODE_LINKS = (
+IRRELEVANT_LINKS = (
         "https://wp.me/P4IuUx-82H",
 )
 
