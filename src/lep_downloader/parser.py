@@ -14,6 +14,7 @@ from lep_downloader import config as conf
 deleted_links = []
 regex = conf.EPISODE_LINK_RE
 ep_pattern = re.compile(regex, re.IGNORECASE)
+INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
 s = requests.Session()
 
 
@@ -94,7 +95,8 @@ def get_links_text_by_href(
             link_string = conf.LINK_TEXTS_MAPPING[url]
         else:
             link_string = " ".join([text for text in a_tag.stripped_strings])
-        link_strings.append(link_string)
+        safe_name = INVALID_PATH_CHARS_PATTERN.sub("_", link_string)
+        link_strings.append(safe_name)
 
     return link_strings
 

@@ -23,6 +23,8 @@ IRRELEVANT_LINKS = ("https://wp.me/P4IuUx-82H",)
 
 EPISODE_LINK_RE = r"https?://((?P<short>wp\.me/p4IuUx-[\w-]+)|(teacherluke\.(co\.uk|wordpress\.com)/(?P<date>\d{4}/\d{2}/\d{2})/))"
 
+INVALID_PATH_CHARS_RE = r"[<>:\"/\\\\|?*]"
+
 LINK_TEXTS_MAPPING = {
     "https://teacherluke.co.uk/2018/04/18/522-learning-english-at-summer-school-in-the-uk-a-rambling-chat-with-raphael-miller/": "522. Learning English at Summer School in the UK (A Rambling Chat with Raphael Miller)",
     "https://teacherluke.co.uk/2017/08/14/website-content-lukes-criminal-past-zep-episode-185/": "[Website content] Luke’s Criminal Past (ZEP Episode 185)",
