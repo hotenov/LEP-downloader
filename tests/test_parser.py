@@ -155,7 +155,7 @@ def test_getting_links_text_by_href() -> None:
                     </a>;
                 and they lived at the bottom of a well.
             </p>
-            <a href="http://example.com/john" class="sister" id="link3">4th sister is John!</a>;
+            <a href="http://example.com/john" class="sister" id="link3">4th sister: is John?!</a>;
     """
     search_links: t.List[str] = [
         "https://teacherluke.co.uk/2017/05/26/i-was-invited-onto-the-english-across-the-pond-podcast/",
@@ -165,9 +165,9 @@ def test_getting_links_text_by_href() -> None:
     soup = BeautifulSoup(html_doc, "lxml")
     texts = parser.get_links_text_by_href(soup, search_links)
     expected_texts: t.List[str] = [
-        "[Website content] I was invited onto the “English Across The Pond” Podcast",
+        "[Website content] I was invited onto the “English Across The Pond” Podcast",  # Replace from config dict
         "Text with spaces",
-        "4th sister is John!",
+        "4th sister_ is John_!",  # Replace invalid characters
     ]
     assert texts == expected_texts
 
