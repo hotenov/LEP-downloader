@@ -249,18 +249,45 @@ def test_mocking_single_page(requests_mock: rm_Mocker) -> None:
         conf.ARCHIVE_URL
     )
     all_links: t.List[str] = parsing_result[0]
-
+    all_texts: t.List[str] = parsing_result[2]
     session = requests.Session()
-    titles = []
-    for url in all_links:
+    parsed_episodes = []
+    texts_from_first_to_last = list(reversed(all_texts))
+    for i, url in enumerate(list(reversed(all_links))):
+        url_title = texts_from_first_to_last[i]
         try:
             requests_mock.get(
                 url,
                 additional_matcher=mocked_single_page_matcher,
                 body=mock_single_page,
             )
-            title = parser.parse_single_page(url, session)
-            titles.append(title)
+            ep = parser.parse_single_page(url, session, url_title)
+            parsed_episodes.append(ep)
         except req_mock.exceptions.NoMockAddress:
             pass
-    assert len(titles) > 15
+
+    assert len(parsed_episodes) > 15
+
+
+def test_parsing_post_datetime() -> None:
+    """It gets post datetime."""
+    html_doc = """<a href="https://teacherluke.co.uk/2009/04/12/episode-1-introduction/" title="3:23 pm" rel="bookmark">
+            <time class="entry-date" datetime="2009-04-12T15:23:33+02:00">April 12, 2009</time>
+        </a>
+    """
+    soup = BeautifulSoup(html_doc, "lxml")
+    post_date = parser.parse_post_publish_datetime(soup)
+    excepted = "2009-04-12T15:23:33+02:00"
+    assert post_date == excepted
+
+
+def test_parsing_post_datetime_without_element() -> None:
+    """It returns default post datetime."""
+    html_doc = """<a href="https://teacherluke.co.uk/2009/04/12/episode-1-introduction/" title="3:23 pm" rel="bookmark">
+            <time>April 12, 2009</time>
+        </a>
+    """
+    soup = BeautifulSoup(html_doc, "lxml")
+    post_date = parser.parse_post_publish_datetime(soup)
+    excepted = "2009-01-01T01:01:01+02:00"
+    assert post_date == excepted

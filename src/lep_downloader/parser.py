@@ -9,12 +9,18 @@ from bs4 import BeautifulSoup
 from bs4 import SoupStrainer
 
 from lep_downloader import config as conf
+from lep_downloader.lep import LepEpisode
 
 
 deleted_links = []
 regex = conf.EPISODE_LINK_RE
 ep_pattern = re.compile(regex, re.IGNORECASE)
 INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
+begining_digits_re = r"^\d{1,5}"
+BEGINING_DIGITS_PATTERN = re.compile(begining_digits_re)
+
+only_div_content_main = SoupStrainer("div", id="content", role="main")
+
 s = requests.Session()
 
 
@@ -140,13 +146,59 @@ def get_archive_parsing_results(archive_url: str) -> Any:
         return None
 
 
-def parse_single_page(url: str, session: requests.Session) -> Any:
-    """Returns result of parsing of single page."""
-    req = session.get(url, timeout=(3.05, 27))
-    req.encoding = "utf-8"
-    html_text = req.text
+def parse_post_publish_datetime(soup: BeautifulSoup) -> str:
+    """Returns post datetime as string."""
+    tag_entry_datetime = soup.find("time", class_="entry-date")
+    if tag_entry_datetime is not None:
+        date_value = tag_entry_datetime["datetime"]
+    else:
+        date_value = "2009-01-01T01:01:01+02:00"
+    return date_value
 
-    soup_obj = BeautifulSoup(html_text, "lxml")
-    page_title = soup_obj.title.string
-    result = page_title
-    return result
+
+def parse_episode_number(post_title: str) -> int:
+    """Returns episode number."""
+    match = BEGINING_DIGITS_PATTERN.match(post_title)
+    if match:
+        return int(match.group())
+    else:
+        return 0
+
+
+def parse_single_page(
+    url: str,
+    session: requests.Session,
+    url_title: str,
+) -> dict:
+    """Returns a dict of parsed episode."""
+    html_page = get_web_page_html_text(url, session)
+
+    soup_div = BeautifulSoup(html_page, "lxml", parse_only=only_div_content_main)
+
+    post_title = url_title
+    ep_number = parse_episode_number(post_title)
+    post_date = parse_post_publish_datetime(soup_div)
+    final_location = url
+
+    lep_ep = LepEpisode(
+        episode=ep_number,
+        date=post_date,
+        url=final_location,
+        post_title=post_title,
+    )
+    return lep_ep.__dict__
+
+
+def get_parsed_episodes(
+    urls: List[str],
+    session: requests.Session,
+    texts: List[str],
+) -> Any:
+    """Returns list of parsed episodes."""
+    parsed_episodes: List[LepEpisode] = []
+    texts_from_first_to_last = list(reversed(texts))
+    for i, url in enumerate(list(reversed(urls))):
+        url_title = texts_from_first_to_last[i]
+        ep = parse_single_page(url, session, url_title)
+        parsed_episodes.append(ep)
+    return parsed_episodes
