@@ -344,3 +344,23 @@ def test_parsing_post_datetime_without_element() -> None:
     post_date = parser.parse_post_publish_datetime(soup)
     excepted = "2009-01-01T01:01:01+02:00"
     assert post_date == excepted
+
+
+def test_generating_new_post_index() -> None:
+    """It generates index from URL."""
+    indexes = []
+    test_url = "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/"
+    index = parser.generate_post_index(test_url, indexes)
+    expected_index = int("2009041201")
+    assert index == expected_index
+
+
+def test_generating_new_post_index_on_same_day() -> None:
+    """It generates index from URL if posts are on the same day."""
+    indexes = [2009041201]
+    test_url = "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/"
+    index = parser.generate_post_index(test_url, indexes)
+    expected_index = int("2009041202")
+    assert index == expected_index
+    index2 = parser.generate_post_index(test_url, indexes)
+    assert index2 == expected_index + 1
