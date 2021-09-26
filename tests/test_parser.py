@@ -2,7 +2,7 @@
 import typing as t
 from pathlib import Path
 
-import pytest
+# import pytest
 import requests
 import requests_mock as req_mock
 from bs4 import BeautifulSoup
@@ -44,24 +44,77 @@ s = requests.Session()
 def test_getting_success_page_response(requests_mock: rm_Mocker) -> None:
     """It gets HTML content as text."""
     requests_mock.get(req_mock.ANY, text="Response OK")
-    resp = parser.get_web_page_html_text(conf.ARCHIVE_URL, s)
+    resp = parser.get_web_page_html_text(conf.ARCHIVE_URL, s)[0]
     assert resp == "Response OK"
 
 
 def test_getting_404_page_response(requests_mock: rm_Mocker) -> None:
-    """It raises HTTPError if page is not found."""
+    """It handles HTTPError if page is not found."""
     requests_mock.get(req_mock.ANY, text="Response OK", status_code=404)
-    with pytest.raises(requests.exceptions.HTTPError) as exc_info:
-        parser.get_web_page_html_text(conf.ARCHIVE_URL, s)
-    assert exc_info.typename == "HTTPError"
+    resp = parser.get_web_page_html_text("http://example.com", s)[0]
+    assert "[ERROR]" in resp
+    assert "404" in resp
 
 
 def test_getting_503_page_response(requests_mock: rm_Mocker) -> None:
-    """It raises HTTPError if service is unavailable."""
+    """It handle HTTPError if service is unavailable."""
     requests_mock.get(req_mock.ANY, text="Response OK", status_code=503)
-    with pytest.raises(requests.exceptions.HTTPError) as exc_info:
-        parser.get_web_page_html_text(conf.ARCHIVE_URL, s)
-    assert exc_info.typename == "HTTPError"
+    resp = parser.get_web_page_html_text("http://example.com", s)[0]
+    assert "[ERROR]" in resp
+    assert "503" in resp
+
+
+def test_timeout_error(requests_mock: rm_Mocker) -> None:
+    """It handle any Timeout exception for page."""
+    requests_mock.get(req_mock.ANY, exc=requests.exceptions.Timeout)
+    resp = parser.get_web_page_html_text("http://example.com", s)[0]
+    assert "[ERROR]" in resp
+    assert "Timeout" in resp
+
+
+def test_connection_error(requests_mock: rm_Mocker) -> None:
+    """It handles ConnectionError exception for bad request."""
+    requests_mock.get(req_mock.ANY, exc=requests.exceptions.ConnectionError)
+    resp = parser.get_web_page_html_text("http://example.com", s)[0]
+    assert "[ERROR]" in resp
+    assert "Bad request" in resp
+
+
+def test_unknown_error(requests_mock: rm_Mocker) -> None:
+    """It handles any other exceptions during attempt to get response from URL."""
+    requests_mock.get(req_mock.ANY, exc=Exception("Something Bad"))
+    resp = parser.get_web_page_html_text("http://example.com", s)[0]
+    assert "[ERROR]" in resp
+    assert "Unhandled error" in resp
+
+
+def test_final_location_for_good_redirect(requests_mock: rm_Mocker) -> None:
+    """It retrieves final location during redirect."""
+    requests_mock.get(
+        "https://re.direct",
+        text="Rederecting to...",
+        status_code=301,
+        headers={"Location": "https://final.location/"}
+    )
+    requests_mock.get("https://final.location", text="Final location")
+    text, final_location = parser.get_web_page_html_text("https://re.direct", s)
+    assert text == "Final location"
+    assert final_location == "https://final.location/"
+
+
+def test_final_location_for_bad_redirect(requests_mock: rm_Mocker) -> None:
+    """It retrieves final location during redirect."""
+    requests_mock.get(
+        "https://re.direct",
+        text="Rederecting to...",
+        status_code=301,
+        headers={"Location": "https://bad.final.location/"}
+    )
+    requests_mock.get("https://bad.final.location/", text="Final location", status_code=404)
+    text, final_location = parser.get_web_page_html_text("https://re.direct", s)
+    assert "[ERROR]" in text
+    assert "bad.final.location" in text
+    assert final_location == "https://bad.final.location/"
 
 
 def test_retrieve_all_links_from_soup() -> None:
