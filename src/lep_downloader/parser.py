@@ -21,6 +21,8 @@ BEGINING_DIGITS_PATTERN = re.compile(begining_digits_re)
 
 only_div_content_main = SoupStrainer("div", id="content", role="main")
 
+post_indexes = []
+
 s = requests.Session()
 
 
@@ -155,7 +157,7 @@ def parse_post_publish_datetime(soup: BeautifulSoup) -> str:
     if tag_entry_datetime is not None:
         date_value = tag_entry_datetime["datetime"]
     else:
-        date_value = "2009-01-01T01:01:01+02:00"
+        date_value = "1999-01-01T01:01:01+02:00"
     return date_value
 
 
@@ -168,18 +170,44 @@ def parse_episode_number(post_title: str) -> int:
         return 0
 
 
+def generate_post_index(post_url: str, indexes: List[int]) -> int:
+    """Returns index number for post."""
+    match = ep_pattern.match(post_url)
+    if match:
+        groups_dict = match.groupdict()
+        date_from_url = groups_dict["date"]
+        date_numbers = date_from_url.replace("/", "")
+
+        number_at_same_day = 1
+        index_as_string = date_numbers + str(number_at_same_day).zfill(2)
+        new_index = int(index_as_string)
+        exists = False
+        while not exists:
+            if new_index in indexes:
+                new_index += 1
+            else:
+                indexes.append(new_index)
+                exists = True
+        return new_index
+    else:
+        return 0
+
+
 def parse_single_page(
     url: str,
     session: requests.Session,
     url_title: str,
-) -> dict:
+) -> Dict[str, Any]:
     """Returns a dict of parsed episode."""
+    # TODO: Add conditions for response with ERRORs
     html_page, final_location = get_web_page_html_text(url, session)
 
-    soup_div = BeautifulSoup(html_page, "lxml", parse_only=only_div_content_main)
-
+    # TODO: Add condition if index == 0 (not episode link)
+    index = generate_post_index(final_location, post_indexes)
     post_title = url_title
     ep_number = parse_episode_number(post_title)
+
+    soup_div = BeautifulSoup(html_page, "lxml", parse_only=only_div_content_main)
     post_date = parse_post_publish_datetime(soup_div)
 
     lep_ep = LepEpisode(
@@ -187,6 +215,7 @@ def parse_single_page(
         date=post_date,
         url=final_location,
         post_title=post_title,
+        index=index,
     )
     return lep_ep.__dict__
 
