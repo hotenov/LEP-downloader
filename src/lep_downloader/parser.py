@@ -1,7 +1,7 @@
 """LEP module for parsing logic."""
 import copy
 import re
-from typing import Any
+from typing import Any, Dict
 from typing import List
 
 import requests
@@ -26,22 +26,25 @@ s = requests.Session()
 
 def get_web_page_html_text(page_url: str, session: requests.Session) -> Any:
     """Return HTML text of LEP archive page."""
+    final_location = page_url
     with session:
         try:
             resp = session.get(page_url, timeout=(6, 33))
+            final_location = resp.url
             if not resp.ok:
                 resp.raise_for_status()
-        except requests.exceptions.HTTPError:
-            raise
-        except requests.exceptions.Timeout:
-            raise
-        except requests.exceptions.ConnectionError:
-            raise
-        except Exception:
-            raise
+        except requests.exceptions.HTTPError as err:
+            return (f"[ERROR]: {err}", final_location)
+        except requests.exceptions.Timeout as err:
+            return (f"[ERROR]: Timeout | {err}", final_location)
+        except requests.exceptions.ConnectionError as err:
+            return (f"[ERROR]: Bad request | {err}", final_location)
+        except Exception as err:
+            return (f"[ERROR]: Unhandled error | {err}", final_location)
         else:
             resp.encoding = "utf-8"
-            return resp.text
+            final_location = resp.url
+            return (resp.text, final_location)
 
 
 def get_all_links_from_soup(soup_obj: BeautifulSoup) -> List[str]:
@@ -122,7 +125,7 @@ def substitute_short_links(unique_links: List[str]) -> List[str]:
 
 def get_archive_parsing_results(archive_url: str) -> Any:
     """Return Tuple with valid episode links and discarded links."""
-    html_page = get_web_page_html_text(archive_url, s)
+    html_page = get_web_page_html_text(archive_url, s)[0]
     only_div_entry_content = SoupStrainer("div", class_="entry-content")
     soup_div = BeautifulSoup(html_page, "lxml", parse_only=only_div_entry_content)
 
@@ -171,14 +174,13 @@ def parse_single_page(
     url_title: str,
 ) -> dict:
     """Returns a dict of parsed episode."""
-    html_page = get_web_page_html_text(url, session)
+    html_page, final_location = get_web_page_html_text(url, session)
 
     soup_div = BeautifulSoup(html_page, "lxml", parse_only=only_div_content_main)
 
     post_title = url_title
     ep_number = parse_episode_number(post_title)
     post_date = parse_post_publish_datetime(soup_div)
-    final_location = url
 
     lep_ep = LepEpisode(
         episode=ep_number,
@@ -193,7 +195,7 @@ def get_parsed_episodes(
     urls: List[str],
     session: requests.Session,
     texts: List[str],
-) -> Any:
+) -> List[Dict[str, Any]]:
     """Returns list of parsed episodes."""
     parsed_episodes: List[LepEpisode] = []
     texts_from_first_to_last = list(reversed(texts))
