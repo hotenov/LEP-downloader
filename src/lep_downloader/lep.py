@@ -11,6 +11,7 @@ class LepEpisode:
         url: str = "",
         post_title: str = "",
         index: int = 0,
+        admin_note: str = "",
     ) -> None:
         """Default instance of LepEpisode.
 
@@ -20,9 +21,11 @@ class LepEpisode:
             url (str): Final location of post URL.
             post_title (str): Post title, extracted from tag <a> and safe for windows path.
             index (int): Parsing index: concatenation of URL date and increment (for several posts).
+            admin_note (str): Note for administrator and storing error message (for bad response)
         """
         self.episode = episode
         self.date = date
         self.url = url
         self.post_title = post_title
         self.index = index
+        self.admin_note = admin_note
