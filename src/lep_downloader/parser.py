@@ -1,7 +1,7 @@
 """LEP module for parsing logic."""
 import copy
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from typing import List
 
 import requests
@@ -29,6 +29,7 @@ s = requests.Session()
 def get_web_page_html_text(page_url: str, session: requests.Session) -> Any:
     """Return HTML text of LEP archive page."""
     final_location = page_url
+    is_url_ok = False
     with session:
         try:
             resp = session.get(page_url, timeout=(6, 33))
@@ -36,17 +37,18 @@ def get_web_page_html_text(page_url: str, session: requests.Session) -> Any:
             if not resp.ok:
                 resp.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            return (f"[ERROR]: {err}", final_location)
+            return (f"[ERROR]: {err}", final_location, is_url_ok)
         except requests.exceptions.Timeout as err:
-            return (f"[ERROR]: Timeout | {err}", final_location)
+            return (f"[ERROR]: Timeout | {err}", final_location, is_url_ok)
         except requests.exceptions.ConnectionError as err:
-            return (f"[ERROR]: Bad request | {err}", final_location)
+            return (f"[ERROR]: Bad request | {err}", final_location, is_url_ok)
         except Exception as err:
-            return (f"[ERROR]: Unhandled error | {err}", final_location)
+            return (f"[ERROR]: Unhandled error | {err}", final_location, is_url_ok)
         else:
             resp.encoding = "utf-8"
             final_location = resp.url
-            return (resp.text, final_location)
+            is_url_ok = True
+            return (resp.text, final_location, is_url_ok)
 
 
 def get_all_links_from_soup(soup_obj: BeautifulSoup) -> List[str]:
@@ -197,15 +199,25 @@ def parse_single_page(
     url: str,
     session: requests.Session,
     url_title: str,
-) -> Dict[str, Any]:
+) -> Optional[Dict[str, Any]]:
     """Returns a dict of parsed episode."""
-    # TODO: Add conditions for response with ERRORs
-    html_page, final_location = get_web_page_html_text(url, session)
+    html_page, final_location, is_url_ok = get_web_page_html_text(url, session)
 
-    # TODO: Add condition if index == 0 (not episode link)
     index = generate_post_index(final_location, post_indexes)
-    post_title = url_title
-    ep_number = parse_episode_number(post_title)
+    if index == 0:
+        return None
+
+    ep_number = parse_episode_number(url_title)
+
+    if not is_url_ok:
+        bad_ep = LepEpisode(
+            episode=ep_number,
+            url=final_location,
+            post_title=url_title,
+            index=index,
+            admin_note=html_page[:50],
+        )
+        return bad_ep.__dict__
 
     soup_div = BeautifulSoup(html_page, "lxml", parse_only=only_div_content_main)
     post_date = parse_post_publish_datetime(soup_div)
@@ -214,7 +226,7 @@ def parse_single_page(
         episode=ep_number,
         date=post_date,
         url=final_location,
-        post_title=post_title,
+        post_title=url_title,
         index=index,
     )
     return lep_ep.__dict__
@@ -231,5 +243,6 @@ def get_parsed_episodes(
     for i, url in enumerate(list(reversed(urls))):
         url_title = texts_from_first_to_last[i]
         ep = parse_single_page(url, session, url_title)
-        parsed_episodes.append(ep)
+        if ep is not None:
+            parsed_episodes.append(ep)
     return parsed_episodes
