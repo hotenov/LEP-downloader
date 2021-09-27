@@ -2,7 +2,6 @@
 import typing as t
 from pathlib import Path
 
-# import pytest
 import requests
 import requests_mock as req_mock
 from bs4 import BeautifulSoup
@@ -11,6 +10,7 @@ from requests_mock.response import _Context as rm_Context
 
 from lep_downloader import config as conf
 from lep_downloader import parser
+# import pytest
 
 OFFLINE_HTML_DIR = Path(
     Path(__file__).resolve().parent,
@@ -360,7 +360,7 @@ def test_parsing_post_datetime_without_element() -> None:
 
 def test_generating_new_post_index() -> None:
     """It generates index from URL."""
-    indexes = []
+    indexes: t.List[int] = []
     test_url = "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/"
     index = parser.generate_post_index(test_url, indexes)
     expected_index = int("2009041201")
@@ -369,7 +369,7 @@ def test_generating_new_post_index() -> None:
 
 def test_generating_new_post_index_on_same_day() -> None:
     """It generates index from URL if posts are on the same day."""
-    indexes = [2009041201]
+    indexes: t.List[int] = [2009041201]
     test_url = "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/"
     index = parser.generate_post_index(test_url, indexes)
     expected_index = int("2009041202")

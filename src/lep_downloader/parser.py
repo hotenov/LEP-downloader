@@ -1,8 +1,10 @@
 """LEP module for parsing logic."""
 import copy
 import re
-from typing import Any, Dict, Optional
+from typing import Any
+from typing import Dict
 from typing import List
+from typing import Optional
 
 import requests
 from bs4 import BeautifulSoup
@@ -21,7 +23,7 @@ BEGINING_DIGITS_PATTERN = re.compile(begining_digits_re)
 
 only_div_content_main = SoupStrainer("div", id="content", role="main")
 
-post_indexes = []
+post_indexes: List[int] = []
 
 s = requests.Session()
 
@@ -155,6 +157,7 @@ def get_archive_parsing_results(archive_url: str) -> Any:
 
 def parse_post_publish_datetime(soup: BeautifulSoup) -> str:
     """Returns post datetime as string."""
+    date_value: str = ""
     tag_entry_datetime = soup.find("time", class_="entry-date")
     if tag_entry_datetime is not None:
         date_value = tag_entry_datetime["datetime"]
@@ -238,7 +241,7 @@ def get_parsed_episodes(
     texts: List[str],
 ) -> List[Dict[str, Any]]:
     """Returns list of parsed episodes."""
-    parsed_episodes: List[LepEpisode] = []
+    parsed_episodes: List[Dict[str, Any]] = []
     texts_from_first_to_last = list(reversed(texts))
     for i, url in enumerate(list(reversed(urls))):
         url_title = texts_from_first_to_last[i]
