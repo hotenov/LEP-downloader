@@ -94,10 +94,14 @@ def test_final_location_for_good_redirect(requests_mock: rm_Mocker) -> None:
         "https://re.direct",
         text="Rederecting to...",
         status_code=301,
-        headers={"Location": "https://final.location/"}
+        headers={"Location": "https://final.location/"},
     )
     requests_mock.get("https://final.location", text="Final location")
-    text, final_location = parser.get_web_page_html_text("https://re.direct", s)
+    text, final_location, is_url_ok = parser.get_web_page_html_text(
+        "https://re.direct",
+        s,
+    )
+    assert is_url_ok
     assert text == "Final location"
     assert final_location == "https://final.location/"
 
@@ -108,10 +112,18 @@ def test_final_location_for_bad_redirect(requests_mock: rm_Mocker) -> None:
         "https://re.direct",
         text="Rederecting to...",
         status_code=301,
-        headers={"Location": "https://bad.final.location/"}
+        headers={"Location": "https://bad.final.location/"},
     )
-    requests_mock.get("https://bad.final.location/", text="Final location", status_code=404)
-    text, final_location = parser.get_web_page_html_text("https://re.direct", s)
+    requests_mock.get(
+        "https://bad.final.location/",
+        text="Final location",
+        status_code=404,
+    )
+    text, final_location, is_url_ok = parser.get_web_page_html_text(
+        "https://re.direct",
+        s,
+    )
+    assert not is_url_ok
     assert "[ERROR]" in text
     assert "bad.final.location" in text
     assert final_location == "https://bad.final.location/"
@@ -342,7 +354,7 @@ def test_parsing_post_datetime_without_element() -> None:
     """
     soup = BeautifulSoup(html_doc, "lxml")
     post_date = parser.parse_post_publish_datetime(soup)
-    excepted = "2009-01-01T01:01:01+02:00"
+    excepted = "1999-01-01T01:01:01+02:00"
     assert post_date == excepted
 
 
@@ -364,3 +376,16 @@ def test_generating_new_post_index_on_same_day() -> None:
     assert index == expected_index
     index2 = parser.generate_post_index(test_url, indexes)
     assert index2 == expected_index + 1
+
+
+def test_parsing_non_episode_link(requests_mock: rm_Mocker) -> None:
+    """It returns None (empty episode) for none episode link."""
+    non_episode_url = "https://teacherluke.co.uk/premium/archive-comment-section/"
+    requests_mock.get(
+        non_episode_url,
+        text="No need to parse this page",
+        status_code=200,
+    )
+    link_title = "Some title"
+    episode = parser.parse_single_page(non_episode_url, s, link_title)
+    assert episode is None
