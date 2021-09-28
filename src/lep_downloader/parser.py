@@ -1,6 +1,8 @@
 """LEP module for parsing logic."""
 import copy
 import re
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 from typing import Dict
 from typing import List
@@ -204,6 +206,9 @@ def parse_single_page(
     url_title: str,
 ) -> Optional[Dict[str, Any]]:
     """Returns a dict of parsed episode."""
+    current_date_utc = datetime.now(timezone.utc)
+    parsing_date = current_date_utc.strftime(r"%Y-%m-%dT%H:%M:%S.%fZ")
+
     html_page, final_location, is_url_ok = get_web_page_html_text(url, session)
 
     index = generate_post_index(final_location, post_indexes)
@@ -217,6 +222,7 @@ def parse_single_page(
             episode=ep_number,
             url=final_location,
             post_title=url_title,
+            parsing_utc=parsing_date,
             index=index,
             admin_note=html_page[:50],
         )
@@ -230,6 +236,7 @@ def parse_single_page(
         date=post_date,
         url=final_location,
         post_title=url_title,
+        parsing_utc=parsing_date,
         index=index,
     )
     return lep_ep.__dict__
