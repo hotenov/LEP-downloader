@@ -1,5 +1,6 @@
 """Test cases for the parser module."""
 import typing as t
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -10,7 +11,7 @@ from requests_mock.response import _Context as rm_Context
 
 from lep_downloader import config as conf
 from lep_downloader import parser
-# import pytest
+
 
 OFFLINE_HTML_DIR = Path(
     Path(__file__).resolve().parent,
@@ -34,6 +35,7 @@ LINK_FILE_MAPPING = {
     "https://teacherluke.co.uk/2021/03/26/711-william-from-france-%f0%9f%87%ab%f0%9f%87%b7-wisbolep-runner-up/": "2021-08-11_lep-e711-page-content-pretty.html",
     "https://teacherluke.co.uk/2021/04/11/714-robin-from-hamburg-%f0%9f%87%a9%f0%9f%87%aa-wisbolep-runner-up/": "2021-09-07_09-14-02 teacherluke.co.uk _2021_04_11_714-robin-from-hamburg-🇩🇪-wisbolep-run.html",
     "https://teacherluke.co.uk/2021/08/03/733-a-summer-ramble/": "2021-08-11_lep-e733-page-content-pretty.html",
+    "https://teacherluke.co.uk/premium/archive-comment-section/": "2021-09-28_10-44-00 Archive & Comment Section _ (premium archive).html",  # None-episode link
 }
 
 MAPPING_KEYS: t.List[str] = [*LINK_FILE_MAPPING]
@@ -317,21 +319,31 @@ def test_mocking_single_page(requests_mock: rm_Mocker) -> None:
     all_texts: t.List[str] = parsing_result[2]
     session = requests.Session()
     parsed_episodes = []
-    texts_from_first_to_last = list(reversed(all_texts))
-    for i, url in enumerate(list(reversed(all_links))):
-        url_title = texts_from_first_to_last[i]
-        try:
-            requests_mock.get(
-                url,
-                additional_matcher=mocked_single_page_matcher,
-                body=mock_single_page,
-            )
-            ep = parser.parse_single_page(url, session, url_title)
-            parsed_episodes.append(ep)
-        except req_mock.exceptions.NoMockAddress:
-            pass
 
-    assert len(parsed_episodes) > 15
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=mocked_single_page_matcher,
+        body=mock_single_page,
+    )
+
+    parsed_episodes = parser.get_parsed_episodes(all_links, session, all_texts)
+
+    non_episode_list = parser.get_parsed_episodes(
+        ["https://teacherluke.co.uk/premium/archive-comment-section/"],
+        session,
+        ["Non-episode link"],
+    )
+    assert len(non_episode_list) == 0
+
+    assert len(parsed_episodes) > 781
+
+    min_date = datetime.strptime("2009-03-03T03:03:03+02:00", "%Y-%m-%dT%H:%M:%S%z")
+    mocked_episodes = [
+        ep
+        for ep in parsed_episodes
+        if datetime.strptime(ep["date"], "%Y-%m-%dT%H:%M:%S%z") > min_date
+    ]
+    assert len(mocked_episodes) > 15
 
 
 def test_parsing_post_datetime() -> None:
