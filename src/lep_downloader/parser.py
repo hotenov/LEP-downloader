@@ -10,6 +10,7 @@ from typing import Optional
 
 import requests
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from bs4 import SoupStrainer
 
 from lep_downloader import config as conf
@@ -22,8 +23,14 @@ ep_pattern = re.compile(regex, re.IGNORECASE)
 INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
 begining_digits_re = r"^\d{1,5}"
 BEGINING_DIGITS_PATTERN = re.compile(begining_digits_re)
+audio_link_re = r"download\b|audio\s|click\s"
+AUDIO_LINK_PATTERN = re.compile(audio_link_re, re.IGNORECASE)
 
-only_div_content_main = SoupStrainer("div", id="content", role="main")
+only_article_content = SoupStrainer("article")
+only_a_tags_with_mp3 = SoupStrainer(
+    "a",
+    href=re.compile(r"^(?!.*boos/(2794795|3727124))(?!.*uploads).*\.mp3$", re.I),
+)
 
 post_indexes: List[int] = []
 
@@ -200,6 +207,41 @@ def generate_post_index(post_url: str, indexes: List[int]) -> int:
         return 0
 
 
+def appropriate_tag_a(tag_a: Tag) -> bool:
+    """Returns True for appropriate link to audio."""
+    tag_text = tag_a.get_text()
+    if "http" in tag_text:
+        return False
+    else:
+        is_appropriate = False
+        match = AUDIO_LINK_PATTERN.search(tag_text)
+        is_appropriate = True if match else False
+        return is_appropriate
+
+
+def parse_post_audio(soup: BeautifulSoup) -> List[List[str]]:
+    """Returns list of lists with links to audio."""
+    audios: List[List[str]] = []
+
+    soup_a_only = BeautifulSoup(
+        soup.encode(),
+        features="lxml",
+        parse_only=only_a_tags_with_mp3,
+    )
+
+    if len(soup_a_only) > 1:
+        tags_a_audio = soup_a_only.find_all(appropriate_tag_a, recursive=False)
+        if len(tags_a_audio) > 0:
+            for tag_a in tags_a_audio:
+                audio = [tag_a["href"]]
+                audios.append(audio)
+            return audios
+        else:
+            return audios
+    else:
+        return audios
+
+
 def parse_single_page(
     url: str,
     session: requests.Session,
@@ -228,14 +270,21 @@ def parse_single_page(
         )
         return bad_ep.__dict__
 
-    soup_div = BeautifulSoup(html_page, "lxml", parse_only=only_div_content_main)
-    post_date = parse_post_publish_datetime(soup_div)
+    soup_article = BeautifulSoup(html_page, "lxml", parse_only=only_article_content)
+    post_date = parse_post_publish_datetime(soup_article)
+
+    post_type = "AUDIO"
+    post_audios = parse_post_audio(soup_article)
+    if not post_audios:
+        post_type = "TEXT"
 
     lep_ep = LepEpisode(
         episode=ep_number,
         date=post_date,
         url=final_location,
         post_title=url_title,
+        post_type=post_type,
+        audios=post_audios,
         parsing_utc=parsing_date,
         index=index,
     )

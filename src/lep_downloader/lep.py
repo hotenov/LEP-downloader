@@ -1,5 +1,5 @@
 """LEP module for general logic and classes."""
-
+import typing as t
 
 class LepEpisode:
     """LEP episode class."""
@@ -10,8 +10,10 @@ class LepEpisode:
         date: str = "2000-01-01T00:00:00+00:00",
         url: str = "",
         post_title: str = "",
+        post_type: str = "",
         parsing_utc: str = "",
         index: int = 0,
+        audios: t.List[t.List[str]] = [],
         admin_note: str = "",
     ) -> None:
         """Default instance of LepEpisode.
@@ -21,6 +23,8 @@ class LepEpisode:
             date (str): Post datetime (default 2000-01-01T00:00:00+00:00).
             url (str): Final location of post URL.
             post_title (str): Post title, extracted from tag <a> and safe for windows path.
+            post_type (str): Post type ("AUDIO", "TEXT", etc.).
+            audios (list): List of links lists (for multi-part episodes).
             parsing_utc (str): Parsing datetime in UTC timezone (with microseconds).
             index (int): Parsing index: concatenation of URL date and increment (for several posts).
             admin_note (str): Note for administrator and storing error message (for bad response)
@@ -29,6 +33,8 @@ class LepEpisode:
         self.date = date
         self.url = url
         self.post_title = post_title
+        self.post_type = post_type
+        self.audios = audios
         self.parsing_utc = parsing_utc
         self.index = index
         self.admin_note = admin_note
