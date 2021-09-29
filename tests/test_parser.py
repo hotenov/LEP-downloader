@@ -401,3 +401,46 @@ def test_parsing_non_episode_link(requests_mock: rm_Mocker) -> None:
     link_title = "Some title"
     episode = parser.parse_single_page(non_episode_url, s, link_title)
     assert episode is None
+
+
+def test_parsing_links_to_audio_for_mocked_episodes(requests_mock: rm_Mocker) -> None:
+    """It parses links to audio (if they exist)."""
+    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    parsing_result: t.Tuple[t.List[str], ...] = parser.get_archive_parsing_results(
+        conf.ARCHIVE_URL
+    )
+    all_links: t.List[str] = parsing_result[0]
+    all_texts: t.List[str] = parsing_result[2]
+    session = requests.Session()
+    parsed_episodes = []
+
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=mocked_single_page_matcher,
+        body=mock_single_page,
+    )
+
+    parsed_episodes = parser.get_parsed_episodes(all_links, session, all_texts)
+
+    assert len(parsed_episodes) > 781
+
+    min_date = datetime.strptime("2009-03-03T03:03:03+02:00", "%Y-%m-%dT%H:%M:%S%z")
+    mocked_episodes = [
+        ep
+        for ep in parsed_episodes
+        if datetime.strptime(ep["date"], "%Y-%m-%dT%H:%M:%S%z") > min_date
+    ]
+    assert len(mocked_episodes) > 15
+
+
+def test_no_appropriate_mp3_links() -> None:
+    """It returns empty list if there are no appropriate links."""
+    markup = """\
+        <!DOCTYPE html>
+        <a href="http://traffic.libsyn.com/teacherluke/600._Episode_600_Livestream_Ask_Me_Anything_Audio.mp3" rel="noopener" target="_blank">
+            Get Episode
+        </a>
+        """
+    soup = BeautifulSoup(markup, "lxml")
+    list_of_audio = parser.parse_post_audio(soup)
+    assert len(list_of_audio) == 0
