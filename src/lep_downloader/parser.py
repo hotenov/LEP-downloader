@@ -10,8 +10,8 @@ from typing import Optional
 
 import requests
 from bs4 import BeautifulSoup
-from bs4.element import Tag
 from bs4 import SoupStrainer
+from bs4.element import Tag
 
 from lep_downloader import config as conf
 from lep_downloader.lep import LepEpisode

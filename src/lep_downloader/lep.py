@@ -1,6 +1,7 @@
 """LEP module for general logic and classes."""
 import typing as t
 
+
 class LepEpisode:
     """LEP episode class."""
 
