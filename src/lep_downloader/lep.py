@@ -14,7 +14,7 @@ class LepEpisode:
         post_type: str = "",
         parsing_utc: str = "",
         index: int = 0,
-        audios: t.List[t.List[str]] = [],
+        audios: t.Optional[t.List[t.List[str]]] = None,
         admin_note: str = "",
     ) -> None:
         """Default instance of LepEpisode.
