@@ -141,12 +141,11 @@ def substitute_short_links(unique_links: List[str]) -> List[str]:
 def get_archive_parsing_results(archive_url: str) -> Any:
     """Return Tuple with valid episode links and discarded links."""
     html_page = get_web_page_html_text(archive_url, s)[0]
-    only_div_entry_content = SoupStrainer("div", class_="entry-content")
-    soup_div = BeautifulSoup(html_page, "lxml", parse_only=only_div_entry_content)
+    soup_article = BeautifulSoup(html_page, "lxml", parse_only=only_article_content)
 
-    if len(soup_div) > 0:
-        modified_soup_div = replace_misspelled_link(soup_div)
-        all_links = get_all_links_from_soup(modified_soup_div)
+    if len(soup_article) > 1:
+        modified_soup = replace_misspelled_link(soup_article)
+        all_links = get_all_links_from_soup(modified_soup)
         cleaned_links = remove_irrelevant_links(all_links)
         cleaned_links = remove_not_episode_links_by_regex_pattern(cleaned_links)
 
@@ -154,7 +153,7 @@ def get_archive_parsing_results(archive_url: str) -> Any:
         unique_links = list(dict.fromkeys(cleaned_links))
 
         # Get list of 'link labeles'
-        link_strings = get_links_text_by_href(modified_soup_div, unique_links)
+        link_strings = get_links_text_by_href(modified_soup, unique_links)
 
         final_list = substitute_short_links(unique_links)
         parsing_result = (final_list, deleted_links, link_strings)
