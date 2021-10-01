@@ -131,22 +131,27 @@ def test_final_location_for_bad_redirect(requests_mock: rm_Mocker) -> None:
     assert final_location == "https://bad.final.location/"
 
 
-def test_retrieve_all_links_from_soup() -> None:
+def test_retrieve_all_episode_links_from_soup() -> None:
     """It returns only <a> tags from soup object."""
     html_doc = """<html><head><title>The Dormouse's story</title></head>
-        <body>
+        <article>
             <p class="title"><b>The Dormouse's story</b></p>
             <p class="story">Once upon a time there were three little sisters; and their names were
-                <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
-                <a href="http://example.com/Sara" class="sister" id="link2">Sara</a> and
+                <a href="https://teacherluke.co.uk/2017/09/24/website-content-luke-on-the-real-life-english-podcast/" class="sister" id="link1">Elsie</a>,
                 <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+                <a class="title" href="https://teacherluke.co.uk/2021/06/04/723-bahar-from-iran-wisbolep-runner-up/">
+                    723. Bahar from Iran&nbsp;
+                    <img class="emoji" role="img" draggable="false" src="https://s.w.org/images/core/emoji/13.0.1/svg/1f1ee-1f1f7.svg" alt="🇮🇷">
+                    &nbsp;(WISBOLEP Runner-Up)
+                </a>
                 and they lived at the bottom of a well.
             </p>
             <p class="story">...</p>
     """
     soup = BeautifulSoup(html_doc, "lxml")
-    only_links = parser.get_all_links_from_soup(soup)
-    assert len(only_links) == 3
+    only_links, only_strings = parser.get_all_episode_links_from_soup(soup)
+    assert len(only_links) == 2
+    assert len(only_strings) == 2
 
 
 def test_replacing_misspelled_link() -> None:
@@ -190,53 +195,15 @@ def test_removing_irrelevant_links() -> None:
         "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",
         "https://teacherluke.co.uk/2021/03/26/711-william-from-france-%f0%9f%87%ab%f0%9f%87%b7-wisbolep-runner-up/",
     ]
-    new_list: t.List[str] = parser.remove_irrelevant_links(test_list)
-    assert len(new_list) == 3
-
-
-def test_removing_not_episode_links() -> None:
-    """It removes links from list which are not match by regex pattern."""
-    test_list: t.List[str] = [
-        "https://teacherluke.co.uk/2020/11/23/wisbolep/",
-        "https://teacherluke.co.uk/premium/archive-comment-section/",  # <- bad
-        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",
-        "https://teacherluke.co.uk/2021/03/26/711-william-from-france-%f0%9f%87%ab%f0%9f%87%b7-wisbolep-runner-up/",
-        "http://wp.me/p4IuUx-7sg",
-        "http://teacherluke.wordpress.com/2012/09/27/113-setting-the-world-to-rights/",
-        "https://example.com/",  # <- bad
+    test_texts: t.List[str] = [
+        "1. Link",
+        "Link to App (irrelevant)",
+        "2. Link",
+        "3. Link",
     ]
-    new_list: t.List[str] = parser.remove_not_episode_links_by_regex_pattern(test_list)
-    assert len(new_list) == 5
-
-
-def test_getting_links_text_by_href() -> None:
-    """It gets list of link texts, searching by their 'href' attribute."""
-    html_doc: str = """<html><head><title>The Dormouse's story</title></head>
-        <body>
-            <p class="story">Once upon a time there were three little sisters; and their names were
-                <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
-                <a href="https://teacherluke.co.uk/2017/05/26/i-was-invited-onto-the-english-across-the-pond-podcast/" class="sister" id="link2">
-                    Link from dict</a> and
-                <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
-                <a href="http://example.com/spaces" class="sister" id="link3">  Text with spaces
-                    </a>;
-                and they lived at the bottom of a well.
-            </p>
-            <a href="http://example.com/john" class="sister" id="link3">4th sister: is John?!</a>;
-    """
-    search_links: t.List[str] = [
-        "https://teacherluke.co.uk/2017/05/26/i-was-invited-onto-the-english-across-the-pond-podcast/",
-        "http://example.com/spaces",
-        "http://example.com/john",
-    ]
-    soup = BeautifulSoup(html_doc, "lxml")
-    texts = parser.get_links_text_by_href(soup, search_links)
-    expected_texts: t.List[str] = [
-        "[Website content] I was invited onto the “English Across The Pond” Podcast",  # Replace from config dict
-        "Text with spaces",
-        "4th sister_ is John_!",  # Replace invalid characters
-    ]
-    assert texts == expected_texts
+    new_list, new_texts = parser.remove_irrelevant_links(test_list, test_texts)
+    assert len(new_list) == len(new_texts)
+    assert "Link to App (irrelevant)" not in new_texts
 
 
 def test_short_links_substitution() -> None:
@@ -270,7 +237,8 @@ def test_parsing_result(requests_mock: rm_Mocker) -> None:
     requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
     parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
     all_links = parsing_result[0]
-    assert all_links is not None
+    all_texts = parsing_result[2]
+    assert len(all_links) == len(all_texts)
     assert len(all_links) > 781
     assert "/2009/04/12/episode-1-introduction" in all_links[-1]
     # Intersection of mocked pages and all links
@@ -287,6 +255,35 @@ def test_parsing_invalid_html(requests_mock: rm_Mocker) -> None:
     requests_mock.get(conf.ARCHIVE_URL, text=markup)
     parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
     assert parsing_result is None
+
+
+def test_parsing_archive_without_episodes() -> None:
+    """It collects links only matched by episode link pattern."""
+    markup = """<html><head><title>The Dormouse's story</title></head>
+        <article>
+            <p class="story">Once upon a time there were three little sisters; and their names were
+                <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+                and they lived at the bottom of a well.
+            </p>
+            <p class="story">...</p>
+    """
+    soup = BeautifulSoup(markup, "lxml")
+    links, texts = parser.get_all_episode_links_from_soup(soup)
+    assert len(links) == 0
+    assert len(texts) == 0
+
+
+def test_parsing_archive_with_known_duplicates() -> None:
+    """It ignores several links by their texts."""
+    markup = """<html><head><title>Known Duplicates</title></head>
+            <a href="https://teacherluke.co.uk/2016/03/20/i-was-invited-onto-craig-wealands-weekly-blab-and-we-talked-about-comedy-video/">[VIDEO]</a>;
+            <a href="https://teacherluke.co.uk/2018/04/18/522-learning-english-at-summer-school-in-the-uk-a-rambling-chat-with-raphael-miller/">episode 522</a>;
+            <a href="https://teacherluke.co.uk/2017/08/14/website-content-lukes-criminal-past-zep-episode-185/">[Website content]</a>;
+    """
+    soup = BeautifulSoup(markup, "lxml")
+    links, texts = parser.get_all_episode_links_from_soup(soup)
+    assert len(links) == 0
+    assert len(texts) == 0
 
 
 def mocked_single_page_matcher(
