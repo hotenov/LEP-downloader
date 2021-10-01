@@ -7,6 +7,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 import requests
 from bs4 import BeautifulSoup
@@ -18,15 +19,28 @@ from lep_downloader.lep import LepEpisode
 
 
 deleted_links = []
-regex = conf.EPISODE_LINK_RE
-ep_pattern = re.compile(regex, re.IGNORECASE)
+
+
+# COMPILED REGEX PATTERNS #
+
+EP_LINK_PATTERN = re.compile(conf.EPISODE_LINK_RE, re.IGNORECASE)
+
+duplicated_ep_links_re = r"^\[(website\scontent|video)\]$|episode\s522$"
+DUPLICATED_EP_PATTERN = re.compile(duplicated_ep_links_re, re.IGNORECASE)
+
 INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
+
 begining_digits_re = r"^\d{1,5}"
 BEGINING_DIGITS_PATTERN = re.compile(begining_digits_re)
+
 audio_link_re = r"download\b|audio\s|click\s"
 AUDIO_LINK_PATTERN = re.compile(audio_link_re, re.IGNORECASE)
 
+
+# SoupStrainer's CALLBACKS #
+
 only_article_content = SoupStrainer("article")
+only_a_tags_with_ep_link = SoupStrainer("a", href=EP_LINK_PATTERN)
 only_a_tags_with_mp3 = SoupStrainer(
     "a",
     href=re.compile(r"^(?!.*boos/(2794795|3727124))(?!.*uploads).*\.mp3$", re.I),
@@ -62,14 +76,39 @@ def get_web_page_html_text(page_url: str, session: requests.Session) -> Any:
             return (resp.text, final_location, is_url_ok)
 
 
-def get_all_links_from_soup(soup_obj: BeautifulSoup) -> List[str]:
+def tag_a_with_episode(tag_a: Tag) -> bool:
+    """Returns True for appropriate link to episode."""
+    tag_text = tag_a.get_text()
+    is_appropriate = False
+    match = DUPLICATED_EP_PATTERN.search(tag_text.strip())
+    is_appropriate = False if match else True
+    return is_appropriate
+
+
+def get_all_episode_links_from_soup(
+    soup_obj: BeautifulSoup,
+) -> Tuple[List[str], List[str]]:
     """Return list of links from HTML block."""
     all_links: List[str] = []
-    all_tags_a = soup_obj("a")
-    for tag_a in all_tags_a:
-        all_links.append(tag_a["href"].strip())
-
-    return all_links
+    all_titles: List[str] = []
+    soup_a_only = BeautifulSoup(
+        str(soup_obj),
+        features="lxml",
+        parse_only=only_a_tags_with_ep_link,
+    )
+    if len(soup_a_only) > 1:
+        tags_a_episodes = soup_a_only.find_all(tag_a_with_episode, recursive=False)
+        if len(tags_a_episodes) > 0:
+            for tag_a in tags_a_episodes:
+                link = tag_a["href"].strip()
+                link_string = " ".join([text for text in tag_a.stripped_strings])
+                all_links.append(link)
+                all_titles.append(link_string)
+            return (all_links, all_titles)
+        else:
+            return (all_links, all_titles)
+    else:
+        return (all_links, all_titles)
 
 
 def replace_misspelled_link(soup_obj: BeautifulSoup) -> BeautifulSoup:
@@ -86,43 +125,17 @@ def replace_misspelled_link(soup_obj: BeautifulSoup) -> BeautifulSoup:
     return modified_soup
 
 
-def remove_irrelevant_links(links: List[str]) -> List[str]:
+def remove_irrelevant_links(
+    links: List[str],
+    texts: List[str],
+) -> Tuple[List[str], List[str]]:
     """Return list of links without known irrelevant links."""
     for i, link in enumerate(links[:]):
         if link in conf.IRRELEVANT_LINKS:
             deleted_links.append(link)
             del links[i]
-    return links
-
-
-def remove_not_episode_links_by_regex_pattern(links: List[str]) -> List[str]:
-    """Return list of adopted episode (post) links."""
-    result: List[str] = []
-    for link in links:
-        match = ep_pattern.match(link)
-        if match:
-            result.append(link)
-        else:
-            deleted_links.append(link)
-    return result
-
-
-def get_links_text_by_href(
-    soup_obj: BeautifulSoup,
-    links: List[str],
-) -> List[str]:
-    """Return text of <a></a> tag by its href attribute."""
-    link_strings = []
-    for url in links:
-        a_tag = soup_obj.find("a", href=url)
-        if url in [*conf.LINK_TEXTS_MAPPING]:
-            link_string = conf.LINK_TEXTS_MAPPING[url]
-        else:
-            link_string = " ".join([text for text in a_tag.stripped_strings])
-        safe_name = INVALID_PATH_CHARS_PATTERN.sub("_", link_string)
-        link_strings.append(safe_name)
-
-    return link_strings
+            del texts[i]
+    return (links, texts)
 
 
 def substitute_short_links(unique_links: List[str]) -> List[str]:
@@ -145,21 +158,21 @@ def get_archive_parsing_results(archive_url: str) -> Any:
 
     if len(soup_article) > 1:
         modified_soup = replace_misspelled_link(soup_article)
-        all_links = get_all_links_from_soup(modified_soup)
-        cleaned_links = remove_irrelevant_links(all_links)
-        cleaned_links = remove_not_episode_links_by_regex_pattern(cleaned_links)
+        all_links: List[str] = []
+        link_strings: List[str] = []
+        all_links, link_strings = get_all_episode_links_from_soup(modified_soup)
 
-        # Get unique links with preserved order for Python 3.7+
-        unique_links = list(dict.fromkeys(cleaned_links))
-
-        # Get list of 'link labeles'
-        link_strings = get_links_text_by_href(modified_soup, unique_links)
-
-        final_list = substitute_short_links(unique_links)
-        parsing_result = (final_list, deleted_links, link_strings)
+        cleaned_links: List[str] = []
+        cleaned_strings: List[str] = []
+        cleaned_links, cleaned_strings = remove_irrelevant_links(
+            all_links,
+            link_strings,
+        )
+        final_list = substitute_short_links(cleaned_links)
+        parsing_result = (final_list, deleted_links, cleaned_strings)
         return parsing_result
     else:
-        print("[ERROR] Can't parse this page: Main <div> is not found")
+        print("[ERROR] Can't parse this page: <article> tag was not found.")
         return None
 
 
@@ -185,7 +198,7 @@ def parse_episode_number(post_title: str) -> int:
 
 def generate_post_index(post_url: str, indexes: List[int]) -> int:
     """Returns index number for post."""
-    match = ep_pattern.match(post_url)
+    match = EP_LINK_PATTERN.match(post_url)
     if match:
         groups_dict = match.groupdict()
         date_from_url = groups_dict["date"]
@@ -223,7 +236,7 @@ def parse_post_audio(soup: BeautifulSoup) -> List[List[str]]:
     audios: List[List[str]] = []
 
     soup_a_only = BeautifulSoup(
-        soup.encode(),
+        str(soup),
         features="lxml",
         parse_only=only_a_tags_with_mp3,
     )
