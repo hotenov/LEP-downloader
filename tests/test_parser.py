@@ -388,7 +388,7 @@ def test_generating_new_post_index_on_same_day() -> None:
 
 
 def test_parsing_non_episode_link(requests_mock: rm_Mocker) -> None:
-    """It returns None (empty episode) for none episode link."""
+    """It returns None (empty episode) for non-episode link."""
     non_episode_url = "https://teacherluke.co.uk/premium/archive-comment-section/"
     requests_mock.get(
         non_episode_url,
