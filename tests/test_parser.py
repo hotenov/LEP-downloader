@@ -430,7 +430,7 @@ def test_parsing_links_to_audio_for_mocked_episodes(requests_mock: rm_Mocker) ->
     assert len(mocked_episodes) > 15
 
 
-def test_no_appropriate_mp3_links() -> None:
+def test_no_appropriate_mp3_links_by_title() -> None:
     """It returns empty list if there are no appropriate links."""
     markup = """\
         <!DOCTYPE html>
@@ -441,3 +441,48 @@ def test_no_appropriate_mp3_links() -> None:
     soup = BeautifulSoup(markup, "lxml")
     list_of_audio = parser.parse_post_audio(soup)
     assert len(list_of_audio) == 0
+
+
+def test_selecting_appropriate_mp3_links_by_href() -> None:
+    """It returns list with only appropriate mp3 links."""
+    markup = """\
+        <!DOCTYPE html>
+        <a href="http://traffic.libsyn.com/teacherluke/600._Episode_600_Livestream_Ask_Me_Anything_Audio.mp3">
+            Download episode
+        </a>
+        <!DOCTYPE html>
+        <a href="https://audioboom.com/boos/3727124-how-to-use-the-lying-game-in-your-class-luke-thompson-teacherluke-co-uk.mp3">
+            Download episode
+        </a>
+        <a href="https://teacherluke.co.uk/wp-content/uploads/2015/09/Chelsea-Loft-Short-copy.mp3">
+            Download episode
+        </a>
+        <a href="https://audioboom.com/boos/2794795-the-mystery-story.mp3">
+            Download episode
+        </a>
+        <a href="https://audioboom.com/boos/2550583-101-a-note-from-luke.mp3">
+            Download episode
+        </a>
+        """
+    soup = BeautifulSoup(markup, "lxml")
+    list_of_audio = parser.parse_post_audio(soup)
+    assert len(list_of_audio) == 2
+    assert list_of_audio[0] == [
+        "http://traffic.libsyn.com/teacherluke/600._Episode_600_Livestream_Ask_Me_Anything_Audio.mp3",
+    ]
+    assert list_of_audio[1] == [
+        "https://audioboom.com/boos/2550583-101-a-note-from-luke.mp3",
+    ]
+
+
+def test_appropriate_mp3_link_with_word_audio() -> None:
+    """It returns list of one appropriate mp3 link (without duplicate)."""
+    markup = """\
+        <!DOCTYPE html>
+        <a href="http://traffic.libsyn.com/teacherluke/600._Episode_600_Livestream_Ask_Me_Anything_Audio.mp3">
+            DOWNLOAD AUDIO
+        </a>
+        """
+    soup = BeautifulSoup(markup, "lxml")
+    list_of_audio = parser.parse_post_audio(soup)
+    assert len(list_of_audio) == 1
