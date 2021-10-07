@@ -323,5 +323,5 @@ def sort_episodes_by_post_date(
     episodes: List[LepEpisode],
 ) -> List[LepEpisode]:
     """Returns list of LepEpisodes sorted by post datetime."""
-    sorted_episodes = sorted(episodes, key=attrgetter("date", "episode"), reverse=True)
+    sorted_episodes = sorted(episodes, key=attrgetter("date", "index"), reverse=True)
     return sorted_episodes
