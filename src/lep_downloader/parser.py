@@ -3,8 +3,8 @@ import copy
 import re
 from datetime import datetime
 from datetime import timezone
+from operator import attrgetter
 from typing import Any
-from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -258,7 +258,7 @@ def parse_single_page(
     url: str,
     session: requests.Session,
     url_title: str,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[LepEpisode]:
     """Returns a dict of parsed episode."""
     current_date_utc = datetime.now(timezone.utc)
     parsing_date = current_date_utc.strftime(r"%Y-%m-%dT%H:%M:%S.%fZ")
@@ -280,7 +280,7 @@ def parse_single_page(
             index=index,
             admin_note=html_page[:50],
         )
-        return bad_ep.__dict__
+        return bad_ep
 
     soup_article = BeautifulSoup(html_page, "lxml", parse_only=only_article_content)
     post_date = parse_post_publish_datetime(soup_article)
@@ -300,16 +300,16 @@ def parse_single_page(
         parsing_utc=parsing_date,
         index=index,
     )
-    return lep_ep.__dict__
+    return lep_ep
 
 
 def get_parsed_episodes(
     urls: List[str],
     session: requests.Session,
     texts: List[str],
-) -> List[Dict[str, Any]]:
+) -> List[LepEpisode]:
     """Returns list of parsed episodes."""
-    parsed_episodes: List[Dict[str, Any]] = []
+    parsed_episodes: List[LepEpisode] = []
     texts_from_first_to_last = list(reversed(texts))
     for i, url in enumerate(list(reversed(urls))):
         url_title = texts_from_first_to_last[i]
@@ -317,3 +317,11 @@ def get_parsed_episodes(
         if ep is not None:
             parsed_episodes.append(ep)
     return parsed_episodes
+
+
+def sort_episodes_by_post_date(
+    episodes: List[LepEpisode],
+) -> List[LepEpisode]:
+    """Returns list of LepEpisodes sorted by post datetime."""
+    sorted_episodes = sorted(episodes, key=attrgetter("date", "episode"), reverse=True)
+    return sorted_episodes
