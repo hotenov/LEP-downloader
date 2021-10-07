@@ -11,6 +11,7 @@ from requests_mock.response import _Context as rm_Context
 
 from lep_downloader import config as conf
 from lep_downloader import parser
+from lep_downloader.lep import LepEpisode
 
 
 OFFLINE_HTML_DIR = Path(
@@ -338,9 +339,15 @@ def test_mocking_single_page(requests_mock: rm_Mocker) -> None:
     mocked_episodes = [
         ep
         for ep in parsed_episodes
-        if datetime.strptime(ep["date"], "%Y-%m-%dT%H:%M:%S%z") > min_date
+        if datetime.strptime(ep.__dict__["date"], "%Y-%m-%dT%H:%M:%S%z") > min_date
     ]
     assert len(mocked_episodes) > 15
+
+    sorted_episodes = parser.sort_episodes_by_post_date(parsed_episodes)
+    assert (
+        sorted_episodes[0].__dict__["url"]
+        == "https://teacherluke.co.uk/2021/08/03/733-a-summer-ramble/"
+    )
 
 
 def test_parsing_post_datetime() -> None:
@@ -402,6 +409,7 @@ def test_parsing_non_episode_link(requests_mock: rm_Mocker) -> None:
 
 def test_parsing_links_to_audio_for_mocked_episodes(requests_mock: rm_Mocker) -> None:
     """It parses links to audio (if they exist)."""
+    # TODO: Complete test (now it's simple copy-paste)
     requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
     parsing_result: t.Tuple[t.List[str], ...] = parser.get_archive_parsing_results(
         conf.ARCHIVE_URL
@@ -425,7 +433,7 @@ def test_parsing_links_to_audio_for_mocked_episodes(requests_mock: rm_Mocker) ->
     mocked_episodes = [
         ep
         for ep in parsed_episodes
-        if datetime.strptime(ep["date"], "%Y-%m-%dT%H:%M:%S%z") > min_date
+        if datetime.strptime(ep.__dict__["date"], "%Y-%m-%dT%H:%M:%S%z") > min_date
     ]
     assert len(mocked_episodes) > 15
 
@@ -486,3 +494,22 @@ def test_appropriate_mp3_link_with_word_audio() -> None:
     soup = BeautifulSoup(markup, "lxml")
     list_of_audio = parser.parse_post_audio(soup)
     assert len(list_of_audio) == 1
+
+
+def test_episodes_sorting_by_date() -> None:
+    """It sorts LepEpisodes by datetime then by episode number."""
+    test_lep_ep_1 = LepEpisode(episode=35, date="2010-03-25T22:59:36+01:00")
+    test_lep_ep_2 = LepEpisode(episode=36, date="2010-03-25T22:59:36+01:00")
+    test_lep_ep_3 = LepEpisode(episode=100)
+    episodes = [
+        test_lep_ep_1,
+        test_lep_ep_2,
+        test_lep_ep_3,
+    ]
+    expected_sorted = [
+        test_lep_ep_2,
+        test_lep_ep_1,
+        test_lep_ep_3,
+    ]
+    sorted_episodes = parser.sort_episodes_by_post_date(episodes)
+    assert sorted_episodes == expected_sorted
