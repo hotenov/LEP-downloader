@@ -3,6 +3,8 @@
 
 ARCHIVE_URL = "https://hotenov.com"
 
+JSON_DB_URL = "https://hotenov.com/some_json.json"
+
 LOCAL_ARCHIVE_HTML = "2021-08-10_lep-archive-page-content-pretty.html"
 
 SHORT_LINKS_MAPPING_DICT = {
