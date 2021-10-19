@@ -1,10 +1,13 @@
 """LEP module for parsing logic."""
 import copy
+import json
 import re
+from collections import Counter
 from datetime import datetime
 from datetime import timezone
 from operator import attrgetter
-from typing import Any
+from pathlib import Path
+from typing import Any, Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -16,6 +19,7 @@ from bs4.element import Tag
 
 from lep_downloader import config as conf
 from lep_downloader.lep import LepEpisode
+from lep_downloader.lep import LepJsonEncoder
 
 
 deleted_links = []
@@ -49,6 +53,9 @@ only_a_tags_with_mp3 = SoupStrainer(
 post_indexes: List[int] = []
 
 s = requests.Session()
+
+
+DEFAULT_JSON_PATH = Path("lep-db.min.json")
 
 
 def get_web_page_html_text(page_url: str, session: requests.Session) -> Any:
@@ -173,7 +180,7 @@ def get_archive_parsing_results(archive_url: str) -> Any:
         return parsing_result
     else:
         print("[ERROR] Can't parse this page: <article> tag was not found.")
-        return None
+        return (None, None, None)
 
 
 def parse_post_publish_datetime(soup: BeautifulSoup) -> str:
@@ -325,3 +332,95 @@ def sort_episodes_by_post_date(
     """Returns list of LepEpisodes sorted by post datetime."""
     sorted_episodes = sorted(episodes, key=attrgetter("date", "index"), reverse=True)
     return sorted_episodes
+
+
+def get_only_new_post_urls(
+    # json_string: str,
+    db_episodes: List[LepEpisode],
+    links: List[str],
+    texts: List[str],
+) -> Any:
+    """Returns difference in URLs between database and archive page."""
+    db_links_and_texts: List[Tuple[str, str]]
+    db_links_and_texts = [(item.url.lower(), item.post_title) for item in db_episodes]
+    archive_links_and_texts = list(zip(links, texts))
+    ep_diff = list((Counter(archive_links_and_texts) - Counter(db_links_and_texts)))
+    if len(db_links_and_texts) > len(archive_links_and_texts):
+        return None
+    else:
+        return ep_diff
+
+
+def write_parsed_episodes_to_json(
+    lep_objects: List[LepEpisode],
+    path: Path = DEFAULT_JSON_PATH,
+) -> None:
+    """Write list of LepEpisode objects to file."""
+    with open(path, "w") as outfile:
+        json.dump(lep_objects, outfile, indent=4, cls=LepJsonEncoder)
+
+
+def as_lep_episode_obj(dct: Dict[str, Any]) -> Optional[LepEpisode]:
+    """Specialize JSON object decoding."""
+    try:
+        lep_ep = LepEpisode(**dct)
+    except TypeError:
+        print(f"[WARNING]: Invalid object in JSON!\n\t{dct}")
+        return None
+    else:
+        return lep_ep
+
+
+def do_parsing_actions(
+    json_url: str,
+    archive_url: str,
+    path_to_json: Path = DEFAULT_JSON_PATH,
+) -> None:
+    """Main methdod to do parsing."""
+    db_episodes: List[LepEpisode] = []
+    new_episodes: List[LepEpisode] = []
+    # Get links and their texts for current archive state.
+    links, _, texts = get_archive_parsing_results(archive_url)
+    if links:
+        # Get database JSON content
+        json_body, _, status_db_ok = get_web_page_html_text(json_url, s)
+        if status_db_ok:
+            try:
+                db_episodes = json.loads(json_body, object_hook=as_lep_episode_obj)
+            except json.JSONDecodeError:
+                print(f"[ERROR]: Data is not a valid JSON document.\n\tURL: {json_url}")
+                return None
+            is_db_str: bool = type(db_episodes) == str  # type: ignore
+            db_episodes = [obj for obj in db_episodes if obj]
+            if not db_episodes or is_db_str:
+                print(
+                    f"[WARNING]: JSON file ({json_url}) has no valid episode objects."
+                )
+                return None
+            # Get differences between database and current posts archive URLs
+            zipped_diff = get_only_new_post_urls(db_episodes, links, texts)
+            if zipped_diff is None:
+                print(
+                    "[WARNING]: Database contains more episodes than current archive!"
+                )
+                return None
+            if len(zipped_diff) > 0:
+                # Unzip differences
+                new_links, new_texts = zip(*zipped_diff)
+                # Parse new episodes
+                new_episodes = get_parsed_episodes(list(new_links), s, list(new_texts))
+
+                all_episodes = new_episodes + db_episodes
+                all_episodes = sort_episodes_by_post_date(all_episodes)
+
+                write_parsed_episodes_to_json(all_episodes, path_to_json)
+            else:
+                print("There are no new episodes. Exit.")
+                return None
+        else:
+            print("JSON database is not available. Exit.")
+            return None
+
+    else:
+        print("[ERROR]: Can't parse any episodes from archive page.")
+        return
