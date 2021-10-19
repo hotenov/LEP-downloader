@@ -1,8 +1,9 @@
 """LEP module for general logic and classes."""
+import json
 import typing as t
 
 
-class LepEpisode:
+class LepEpisode(object):
     """LEP episode class."""
 
     def __init__(
@@ -39,3 +40,14 @@ class LepEpisode:
         self.parsing_utc = parsing_utc
         self.index = index
         self.admin_note = admin_note
+
+
+class LepJsonEncoder(json.JSONEncoder):
+    """Custom JSONEncoder for LepEpisode objects."""
+
+    def default(self, obj: t.Any) -> t.Any:
+        """Override 'default' method for encoding JSON objects."""
+        if isinstance(obj, LepEpisode):
+            return obj.__dict__
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
