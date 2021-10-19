@@ -1,7 +1,7 @@
 """Test cases for the parser module."""
 import json
-import typing as t
 import tempfile
+import typing as t
 from datetime import datetime
 from pathlib import Path
 
@@ -14,8 +14,8 @@ from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.response import _Context as rm_Context
 
 from lep_downloader import config as conf
-from lep_downloader import parser
 from lep_downloader import lep
+from lep_downloader import parser
 from lep_downloader.lep import LepEpisode
 
 
