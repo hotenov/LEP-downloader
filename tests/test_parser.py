@@ -1,16 +1,21 @@
 """Test cases for the parser module."""
+import json
 import typing as t
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
+import pytest
 import requests
 import requests_mock as req_mock
 from bs4 import BeautifulSoup
+from pytest import CaptureFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.response import _Context as rm_Context
 
 from lep_downloader import config as conf
 from lep_downloader import parser
+from lep_downloader import lep
 from lep_downloader.lep import LepEpisode
 
 
@@ -255,7 +260,7 @@ def test_parsing_invalid_html(requests_mock: rm_Mocker) -> None:
     markup: str = '<a class="entry" id="post">'
     requests_mock.get(conf.ARCHIVE_URL, text=markup)
     parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
-    assert parsing_result is None
+    assert parsing_result == (None, None, None)
 
 
 def test_parsing_archive_without_episodes() -> None:
@@ -521,3 +526,268 @@ def test_episodes_sorting_by_date() -> None:
     ]
     sorted_episodes = parser.sort_episodes_by_post_date(episodes)
     assert sorted_episodes == expected_sorted
+
+
+def test_writing_lep_episodes_to_json() -> None:
+    """It creates JSON file from list of LepEpisode objects."""
+    lep_ep_1 = LepEpisode(
+        702,
+        url="https://teacherluke.co.uk/2021/01/25/702-emergency-questions-with-james/",
+        index=2021012501,
+    )
+    # lep_ep_2_dict = {"episode": 2, "post_title": "2. Test episode #2"}  # type: t.Dict[str, object]
+    # lep_ep_2 = LepEpisode(**lep_ep_2_dict)
+    lep_ep_2 = LepEpisode(episode=2, post_title="2. Test episode #2")
+    episodes = [
+        lep_ep_1,
+        lep_ep_2,
+    ]
+    file = Path()
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        json_file = Path(temp_file.name)
+        parser.write_parsed_episodes_to_json(episodes, json_file)
+        py_from_json = json.load(temp_file)
+        assert len(py_from_json) == 2
+        assert (
+            py_from_json[0]["url"]
+            == "https://teacherluke.co.uk/2021/01/25/702-emergency-questions-with-james/"
+        )
+        file = Path(temp_file.name)
+    file.unlink()
+
+
+def mock_json_db(request: requests.Request, context: rm_Context) -> t.IO[bytes]:
+    """Callback for creating mocked Response of episode page."""
+    # context.status_code = 200
+    local_path = OFFLINE_HTML_DIR / "mocked-db-json-equal-786-objects.json"
+    return open(local_path, "rb")
+
+
+def test_no_new_episodes_on_archive_vs_json_db(
+    requests_mock: rm_Mocker,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It prints when no new episodes on archive page."""
+    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=mocked_single_page_matcher,
+        body=mock_single_page,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        body=mock_json_db,
+    )
+
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    captured = capsys.readouterr()
+    assert "There are no new episodes. Exit." in captured.out
+
+
+def test_no_valid_episode_objects_in_json_db(
+    requests_mock: rm_Mocker,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It prints warning when there are no valid episode objects."""
+    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=mocked_single_page_matcher,
+        body=mock_single_page,
+    )
+
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text="[]",
+    )
+
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+
+    captured = capsys.readouterr()
+
+    assert "[WARNING]" in captured.out
+    assert "no valid episode objects" in captured.out
+
+
+def test_json_db_not_valid(
+    requests_mock: rm_Mocker,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It prints error for invalid JSON document."""
+    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=mocked_single_page_matcher,
+        body=mock_single_page,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text="",
+    )
+
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    captured = capsys.readouterr()
+    assert "[ERROR]" in captured.out
+    assert "Data is not a valid JSON document." in captured.out
+
+
+def test_json_db_not_available(
+    requests_mock: rm_Mocker,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It prints error for unavailable JSON database."""
+    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=mocked_single_page_matcher,
+        body=mock_single_page,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text="JSON not found",
+        status_code=404,
+    )
+
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    captured = capsys.readouterr()
+    assert "JSON database is not available. Exit." in captured.out
+
+
+def test_json_db_contains_only_string(
+    requests_mock: rm_Mocker,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It prints warning for JSON as str."""
+    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=mocked_single_page_matcher,
+        body=mock_single_page,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text='"episode"',
+    )
+
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    captured = capsys.readouterr()
+    assert "[WARNING]" in captured.out
+    assert "no valid episode objects" in captured.out
+
+
+def test_invalid_objects_in_json_not_included(
+    requests_mock: rm_Mocker,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It skips invalid objects in JSON database."""
+    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=mocked_single_page_matcher,
+        body=mock_single_page,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text='[{"episode": 1, "fake_key": "Skip me"}]',
+    )
+
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    captured = capsys.readouterr()
+    assert "[WARNING]" in captured.out
+    assert "no valid episode objects" in captured.out
+
+
+def modified_json_db(request: requests.Request, context: rm_Context) -> str:
+    """Callback for creating mocked JSON database with less episodes."""
+    # context.status_code = 200
+    local_path = OFFLINE_HTML_DIR / "mocked-db-json-equal-786-objects.json"
+    mocked_json = local_path.read_text(encoding="utf-8")
+    db_episodes = json.loads(mocked_json, object_hook=parser.as_lep_episode_obj)
+    # Delete three episodes
+    del db_episodes[0]
+    del db_episodes[1]
+    del db_episodes[6]
+    modified_json = json.dumps(db_episodes, cls=lep.LepJsonEncoder)
+    return modified_json
+
+
+def test_updating_json_database_with_new_episodes(
+    requests_mock: rm_Mocker,
+) -> None:
+    """It retrives and saves new episodes from archive."""
+    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=mocked_single_page_matcher,
+        body=mock_single_page,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=modified_json_db,
+    )
+
+    with tempfile.NamedTemporaryFile(prefix="LEP_tmp_", delete=False) as temp_file:
+        json_file = Path(temp_file.name)
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, json_file)
+        py_from_json = json.load(temp_file, object_hook=parser.as_lep_episode_obj)
+    json_file.unlink()
+
+    assert len(py_from_json) == 786
+
+
+def modified_json_with_extra_episode(
+    request: requests.Request,
+    context: rm_Context,
+) -> str:
+    """Callback for creating mocked JSON database with more episodes."""
+    local_path = OFFLINE_HTML_DIR / "mocked-db-json-equal-786-objects.json"
+    mocked_json = local_path.read_text(encoding="utf-8")
+    db_episodes = json.loads(mocked_json, object_hook=parser.as_lep_episode_obj)
+    # Add extra episode
+    lep_ep = LepEpisode(episode=999, post_title="Extra episode")
+    db_episodes.append(lep_ep)
+    modified_json = json.dumps(db_episodes, cls=lep.LepJsonEncoder)
+    return modified_json
+
+
+def test_updating_json_database_with_extra_episodes(
+    requests_mock: rm_Mocker,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It prints warning if database contains more episodes than archive."""
+    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=mocked_single_page_matcher,
+        body=mock_single_page,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=modified_json_with_extra_episode,
+    )
+
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    captured = capsys.readouterr()
+    assert "[WARNING]" in captured.out
+    assert "Database contains more episodes than current archive!" in captured.out
+
+
+def test_parsing_invalid_html_in_main_actions(
+    requests_mock: rm_Mocker,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It prints error when no episode links on archive page."""
+    markup: str = '<a class="entry" id="post">'
+    requests_mock.get(conf.ARCHIVE_URL, text=markup)
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    captured = capsys.readouterr()
+    assert "[ERROR]" in captured.out
+    assert "Can't parse any episodes from archive page." in captured.out
+
+
+def test_encoding_non_serializable_json_object() -> None:
+    """It raises exception TypeError for non-serializable types."""
+    obj = [complex(2 + 1)]
+    with pytest.raises(TypeError):
+        _ = json.dumps(obj, cls=lep.LepJsonEncoder)
