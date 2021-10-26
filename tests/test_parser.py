@@ -16,6 +16,7 @@ from requests_mock.response import _Context as rm_Context
 from lep_downloader import config as conf
 from lep_downloader import lep
 from lep_downloader import parser
+from lep_downloader.data_getter import get_web_page_html_text
 from lep_downloader.lep import as_lep_episode_obj
 from lep_downloader.lep import LepEpisode
 
@@ -53,14 +54,14 @@ s = requests.Session()
 def test_getting_success_page_response(requests_mock: rm_Mocker) -> None:
     """It gets HTML content as text."""
     requests_mock.get(req_mock.ANY, text="Response OK")
-    resp = parser.get_web_page_html_text(conf.ARCHIVE_URL, s)[0]
+    resp = get_web_page_html_text(conf.ARCHIVE_URL, s)[0]
     assert resp == "Response OK"
 
 
 def test_getting_404_page_response(requests_mock: rm_Mocker) -> None:
     """It handles HTTPError if page is not found."""
     requests_mock.get(req_mock.ANY, text="Response OK", status_code=404)
-    resp = parser.get_web_page_html_text("http://example.com", s)[0]
+    resp = get_web_page_html_text("http://example.com", s)[0]
     assert "[ERROR]" in resp
     assert "404" in resp
 
@@ -68,7 +69,7 @@ def test_getting_404_page_response(requests_mock: rm_Mocker) -> None:
 def test_getting_503_page_response(requests_mock: rm_Mocker) -> None:
     """It handle HTTPError if service is unavailable."""
     requests_mock.get(req_mock.ANY, text="Response OK", status_code=503)
-    resp = parser.get_web_page_html_text("http://example.com", s)[0]
+    resp = get_web_page_html_text("http://example.com", s)[0]
     assert "[ERROR]" in resp
     assert "503" in resp
 
@@ -76,7 +77,7 @@ def test_getting_503_page_response(requests_mock: rm_Mocker) -> None:
 def test_timeout_error(requests_mock: rm_Mocker) -> None:
     """It handle any Timeout exception for page."""
     requests_mock.get(req_mock.ANY, exc=requests.exceptions.Timeout)
-    resp = parser.get_web_page_html_text("http://example.com", s)[0]
+    resp = get_web_page_html_text("http://example.com", s)[0]
     assert "[ERROR]" in resp
     assert "Timeout" in resp
 
@@ -84,7 +85,7 @@ def test_timeout_error(requests_mock: rm_Mocker) -> None:
 def test_connection_error(requests_mock: rm_Mocker) -> None:
     """It handles ConnectionError exception for bad request."""
     requests_mock.get(req_mock.ANY, exc=requests.exceptions.ConnectionError)
-    resp = parser.get_web_page_html_text("http://example.com", s)[0]
+    resp = get_web_page_html_text("http://example.com", s)[0]
     assert "[ERROR]" in resp
     assert "Bad request" in resp
 
@@ -92,7 +93,7 @@ def test_connection_error(requests_mock: rm_Mocker) -> None:
 def test_unknown_error(requests_mock: rm_Mocker) -> None:
     """It handles any other exceptions during attempt to get response from URL."""
     requests_mock.get(req_mock.ANY, exc=Exception("Something Bad"))
-    resp = parser.get_web_page_html_text("http://example.com", s)[0]
+    resp = get_web_page_html_text("http://example.com", s)[0]
     assert "[ERROR]" in resp
     assert "Unhandled error" in resp
 
@@ -106,7 +107,7 @@ def test_final_location_for_good_redirect(requests_mock: rm_Mocker) -> None:
         headers={"Location": "https://final.location/"},
     )
     requests_mock.get("https://final.location", text="Final location")
-    text, final_location, is_url_ok = parser.get_web_page_html_text(
+    text, final_location, is_url_ok = get_web_page_html_text(
         "https://re.direct",
         s,
     )
@@ -128,7 +129,7 @@ def test_final_location_for_bad_redirect(requests_mock: rm_Mocker) -> None:
         text="Final location",
         status_code=404,
     )
-    text, final_location, is_url_ok = parser.get_web_page_html_text(
+    text, final_location, is_url_ok = get_web_page_html_text(
         "https://re.direct",
         s,
     )
