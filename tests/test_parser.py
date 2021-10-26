@@ -16,6 +16,7 @@ from requests_mock.response import _Context as rm_Context
 from lep_downloader import config as conf
 from lep_downloader import lep
 from lep_downloader import parser
+from lep_downloader.lep import as_lep_episode_obj
 from lep_downloader.lep import LepEpisode
 
 
@@ -703,7 +704,7 @@ def modified_json_db(request: requests.Request, context: rm_Context) -> str:
     # context.status_code = 200
     local_path = OFFLINE_HTML_DIR / "mocked-db-json-equal-786-objects.json"
     mocked_json = local_path.read_text(encoding="utf-8")
-    db_episodes = json.loads(mocked_json, object_hook=parser.as_lep_episode_obj)
+    db_episodes = json.loads(mocked_json, object_hook=as_lep_episode_obj)
     # Delete three episodes
     del db_episodes[0]
     del db_episodes[1]
@@ -730,7 +731,7 @@ def test_updating_json_database_with_new_episodes(
     with tempfile.NamedTemporaryFile(prefix="LEP_tmp_", delete=False) as temp_file:
         json_file = Path(temp_file.name)
         parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, json_file)
-        py_from_json = json.load(temp_file, object_hook=parser.as_lep_episode_obj)
+        py_from_json = json.load(temp_file, object_hook=as_lep_episode_obj)
     json_file.unlink()
 
     assert len(py_from_json) == 786
@@ -743,7 +744,7 @@ def modified_json_with_extra_episode(
     """Callback for creating mocked JSON database with more episodes."""
     local_path = OFFLINE_HTML_DIR / "mocked-db-json-equal-786-objects.json"
     mocked_json = local_path.read_text(encoding="utf-8")
-    db_episodes = json.loads(mocked_json, object_hook=parser.as_lep_episode_obj)
+    db_episodes = json.loads(mocked_json, object_hook=as_lep_episode_obj)
     # Add extra episode
     lep_ep = LepEpisode(episode=999, post_title="Extra episode")
     db_episodes.append(lep_ep)

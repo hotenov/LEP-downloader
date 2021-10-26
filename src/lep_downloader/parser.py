@@ -8,7 +8,6 @@ from datetime import timezone
 from operator import attrgetter
 from pathlib import Path
 from typing import Any
-from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -19,6 +18,7 @@ from bs4 import SoupStrainer
 from bs4.element import Tag
 
 from lep_downloader import config as conf
+from lep_downloader.lep import as_lep_episode_obj
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepJsonEncoder
 
@@ -359,17 +359,6 @@ def write_parsed_episodes_to_json(
     """Write list of LepEpisode objects to file."""
     with open(path, "w") as outfile:
         json.dump(lep_objects, outfile, indent=4, cls=LepJsonEncoder)
-
-
-def as_lep_episode_obj(dct: Dict[str, Any]) -> Optional[LepEpisode]:
-    """Specialize JSON object decoding."""
-    try:
-        lep_ep = LepEpisode(**dct)
-    except TypeError:
-        print(f"[WARNING]: Invalid object in JSON!\n\t{dct}")
-        return None
-    else:
-        return lep_ep
 
 
 def do_parsing_actions(
