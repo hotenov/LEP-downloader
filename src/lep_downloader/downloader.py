@@ -1,10 +1,14 @@
 """LEP module for downloading logic."""
 import re
-import typing as t
 from pathlib import Path
+from typing import List
+from typing import Tuple
 
 from lep_downloader import config as conf
 from lep_downloader.lep import LepEpisode
+
+DataForEpisodeAudio = List[Tuple[str, str, List[List[str]], bool]]
+NamesWithAudios = List[Tuple[str, List[str]]]
 
 
 # COMPILED REGEX PATTERNS #
@@ -13,16 +17,16 @@ INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
 
 
 def select_all_audio_episodes(
-    db_episodes: t.List[LepEpisode],
-) -> t.List[LepEpisode]:
+    db_episodes: List[LepEpisode],
+) -> List[LepEpisode]:
     """Return filtered list with AUDIO episodes."""
     audio_episodes = [ep for ep in db_episodes if ep.post_type == "AUDIO"]
     return audio_episodes
 
 
-def get_audios_data(audio_episodes: t.List[LepEpisode]) -> t.Any:
+def get_audios_data(audio_episodes: List[LepEpisode]) -> DataForEpisodeAudio:
     """Return list with audios data for next downloading."""
-    audios_data: t.List[object] = []
+    audios_data: DataForEpisodeAudio = []
     is_multi_part: bool = False
     for ep in reversed(audio_episodes):
         short_date = ep.date[:10]
@@ -32,15 +36,15 @@ def get_audios_data(audio_episodes: t.List[LepEpisode]) -> t.Any:
             is_multi_part = False if len(audios) < 2 else True
         else:
             audios = []
-        data_item = [short_date, title, audios, is_multi_part]
+        data_item = (short_date, title, audios, is_multi_part)
         audios_data.append(data_item)
     return audios_data
 
 
-def bind_name_and_file_url(audios_data: t.Any) -> t.List[t.Tuple[str, t.List[str]]]:
+def bind_name_and_file_url(audios_data: DataForEpisodeAudio) -> NamesWithAudios:
     """Return list of tuples (filename, list(file_urls))."""
     single_part_name: str = ""
-    audios_links: t.List[t.Tuple[str, t.List[str]]] = []
+    audios_links: NamesWithAudios = []
     for item in audios_data:
         short_date, title = item[0], item[1]
         audios, is_multi_part = item[2], item[3]
@@ -58,14 +62,14 @@ def bind_name_and_file_url(audios_data: t.Any) -> t.List[t.Tuple[str, t.List[str
 
 
 def detect_existing_files(
-    audios_links: t.List[t.Tuple[str, t.List[str]]],
+    audios_links: NamesWithAudios,
     save_dir: Path,
     file_ext: str = ".mp3",
-) -> t.Tuple[t.List[t.Tuple[str, t.List[str]]], t.List[t.Tuple[str, t.List[str]]]]:
+) -> Tuple[NamesWithAudios, NamesWithAudios]:
     """Return lists for existing and non-existing files."""
-    existing: t.List[t.Tuple[str, t.List[str]]] = []
-    non_existing: t.List[t.Tuple[str, t.List[str]]] = []
-    only_files_by_ext: t.List[str] = []
+    existing: NamesWithAudios = []
+    non_existing: NamesWithAudios = []
+    only_files_by_ext: List[str] = []
     only_files_by_ext = [
         p.stem for p in save_dir.glob("*") if p.suffix.lower() == file_ext
     ]

@@ -33,7 +33,7 @@ def test_extracting_audio_data() -> None:
     #     [["http://traffic.libsyn.com/teacherluke/1-introduction.mp3"]],
     #     False,
     # ]
-    expected_ep = [
+    expected_ep = (
         "2009-10-19",
         "15. Extra Podcast – 12 Phrasal Verbs",  # dash as Unicode character here.
         [
@@ -42,9 +42,10 @@ def test_extracting_audio_data() -> None:
             ]
         ],
         False,
-    ]
+    )
     audio_data = downloader.get_audios_data(audio_episodes)
     # assert audio_data[0] == expected_ep_1
+
     assert audio_data[1] == expected_ep
 
 
