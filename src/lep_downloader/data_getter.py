@@ -37,20 +37,21 @@ def get_web_page_html_text(page_url: str, session: requests.Session) -> t.Any:
 
 
 def get_list_of_valid_episodes(
-    json_url: str,
     json_body: str,
-) -> t.Optional[t.List[LepEpisode]]:
+    json_url: t.Optional[str] = None,
+) -> t.List[LepEpisode]:
     """Return list of valid (not None) LepEpisode objects."""
+    db_episodes: t.List[LepEpisode] = []
     try:
         db_episodes = json.loads(json_body, object_hook=as_lep_episode_obj)
     except json.JSONDecodeError:
         print(f"[ERROR]: Data is not a valid JSON document.\n\tURL: {json_url}")
-        return None
+        return []
     else:
         is_db_str: bool = type(db_episodes) == str  # type: ignore
         db_episodes = [obj for obj in db_episodes if obj]
         if not db_episodes or is_db_str:
             print(f"[WARNING]: JSON file ({json_url}) has no valid episode objects.")
-            return None
+            return []
         else:
             return db_episodes

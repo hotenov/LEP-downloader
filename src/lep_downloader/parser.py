@@ -35,8 +35,6 @@ EP_LINK_PATTERN = re.compile(conf.EPISODE_LINK_RE, re.IGNORECASE)
 duplicated_ep_links_re = r"^\[(website\scontent|video)\]$|episode\s522$"
 DUPLICATED_EP_PATTERN = re.compile(duplicated_ep_links_re, re.IGNORECASE)
 
-INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
-
 begining_digits_re = r"^\d{1,5}"
 BEGINING_DIGITS_PATTERN = re.compile(begining_digits_re)
 
@@ -342,7 +340,7 @@ def do_parsing_actions(
     path_to_json: Path = DEFAULT_JSON_PATH,
 ) -> None:
     """Main methdod to do parsing."""
-    db_episodes: List[LepEpisode] = []
+    db_episodes: Optional[List[LepEpisode]] = []
     new_episodes: List[LepEpisode] = []
     # Get links and their texts for current archive state.
     links, _, texts = get_archive_parsing_results(archive_url)
@@ -350,7 +348,7 @@ def do_parsing_actions(
         # Get database JSON content
         json_body, _, status_db_ok = get_web_page_html_text(json_url, s)
         if status_db_ok:
-            db_episodes = get_list_of_valid_episodes(json_url, json_body)
+            db_episodes = get_list_of_valid_episodes(json_body, json_url)
             if db_episodes:
                 # Get differences between database and current posts archive URLs
                 zipped_diff = get_only_new_post_urls(db_episodes, links, texts)
