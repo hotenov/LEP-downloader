@@ -1,7 +1,7 @@
 """LEP module for downloading logic."""
-from pathlib import Path
 import re
 import typing as t
+from pathlib import Path
 
 from lep_downloader import config as conf
 from lep_downloader.lep import LepEpisode

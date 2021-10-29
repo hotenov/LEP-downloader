@@ -1,9 +1,9 @@
 """Test cases for the downloader module."""
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
-from lep_downloader.data_getter import get_list_of_valid_episodes
 from lep_downloader import downloader as downloader
+from lep_downloader.data_getter import get_list_of_valid_episodes
 
 
 # TODO: Duplicated code (move to conftest.py)
