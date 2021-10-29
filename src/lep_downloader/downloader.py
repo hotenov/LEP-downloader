@@ -22,13 +22,16 @@ def select_all_audio_episodes(
 
 def get_audios_data(audio_episodes: t.List[LepEpisode]) -> t.Any:
     """Return list with audios data for next downloading."""
-    audios_data: t.List[t.List[t.Union[bool, str, t.List[t.List[str]], None]]] = []
+    audios_data: t.List[object] = []
     is_multi_part: bool = False
     for ep in reversed(audio_episodes):
         short_date = ep.date[:10]
         title = ep.post_title
         audios = ep.audios
-        is_multi_part = False if len(audios) < 2 else True  # type: ignore
+        if audios is not None:
+            is_multi_part = False if len(audios) < 2 else True
+        else:
+            audios = []
         data_item = [short_date, title, audios, is_multi_part]
         audios_data.append(data_item)
     return audios_data
