@@ -110,3 +110,25 @@ def test_separating_existing_and_non_existing_mp3() -> None:
 
     assert len(existing) == 2
     assert len(non_existing) == 17
+
+
+def test_retrieving_audios_as_none() -> None:
+    """It replaces None to empty list."""
+    json_test = """\
+        [
+            {
+                "episode": 3,
+                "date": "2000-01-01T00:00:00+00:00",
+                "url": "https://teacherluke.co.uk/2009/04/15/episode-3-musicthe-beatles/",
+                "post_title": "3. Music/The Beatles",
+                "post_type": "",
+                "audios": null,
+                "parsing_utc": "2021-10-14T07:35:24.575575Z",
+                "index": 2009041501,
+                "admin_note": "Edge case - null in 'audios'"
+            }
+        ]
+    """
+    db_episodes = get_list_of_valid_episodes(json_test)
+    audio_data = downloader.get_audios_data(db_episodes)
+    assert audio_data[0][2] == []
