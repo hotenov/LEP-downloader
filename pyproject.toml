@@ -51,6 +51,7 @@ requests-mock = "^1.9.3"
 flake8-black = "^0.2.3"
 flake8-import-order = "^0.18.1"
 rope = "^0.20.1"
+yapf = "^0.31.0"
 
 [tool.poetry.scripts]
 lep-downloader = "lep_downloader.__main__:main"
