@@ -51,3 +51,14 @@ class LepJsonEncoder(json.JSONEncoder):
             return obj.__dict__
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
+
+
+def as_lep_episode_obj(dct: t.Dict[str, t.Any]) -> t.Optional[LepEpisode]:
+    """Specialize JSON object decoding."""
+    try:
+        lep_ep = LepEpisode(**dct)
+    except TypeError:
+        print(f"[WARNING]: Invalid object in JSON!\n\t{dct}")
+        return None
+    else:
+        return lep_ep

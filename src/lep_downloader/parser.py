@@ -8,7 +8,6 @@ from datetime import timezone
 from operator import attrgetter
 from pathlib import Path
 from typing import Any
-from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -19,6 +18,9 @@ from bs4 import SoupStrainer
 from bs4.element import Tag
 
 from lep_downloader import config as conf
+from lep_downloader.data_getter import get_list_of_valid_episodes
+from lep_downloader.data_getter import get_web_page_html_text
+from lep_downloader.data_getter import s
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepJsonEncoder
 
@@ -32,8 +34,6 @@ EP_LINK_PATTERN = re.compile(conf.EPISODE_LINK_RE, re.IGNORECASE)
 
 duplicated_ep_links_re = r"^\[(website\scontent|video)\]$|episode\s522$"
 DUPLICATED_EP_PATTERN = re.compile(duplicated_ep_links_re, re.IGNORECASE)
-
-INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
 
 begining_digits_re = r"^\d{1,5}"
 BEGINING_DIGITS_PATTERN = re.compile(begining_digits_re)
@@ -53,35 +53,8 @@ only_a_tags_with_mp3 = SoupStrainer(
 
 post_indexes: List[int] = []
 
-s = requests.Session()
-
 
 DEFAULT_JSON_PATH = Path("lep-db.min.json")
-
-
-def get_web_page_html_text(page_url: str, session: requests.Session) -> Any:
-    """Return HTML text of LEP archive page."""
-    final_location = page_url
-    is_url_ok = False
-    with session:
-        try:
-            resp = session.get(page_url, timeout=(6, 33))
-            final_location = resp.url
-            if not resp.ok:
-                resp.raise_for_status()
-        except requests.exceptions.HTTPError as err:
-            return (f"[ERROR]: {err}", final_location, is_url_ok)
-        except requests.exceptions.Timeout as err:
-            return (f"[ERROR]: Timeout | {err}", final_location, is_url_ok)
-        except requests.exceptions.ConnectionError as err:
-            return (f"[ERROR]: Bad request | {err}", final_location, is_url_ok)
-        except Exception as err:
-            return (f"[ERROR]: Unhandled error | {err}", final_location, is_url_ok)
-        else:
-            resp.encoding = "utf-8"
-            final_location = resp.url
-            is_url_ok = True
-            return (resp.text, final_location, is_url_ok)
 
 
 def tag_a_with_episode(tag_a: Tag) -> bool:
@@ -361,24 +334,13 @@ def write_parsed_episodes_to_json(
         json.dump(lep_objects, outfile, indent=4, cls=LepJsonEncoder)
 
 
-def as_lep_episode_obj(dct: Dict[str, Any]) -> Optional[LepEpisode]:
-    """Specialize JSON object decoding."""
-    try:
-        lep_ep = LepEpisode(**dct)
-    except TypeError:
-        print(f"[WARNING]: Invalid object in JSON!\n\t{dct}")
-        return None
-    else:
-        return lep_ep
-
-
 def do_parsing_actions(
     json_url: str,
     archive_url: str,
     path_to_json: Path = DEFAULT_JSON_PATH,
 ) -> None:
     """Main methdod to do parsing."""
-    db_episodes: List[LepEpisode] = []
+    db_episodes: Optional[List[LepEpisode]] = []
     new_episodes: List[LepEpisode] = []
     # Get links and their texts for current archive state.
     links, _, texts = get_archive_parsing_results(archive_url)
@@ -386,20 +348,12 @@ def do_parsing_actions(
         # Get database JSON content
         json_body, _, status_db_ok = get_web_page_html_text(json_url, s)
         if status_db_ok:
-            try:
-                db_episodes = json.loads(json_body, object_hook=as_lep_episode_obj)
-            except json.JSONDecodeError:
-                print(f"[ERROR]: Data is not a valid JSON document.\n\tURL: {json_url}")
+            db_episodes = get_list_of_valid_episodes(json_body, json_url)
+            if db_episodes:
+                # Get differences between database and current posts archive URLs
+                zipped_diff = get_only_new_post_urls(db_episodes, links, texts)
+            else:
                 return None
-            is_db_str: bool = type(db_episodes) == str  # type: ignore
-            db_episodes = [obj for obj in db_episodes if obj]
-            if not db_episodes or is_db_str:
-                print(
-                    f"[WARNING]: JSON file ({json_url}) has no valid episode objects."
-                )
-                return None
-            # Get differences between database and current posts archive URLs
-            zipped_diff = get_only_new_post_urls(db_episodes, links, texts)
             if zipped_diff is None:
                 print(
                     "[WARNING]: Database contains more episodes than current archive!"
