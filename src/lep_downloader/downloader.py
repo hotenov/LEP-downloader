@@ -1,11 +1,16 @@
 """LEP module for downloading logic."""
 import re
 from pathlib import Path
+from typing import Dict
 from typing import List
 from typing import Tuple
 
+import requests
+
 from lep_downloader import config as conf
+from lep_downloader.data_getter import s
 from lep_downloader.lep import LepEpisode
+
 
 DataForEpisodeAudio = List[Tuple[str, str, List[List[str]], bool]]
 NamesWithAudios = List[Tuple[str, List[str]]]
@@ -14,6 +19,14 @@ NamesWithAudios = List[Tuple[str, List[str]]]
 # COMPILED REGEX PATTERNS #
 
 INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
+
+
+# STATISTICS (LOG) DICTIONARIES #
+
+successful_downloaded: Dict[str, str] = {}
+unavailable_links: Dict[str, str] = {}
+already_on_disc: Dict[str, str] = {}
+duplicated_links: Dict[str, str] = {}
 
 
 def select_all_audio_episodes(
@@ -79,3 +92,73 @@ def detect_existing_files(
         else:
             non_existing.append(audio)
     return (existing, non_existing)
+
+
+def download_and_write_file(
+    url: str,
+    session: requests.Session,
+    save_dir: Path,
+    filename: str,
+) -> bool:
+    """Downloads file by URL and returns operation status."""
+    is_writing_started = False
+    file_path: Path = save_dir / filename
+    try:
+        with session.get(url, stream=True) as response:
+            response.raise_for_status()
+            with file_path.open(mode="wb") as out_file:
+                for chunk in response.iter_content(
+                    chunk_size=1024 * 1024  # 1MB chunks
+                ):
+                    out_file.write(chunk)
+                    is_writing_started = True
+            print(f" + {filename}")
+            return True
+    except OSError as err:
+        print(f"[ERROR]: Can't write file: {err}")
+        if is_writing_started:
+            file_path.unlink()  # Delete incomplete file # pragma: no cover
+            # It's hard to mock / monkeypatch this case
+            # Tested manually
+        return False
+    except Exception as err:
+        print(f"[ERROR]: Unknown error: {err}")
+        return False
+
+
+def download_files(
+    downloads_bunch: NamesWithAudios,
+    save_dir: Path,
+    file_ext: str = ".mp3",
+) -> None:
+    """Download files from passed links bunch."""
+    for item in downloads_bunch:
+        file_stem: str = item[0]
+        links: List[str] = item[1]
+        filename = file_stem + file_ext
+
+        primary_link = links[0]
+        if Path(save_dir / filename).exists():
+            already_on_disc[primary_link] = filename
+            continue  # Skip already downloaded file on disc.
+        if primary_link in successful_downloaded:
+            duplicated_links[primary_link] = filename
+            continue  # Skip already processed URL.
+
+        result_ok = download_and_write_file(primary_link, s, save_dir, filename)
+        if result_ok:
+            successful_downloaded[primary_link] = filename
+        else:
+            if len(links) > 1:  # Try downloading for auxiliary links
+                for aux_link in links[1:]:
+                    aux_result_ok = download_and_write_file(
+                        aux_link, s, save_dir, filename
+                    )
+                if not aux_result_ok:
+                    unavailable_links[aux_link] = filename
+                    print(f"[INFO]: Can't download: {filename}")
+                else:
+                    successful_downloaded[aux_link] = filename
+            else:
+                unavailable_links[primary_link] = filename
+                print(f"[INFO]: Can't download: {filename}")
