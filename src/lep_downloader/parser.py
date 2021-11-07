@@ -18,9 +18,9 @@ from bs4 import SoupStrainer
 from bs4.element import Tag
 
 from lep_downloader import config as conf
-from lep_downloader.data_getter import s
 from lep_downloader.data_getter import get_list_of_valid_episodes
 from lep_downloader.data_getter import get_web_page_html_text
+from lep_downloader.data_getter import s
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepJsonEncoder
 
