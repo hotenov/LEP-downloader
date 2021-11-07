@@ -1,6 +1,11 @@
 """Test cases for the downloader module."""
 import tempfile
 from pathlib import Path
+from typing import List
+from typing import Tuple
+
+from pytest import CaptureFixture
+from requests_mock.mocker import Mocker as rm_Mocker
 
 from lep_downloader import downloader as downloader
 from lep_downloader.data_getter import get_list_of_valid_episodes
@@ -26,13 +31,6 @@ def test_selecting_only_audio_episodes() -> None:
 def test_extracting_audio_data() -> None:
     """It returns list of tuples with audio data."""
     audio_episodes = downloader.select_all_audio_episodes(MOCKED_DB_EPISODES)
-    # expected_ep_1 = [
-    #     "2009-04-12",
-    #     1,
-    #     "1. Introduction",
-    #     [["http://traffic.libsyn.com/teacherluke/1-introduction.mp3"]],
-    #     False,
-    # ]
     expected_ep = (
         "2009-10-19",
         "15. Extra Podcast – 12 Phrasal Verbs",  # dash as Unicode character here.
@@ -44,8 +42,6 @@ def test_extracting_audio_data() -> None:
         False,
     )
     audio_data = downloader.get_audios_data(audio_episodes)
-    # assert audio_data[0] == expected_ep_1
-
     assert audio_data[1] == expected_ep
 
 
@@ -133,3 +129,234 @@ def test_retrieving_audios_as_none() -> None:
     db_episodes = get_list_of_valid_episodes(json_test)
     audio_data = downloader.get_audios_data(db_episodes)
     assert audio_data[0][2] == []
+
+
+def test_downloading_mocked_mp3_files(requests_mock: rm_Mocker) -> None:
+    """It downloads file on disc."""
+    test_downloads: List[Tuple[str, List[str]]] = []
+    file_1 = (
+        "Test File #1",
+        ["https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"],
+    )
+    file_2 = (
+        "Test File #2",
+        ["https://audioboom.com/posts/5678762-episode-169-luke-back-on-zep-part-4.mp3"],
+    )
+    test_downloads.append(file_1)
+    test_downloads.append(file_2)
+
+    mocked_file_1 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio1.mp3"
+    requests_mock.get(
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+        content=mocked_file_1.read_bytes(),
+    )
+
+    mocked_file_2 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio2.mp3"
+    requests_mock.get(
+        "https://audioboom.com/posts/5678762-episode-169-luke-back-on-zep-part-4.mp3",
+        content=mocked_file_2.read_bytes(),
+    )
+
+    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
+        save_tmp_dir = Path(temp_dir)
+        downloader.download_files(test_downloads, save_tmp_dir)
+        expected_file_1 = Path(save_tmp_dir / "Test File #1.mp3")
+        expected_file_2 = Path(save_tmp_dir / "Test File #2.mp3")
+        assert expected_file_1.exists()
+        assert 21460 < expected_file_1.stat().st_size < 22000
+        assert expected_file_2.exists()
+        assert 18300 < expected_file_2.stat().st_size < 18350
+        assert len(downloader.successful_downloaded) == 2
+
+
+def test_skipping_downloaded_url(requests_mock: rm_Mocker) -> None:
+    """It skips URL if it was downloaded before."""
+    test_downloads: List[Tuple[str, List[str]]] = []
+    file_1 = (
+        "Test File #1",
+        [
+            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"
+        ],
+    )
+    file_2 = (
+        "Test File #2",
+        [
+            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"
+        ],
+    )
+    test_downloads.append(file_1)
+    test_downloads.append(file_2)
+
+    mocked_file_1 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio1.mp3"
+    requests_mock.get(
+        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",
+        content=mocked_file_1.read_bytes(),
+    )
+
+    mocked_file_2 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio2.mp3"
+    requests_mock.get(
+        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",
+        content=mocked_file_2.read_bytes(),
+    )
+
+    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
+        save_tmp_dir = Path(temp_dir)
+        downloader.download_files(test_downloads, save_tmp_dir)
+        expected_file_1 = Path(save_tmp_dir / "Test File #1.mp3")
+        assert expected_file_1.exists()
+        assert len(list(save_tmp_dir.iterdir())) == 1
+        assert len(downloader.duplicated_links) == 1
+
+
+def test_skipping_downloaded_file_on_disc(requests_mock: rm_Mocker) -> None:
+    """It skips (and does not override) URL if file was downloaded before."""
+    downloader.successful_downloaded = {}  # Clear from previous tests
+    test_downloads: List[Tuple[str, List[str]]] = []
+    file_1 = (
+        "Test File #1",
+        [
+            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"
+        ],
+    )
+    file_2 = (
+        "Test File #2",
+        ["https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"],
+    )
+    test_downloads.append(file_1)
+    test_downloads.append(file_2)
+
+    mocked_file_1 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio1.mp3"
+    requests_mock.get(
+        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",
+        content=mocked_file_1.read_bytes(),
+    )
+
+    mocked_file_2 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio2.mp3"
+    requests_mock.get(
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+        content=mocked_file_2.read_bytes(),
+    )
+
+    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
+        save_tmp_dir = Path(temp_dir)
+        existing_file_1 = Path(save_tmp_dir / "Test File #1.mp3")
+        existing_file_1.write_text("Here are mp3 1 bytes")
+        downloader.download_files(test_downloads, save_tmp_dir)
+        expected_file_2 = Path(save_tmp_dir / "Test File #2.mp3")
+        assert existing_file_1.read_text() == "Here are mp3 1 bytes"
+        assert expected_file_2.exists()
+        assert len(list(save_tmp_dir.iterdir())) == 2
+        assert len(downloader.already_on_disc) == 1
+
+
+def test_try_auxiliary_download_links(requests_mock: rm_Mocker) -> None:
+    """It downloads file by auxiliary link."""
+    downloader.successful_downloaded = {}  # Clear from previous tests
+    test_downloads: List[Tuple[str, List[str]]] = []
+    file_1 = (
+        "Test File #1",
+        [
+            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+            "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
+            "https://hotenov.com/d/lep/some_auxiliary_2.mp3",
+        ],
+    )
+    test_downloads.append(file_1)
+
+    mocked_file_1 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio1.mp3"
+
+    requests_mock.get(
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+        text="Response not OK",
+        status_code=404,
+    )
+    requests_mock.get(
+        "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
+        text="Response not OK",
+        status_code=404,
+    )
+    requests_mock.get(
+        "https://hotenov.com/d/lep/some_auxiliary_2.mp3",
+        content=mocked_file_1.read_bytes(),
+    )
+
+    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
+        save_tmp_dir = Path(temp_dir)
+        downloader.download_files(test_downloads, save_tmp_dir)
+        expected_file_1 = Path(save_tmp_dir / "Test File #1.mp3")
+        assert expected_file_1.exists()
+        assert len(list(save_tmp_dir.iterdir())) == 1
+        assert len(downloader.successful_downloaded) == 1
+
+
+def test_primary_link_unavailable(
+    requests_mock: rm_Mocker,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It records unavailable file and prints about that."""
+    downloader.successful_downloaded = {}  # Clear from previous tests
+    downloader.unavailable_links = {}
+    test_downloads: List[Tuple[str, List[str]]] = []
+    file_1 = (
+        "Test File #1",
+        [
+            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+        ],
+    )
+    test_downloads.append(file_1)
+
+    requests_mock.get(
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+        exc=Exception("Something wrong!"),
+    )
+
+    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
+        save_tmp_dir = Path(temp_dir)
+        downloader.download_files(test_downloads, save_tmp_dir)
+        captured = capsys.readouterr()
+        assert len(list(save_tmp_dir.iterdir())) == 0
+        assert len(downloader.successful_downloaded) == 0
+        assert len(downloader.unavailable_links) == 1
+        assert "[ERROR]: Unknown error:" in captured.out
+        assert "Something wrong!" in captured.out
+        assert "[INFO]: Can't download:" in captured.out
+        assert "Test File #1.mp3" in captured.out
+
+
+def test_both_primary_and_auxiliary_links_404(
+    requests_mock: rm_Mocker,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It records unavailable files and prints about that."""
+    downloader.successful_downloaded = {}  # Clear from previous tests
+    downloader.unavailable_links = {}
+    test_downloads: List[Tuple[str, List[str]]] = []
+    file_1 = (
+        "Test File #1",
+        [
+            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+            "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
+        ],
+    )
+    test_downloads.append(file_1)
+
+    requests_mock.get(
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+        text="Response not OK",
+        status_code=404,
+    )
+    requests_mock.get(
+        "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
+        text="Response not OK",
+        status_code=404,
+    )
+
+    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
+        save_tmp_dir = Path(temp_dir)
+        downloader.download_files(test_downloads, save_tmp_dir)
+        captured = capsys.readouterr()
+        assert len(list(save_tmp_dir.iterdir())) == 0
+        assert len(downloader.successful_downloaded) == 0
+        assert len(downloader.unavailable_links) == 1
+        assert "[INFO]: Can't download:" in captured.out
+        assert "Test File #1.mp3" in captured.out
