@@ -232,17 +232,12 @@ def test_short_links_substitution() -> None:
     assert replaced == expected
 
 
-def mock_archive_page(request: requests.Request, context: rm_Context) -> t.IO[bytes]:
-    """Callback for creating mocked Response of archive page."""
-    context.status_code = 200
-    # resp = io.StringIO()
-    resp = OFFLINE_HTML_DIR / conf.LOCAL_ARCHIVE_HTML
-    return open(resp, "rb")
-
-
-def test_parsing_result(requests_mock: rm_Mocker) -> None:
+def test_parsing_result(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+) -> None:
     """It parses mocked archived page."""
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
     all_links = parsing_result[0]
     all_texts = parsing_result[2]
@@ -314,9 +309,12 @@ def mock_single_page(request: requests.Request, context: rm_Context) -> t.IO[byt
     return open(local_path, "rb")
 
 
-def test_mocking_single_page(requests_mock: rm_Mocker) -> None:
+def test_mocking_single_page(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+) -> None:
     """It parses mocked episode page."""
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     parsing_result: t.Tuple[t.List[str], ...] = parser.get_archive_parsing_results(
         conf.ARCHIVE_URL
     )
@@ -414,10 +412,13 @@ def test_parsing_non_episode_link(requests_mock: rm_Mocker) -> None:
     assert episode is None
 
 
-def test_parsing_links_to_audio_for_mocked_episodes(requests_mock: rm_Mocker) -> None:
+def test_parsing_links_to_audio_for_mocked_episodes(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+) -> None:
     """It parses links to audio (if they exist)."""
     # TODO: Complete test (now it's simple copy-paste)
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     parsing_result: t.Tuple[t.List[str], ...] = parser.get_archive_parsing_results(
         conf.ARCHIVE_URL
     )
@@ -567,10 +568,11 @@ def mock_json_db(request: requests.Request, context: rm_Context) -> t.IO[bytes]:
 
 def test_no_new_episodes_on_archive_vs_json_db(
     requests_mock: rm_Mocker,
+    archive_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints when no new episodes on archive page."""
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=mocked_single_page_matcher,
@@ -588,10 +590,11 @@ def test_no_new_episodes_on_archive_vs_json_db(
 
 def test_no_valid_episode_objects_in_json_db(
     requests_mock: rm_Mocker,
+    archive_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints warning when there are no valid episode objects."""
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
 
     requests_mock.get(
         req_mock.ANY,
@@ -614,10 +617,11 @@ def test_no_valid_episode_objects_in_json_db(
 
 def test_json_db_not_valid(
     requests_mock: rm_Mocker,
+    archive_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints error for invalid JSON document."""
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=mocked_single_page_matcher,
@@ -636,10 +640,11 @@ def test_json_db_not_valid(
 
 def test_json_db_not_available(
     requests_mock: rm_Mocker,
+    archive_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints error for unavailable JSON database."""
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=mocked_single_page_matcher,
@@ -658,10 +663,11 @@ def test_json_db_not_available(
 
 def test_json_db_contains_only_string(
     requests_mock: rm_Mocker,
+    archive_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints warning for JSON as str."""
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=mocked_single_page_matcher,
@@ -680,10 +686,11 @@ def test_json_db_contains_only_string(
 
 def test_invalid_objects_in_json_not_included(
     requests_mock: rm_Mocker,
+    archive_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It skips invalid objects in JSON database."""
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=mocked_single_page_matcher,
@@ -716,9 +723,10 @@ def modified_json_db(request: requests.Request, context: rm_Context) -> str:
 
 def test_updating_json_database_with_new_episodes(
     requests_mock: rm_Mocker,
+    archive_page_mock: str,
 ) -> None:
     """It retrives and saves new episodes from archive."""
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=mocked_single_page_matcher,
@@ -755,10 +763,11 @@ def modified_json_with_extra_episode(
 
 def test_updating_json_database_with_extra_episodes(
     requests_mock: rm_Mocker,
+    archive_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints warning if database contains more episodes than archive."""
-    requests_mock.get(conf.ARCHIVE_URL, body=mock_archive_page)
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=mocked_single_page_matcher,
