@@ -24,57 +24,75 @@ from lep_downloader.lep import as_lep_episode_obj
 from lep_downloader.lep import LepEpisode
 
 
-s = requests.Session()
-
-
-def test_getting_success_page_response(requests_mock: rm_Mocker) -> None:
+def test_getting_success_page_response(
+    requests_mock: rm_Mocker,
+    req_ses: requests.Session,
+) -> None:
     """It gets HTML content as text."""
     requests_mock.get(req_mock.ANY, text="Response OK")
-    resp = get_web_page_html_text(conf.ARCHIVE_URL, s)[0]
+    resp = get_web_page_html_text(conf.ARCHIVE_URL, req_ses)[0]
     assert resp == "Response OK"
 
 
-def test_getting_404_page_response(requests_mock: rm_Mocker) -> None:
+def test_getting_404_page_response(
+    requests_mock: rm_Mocker,
+    req_ses: requests.Session,
+) -> None:
     """It handles HTTPError if page is not found."""
     requests_mock.get(req_mock.ANY, text="Response OK", status_code=404)
-    resp = get_web_page_html_text("http://example.com", s)[0]
+    resp = get_web_page_html_text("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
     assert "404" in resp
 
 
-def test_getting_503_page_response(requests_mock: rm_Mocker) -> None:
+def test_getting_503_page_response(
+    requests_mock: rm_Mocker,
+    req_ses: requests.Session,
+) -> None:
     """It handle HTTPError if service is unavailable."""
     requests_mock.get(req_mock.ANY, text="Response OK", status_code=503)
-    resp = get_web_page_html_text("http://example.com", s)[0]
+    resp = get_web_page_html_text("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
     assert "503" in resp
 
 
-def test_timeout_error(requests_mock: rm_Mocker) -> None:
+def test_timeout_error(
+    requests_mock: rm_Mocker,
+    req_ses: requests.Session,
+) -> None:
     """It handle any Timeout exception for page."""
     requests_mock.get(req_mock.ANY, exc=requests.exceptions.Timeout)
-    resp = get_web_page_html_text("http://example.com", s)[0]
+    resp = get_web_page_html_text("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
     assert "Timeout" in resp
 
 
-def test_connection_error(requests_mock: rm_Mocker) -> None:
+def test_connection_error(
+    requests_mock: rm_Mocker,
+    req_ses: requests.Session,
+) -> None:
     """It handles ConnectionError exception for bad request."""
     requests_mock.get(req_mock.ANY, exc=requests.exceptions.ConnectionError)
-    resp = get_web_page_html_text("http://example.com", s)[0]
+    resp = get_web_page_html_text("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
     assert "Bad request" in resp
 
 
-def test_unknown_error(requests_mock: rm_Mocker) -> None:
+def test_unknown_error(
+    requests_mock: rm_Mocker,
+    req_ses: requests.Session,
+) -> None:
     """It handles any other exceptions during attempt to get response from URL."""
     requests_mock.get(req_mock.ANY, exc=Exception("Something Bad"))
-    resp = get_web_page_html_text("http://example.com", s)[0]
+    resp = get_web_page_html_text("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
     assert "Unhandled error" in resp
 
 
-def test_final_location_for_good_redirect(requests_mock: rm_Mocker) -> None:
+def test_final_location_for_good_redirect(
+    requests_mock: rm_Mocker,
+    req_ses: requests.Session,
+) -> None:
     """It retrieves final location during redirect."""
     requests_mock.get(
         "https://re.direct",
@@ -85,14 +103,17 @@ def test_final_location_for_good_redirect(requests_mock: rm_Mocker) -> None:
     requests_mock.get("https://final.location", text="Final location")
     text, final_location, is_url_ok = get_web_page_html_text(
         "https://re.direct",
-        s,
+        req_ses,
     )
     assert is_url_ok
     assert text == "Final location"
     assert final_location == "https://final.location/"
 
 
-def test_final_location_for_bad_redirect(requests_mock: rm_Mocker) -> None:
+def test_final_location_for_bad_redirect(
+    requests_mock: rm_Mocker,
+    req_ses: requests.Session,
+) -> None:
     """It retrieves final location during redirect."""
     requests_mock.get(
         "https://re.direct",
@@ -107,7 +128,7 @@ def test_final_location_for_bad_redirect(requests_mock: rm_Mocker) -> None:
     )
     text, final_location, is_url_ok = get_web_page_html_text(
         "https://re.direct",
-        s,
+        req_ses,
     )
     assert not is_url_ok
     assert "[ERROR]" in text
@@ -117,15 +138,15 @@ def test_final_location_for_bad_redirect(requests_mock: rm_Mocker) -> None:
 
 def test_retrieve_all_episode_links_from_soup() -> None:
     """It returns only <a> tags from soup object."""
-    html_doc = """<html><head><title>The Dormouse's story</title></head>
+    html_doc = """<html><head><title>The Dormouse'req_ses story</title></head>
         <article>
-            <p class="title"><b>The Dormouse's story</b></p>
+            <p class="title"><b>The Dormouse'req_ses story</b></p>
             <p class="story">Once upon a time there were three little sisters; and their names were
                 <a href="https://teacherluke.co.uk/2017/09/24/website-content-luke-on-the-real-life-english-podcast/" class="sister" id="link1">Elsie</a>,
                 <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
                 <a class="title" href="https://teacherluke.co.uk/2021/06/04/723-bahar-from-iran-wisbolep-runner-up/">
                     723. Bahar from Iran&nbsp;
-                    <img class="emoji" role="img" draggable="false" src="https://s.w.org/images/core/emoji/13.0.1/svg/1f1ee-1f1f7.svg" alt="🇮🇷">
+                    <img class="emoji" role="img" draggable="false" src="https://req_ses.w.org/images/core/emoji/13.0.1/svg/1f1ee-1f1f7.svg" alt="🇮🇷">
                     &nbsp;(WISBOLEP Runner-Up)
                 </a>
                 and they lived at the bottom of a well.
@@ -140,7 +161,7 @@ def test_retrieve_all_episode_links_from_soup() -> None:
 
 def test_replacing_misspelled_link() -> None:
     """It replaces misspelled link and returns modified soup object."""
-    html_doc = """<html><head><title>The Dormouse's story</title></head>
+    html_doc = """<html><head><title>The Dormouse'req_ses story</title></head>
         <body>
             <p class="story">Once upon a time there were three little sisters; and their names were
                 <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
@@ -157,7 +178,7 @@ def test_replacing_misspelled_link() -> None:
 
 def test_replacing_nothing_when_no_misspelled_link() -> None:
     """It replaces nothing when there is no misspelled link and returns the same soup object."""
-    html_doc = """<html><head><title>The Dormouse's story</title></head>
+    html_doc = """<html><head><title>The Dormouse'req_ses story</title></head>
         <body>
             <p class="story">Once upon a time there were three little sisters; and their names were
                 <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
@@ -239,7 +260,7 @@ def test_parsing_invalid_html(requests_mock: rm_Mocker) -> None:
 
 def test_parsing_archive_without_episodes() -> None:
     """It collects links only matched by episode link pattern."""
-    markup = """<html><head><title>The Dormouse's story</title></head>
+    markup = """<html><head><title>The Dormouse'req_ses story</title></head>
         <article>
             <p class="story">Once upon a time there were three little sisters; and their names were
                 <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
@@ -358,7 +379,10 @@ def test_generating_new_post_index_on_same_day() -> None:
     assert index2 == expected_index + 1
 
 
-def test_parsing_non_episode_link(requests_mock: rm_Mocker) -> None:
+def test_parsing_non_episode_link(
+    requests_mock: rm_Mocker,
+    req_ses: requests.Session,
+) -> None:
     """It returns None (empty episode) for non-episode link."""
     non_episode_url = "https://teacherluke.co.uk/premium/archive-comment-section/"
     requests_mock.get(
@@ -367,7 +391,7 @@ def test_parsing_non_episode_link(requests_mock: rm_Mocker) -> None:
         status_code=200,
     )
     link_title = "Some title"
-    episode = parser.parse_single_page(non_episode_url, s, link_title)
+    episode = parser.parse_single_page(non_episode_url, req_ses, link_title)
     assert episode is None
 
 
@@ -378,7 +402,7 @@ def test_parsing_links_to_audio_for_mocked_episodes(
     single_page_mock: str,
 ) -> None:
     """It parses links to audio (if they exist)."""
-    # TODO: Complete test (now it's simple copy-paste)
+    # TODO: Complete test (now it'req_ses simple copy-paste)
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     parsing_result: t.Tuple[t.List[str], ...] = parser.get_archive_parsing_results(
         conf.ARCHIVE_URL

@@ -77,6 +77,13 @@ URL_HTML_MAPPING = {
 
 
 @pytest.fixture(scope="session")
+def req_ses() -> requests.Session:
+    """Returns global (for all tests) requests session."""
+    s = requests.Session()
+    return s
+
+
+@pytest.fixture(scope="session")
 def url_html_map() -> Dict[str, str]:
     """Returns dictionary of mocked URLs and their HTML files."""
     return URL_HTML_MAPPING
