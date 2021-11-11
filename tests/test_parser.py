@@ -1,3 +1,24 @@
+# MIT License
+#
+# Copyright (c) 2021 Artem Hotenov
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 """Test cases for the parser module."""
 import json
 import tempfile
@@ -22,6 +43,9 @@ from lep_downloader import parser
 from lep_downloader.data_getter import get_web_page_html_text
 from lep_downloader.lep import as_lep_episode_obj
 from lep_downloader.lep import LepEpisode
+
+
+lep_date_format = "%Y-%m-%dT%H:%M:%S%z"
 
 
 def test_getting_success_page_response(
@@ -82,7 +106,7 @@ def test_unknown_error(
     requests_mock: rm_Mocker,
     req_ses: requests.Session,
 ) -> None:
-    """It handles any other exceptions during attempt to get response from URL."""
+    """It handles any other exceptions during getting response from URL."""
     requests_mock.get(req_mock.ANY, exc=Exception("Something Bad"))
     resp = get_web_page_html_text("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
@@ -152,7 +176,7 @@ def test_retrieve_all_episode_links_from_soup() -> None:
                 and they lived at the bottom of a well.
             </p>
             <p class="story">...</p>
-    """
+    """  # noqa: E501,B950
     soup = BeautifulSoup(html_doc, "lxml")
     only_links, only_strings = parser.get_all_episode_links_from_soup(soup)
     assert len(only_links) == 2
@@ -169,15 +193,16 @@ def test_replacing_misspelled_link() -> None:
                 <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
                 and they lived at the bottom of a well.
             </p>
-    """
+    """  # noqa: E501,B950
     soup = BeautifulSoup(html_doc, "lxml")
     modified_soup = parser.replace_misspelled_link(soup)
     new_href = modified_soup("a")[1]["href"]
-    assert new_href == "https://teacherluke.co.uk/2012/08/06/london-olympics-2012/"
+    expected = "https://teacherluke.co.uk/2012/08/06/london-olympics-2012/"
+    assert new_href == expected
 
 
 def test_replacing_nothing_when_no_misspelled_link() -> None:
-    """It replaces nothing when there is no misspelled link and returns the same soup object."""
+    """It replaces nothing when there is no misspelled link."""
     html_doc = """<html><head><title>The Dormouse'req_ses story</title></head>
         <body>
             <p class="story">Once upon a time there were three little sisters; and their names were
@@ -186,7 +211,7 @@ def test_replacing_nothing_when_no_misspelled_link() -> None:
                 <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
                 and they lived at the bottom of a well.
             </p>
-    """
+    """  # noqa: E501,B950
     soup = BeautifulSoup(html_doc, "lxml")
     modified_soup = parser.replace_misspelled_link(soup)
     assert soup == modified_soup
@@ -197,8 +222,8 @@ def test_removing_irrelevant_links() -> None:
     test_list: t.List[str] = [
         "https://teacherluke.co.uk/2020/11/23/wisbolep/",
         "https://wp.me/P4IuUx-82H",  # <- Link to app
-        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",
-        "https://teacherluke.co.uk/2021/03/26/711-william-from-france-%f0%9f%87%ab%f0%9f%87%b7-wisbolep-runner-up/",
+        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",  # noqa: E501,B950
+        "https://teacherluke.co.uk/2021/03/26/711-william-from-france-%f0%9f%87%ab%f0%9f%87%b7-wisbolep-runner-up/",  # noqa: E501,B950
     ]
     test_texts: t.List[str] = [
         "1. Link",
@@ -216,15 +241,15 @@ def test_short_links_substitution() -> None:
     test_list: t.List[str] = [
         "http://wp.me/p4IuUx-7sg",
         "https://wp.me/P4IuUx-82H",  # <- Link to app (no replacing)
-        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",
+        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",  # noqa: E501,B950
         "https://wp.me/p4IuUx-29",
     ]
     replaced: t.List[str] = parser.substitute_short_links(test_list)
     expected: t.List[str] = [
-        "https://teacherluke.co.uk/2017/01/10/415-with-the-family-part-3-more-encounters-with-famous-people/",
+        "https://teacherluke.co.uk/2017/01/10/415-with-the-family-part-3-more-encounters-with-famous-people/",  # noqa: E501,B950
         "https://wp.me/P4IuUx-82H",
-        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",
-        "https://teacherluke.co.uk/2011/10/11/notting-hill-carnival-video-frustration-out-takes/",
+        "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",  # noqa: E501,B950
+        "https://teacherluke.co.uk/2011/10/11/notting-hill-carnival-video-frustration-out-takes/",  # noqa: E501,B950
     ]
     assert replaced == expected
 
@@ -267,7 +292,7 @@ def test_parsing_archive_without_episodes() -> None:
                 and they lived at the bottom of a well.
             </p>
             <p class="story">...</p>
-    """
+    """  # noqa: E501,B950
     soup = BeautifulSoup(markup, "lxml")
     links, texts = parser.get_all_episode_links_from_soup(soup)
     assert len(links) == 0
@@ -280,7 +305,7 @@ def test_parsing_archive_with_known_duplicates() -> None:
             <a href="https://teacherluke.co.uk/2016/03/20/i-was-invited-onto-craig-wealands-weekly-blab-and-we-talked-about-comedy-video/">[VIDEO]</a>;
             <a href="https://teacherluke.co.uk/2018/04/18/522-learning-english-at-summer-school-in-the-uk-a-rambling-chat-with-raphael-miller/">episode 522</a>;
             <a href="https://teacherluke.co.uk/2017/08/14/website-content-lukes-criminal-past-zep-episode-185/">[Website content]</a>;
-    """
+    """  # noqa: E501,B950
     soup = BeautifulSoup(markup, "lxml")
     links, texts = parser.get_all_episode_links_from_soup(soup)
     assert len(links) == 0
@@ -295,9 +320,8 @@ def test_mocking_single_page(
 ) -> None:
     """It parses mocked episode page."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    parsing_result: t.Tuple[t.List[str], ...] = parser.get_archive_parsing_results(
-        conf.ARCHIVE_URL
-    )
+    parsing_result: t.Tuple[t.List[str], ...]
+    parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
     all_links: t.List[str] = parsing_result[0]
     all_texts: t.List[str] = parsing_result[2]
     session = requests.Session()
@@ -320,11 +344,14 @@ def test_mocking_single_page(
 
     assert len(parsed_episodes) > 781
 
-    min_date = datetime.strptime("2009-03-03T03:03:03+02:00", "%Y-%m-%dT%H:%M:%S%z")
+    min_date = datetime.strptime(
+        "2009-03-03T03:03:03+02:00",
+        lep_date_format,
+    )
     mocked_episodes = [
         ep
         for ep in parsed_episodes
-        if datetime.strptime(ep.__dict__["date"], "%Y-%m-%dT%H:%M:%S%z") > min_date
+        if datetime.strptime(ep.__dict__["date"], lep_date_format) > min_date
     ]
     assert len(mocked_episodes) > 15
 
@@ -340,7 +367,7 @@ def test_parsing_post_datetime() -> None:
     html_doc = """<a href="https://teacherluke.co.uk/2009/04/12/episode-1-introduction/" title="3:23 pm" rel="bookmark">
             <time class="entry-date" datetime="2009-04-12T15:23:33+02:00">April 12, 2009</time>
         </a>
-    """
+    """  # noqa: E501,B950
     soup = BeautifulSoup(html_doc, "lxml")
     post_date = parser.parse_post_publish_datetime(soup)
     excepted = "2009-04-12T15:23:33+02:00"
@@ -352,7 +379,7 @@ def test_parsing_post_datetime_without_element() -> None:
     html_doc = """<a href="https://teacherluke.co.uk/2009/04/12/episode-1-introduction/" title="3:23 pm" rel="bookmark">
             <time>April 12, 2009</time>
         </a>
-    """
+    """  # noqa: E501,B950
     soup = BeautifulSoup(html_doc, "lxml")
     post_date = parser.parse_post_publish_datetime(soup)
     excepted = "1999-01-01T01:01:01+02:00"
@@ -384,7 +411,9 @@ def test_parsing_non_episode_link(
     req_ses: requests.Session,
 ) -> None:
     """It returns None (empty episode) for non-episode link."""
-    non_episode_url = "https://teacherluke.co.uk/premium/archive-comment-section/"
+    non_episode_url = (
+        "https://teacherluke.co.uk/premium/archive-comment-section/"  # noqa: E501,B950
+    )
     requests_mock.get(
         non_episode_url,
         text="No need to parse this page",
@@ -404,9 +433,8 @@ def test_parsing_links_to_audio_for_mocked_episodes(
     """It parses links to audio (if they exist)."""
     # TODO: Complete test (now it'req_ses simple copy-paste)
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    parsing_result: t.Tuple[t.List[str], ...] = parser.get_archive_parsing_results(
-        conf.ARCHIVE_URL
-    )
+    parsing_result: t.Tuple[t.List[str], ...]
+    parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
     all_links: t.List[str] = parsing_result[0]
     all_texts: t.List[str] = parsing_result[2]
     session = requests.Session()
@@ -422,11 +450,14 @@ def test_parsing_links_to_audio_for_mocked_episodes(
 
     assert len(parsed_episodes) > 781
 
-    min_date = datetime.strptime("2009-03-03T03:03:03+02:00", "%Y-%m-%dT%H:%M:%S%z")
+    min_date = datetime.strptime(
+        "2009-03-03T03:03:03+02:00",
+        lep_date_format,
+    )
     mocked_episodes = [
         ep
         for ep in parsed_episodes
-        if datetime.strptime(ep.__dict__["date"], "%Y-%m-%dT%H:%M:%S%z") > min_date
+        if datetime.strptime(ep.__dict__["date"], lep_date_format) > min_date
     ]
     assert len(mocked_episodes) > 15
 
@@ -438,7 +469,7 @@ def test_no_appropriate_mp3_links_by_title() -> None:
         <a href="http://traffic.libsyn.com/teacherluke/600._Episode_600_Livestream_Ask_Me_Anything_Audio.mp3" rel="noopener" target="_blank">
             Get Episode
         </a>
-        """
+        """  # noqa: E501,B950
     soup = BeautifulSoup(markup, "lxml")
     list_of_audio = parser.parse_post_audio(soup)
     assert len(list_of_audio) == 0
@@ -464,12 +495,12 @@ def test_selecting_appropriate_mp3_links_by_href() -> None:
         <a href="https://audioboom.com/boos/2550583-101-a-note-from-luke.mp3">
             Download episode
         </a>
-        """
+        """  # noqa: E501,B950
     soup = BeautifulSoup(markup, "lxml")
     list_of_audio = parser.parse_post_audio(soup)
     assert len(list_of_audio) == 2
     assert list_of_audio[0] == [
-        "http://traffic.libsyn.com/teacherluke/600._Episode_600_Livestream_Ask_Me_Anything_Audio.mp3",
+        "http://traffic.libsyn.com/teacherluke/600._Episode_600_Livestream_Ask_Me_Anything_Audio.mp3",  # noqa: E501,B950
     ]
     assert list_of_audio[1] == [
         "https://audioboom.com/boos/2550583-101-a-note-from-luke.mp3",
@@ -483,7 +514,7 @@ def test_appropriate_mp3_link_with_word_audio() -> None:
         <a href="http://traffic.libsyn.com/teacherluke/600._Episode_600_Livestream_Ask_Me_Anything_Audio.mp3">
             DOWNLOAD AUDIO
         </a>
-        """
+        """  # noqa: E501,B950
     soup = BeautifulSoup(markup, "lxml")
     list_of_audio = parser.parse_post_audio(soup)
     assert len(list_of_audio) == 1
@@ -520,11 +551,9 @@ def test_writing_lep_episodes_to_json() -> None:
     """It creates JSON file from list of LepEpisode objects."""
     lep_ep_1 = LepEpisode(
         702,
-        url="https://teacherluke.co.uk/2021/01/25/702-emergency-questions-with-james/",
+        url="https://teacherluke.co.uk/2021/01/25/702-emergency-questions-with-james/",  # noqa: E501,B950
         index=2021012501,
     )
-    # lep_ep_2_dict = {"episode": 2, "post_title": "2. Test episode #2"}  # type: t.Dict[str, object]
-    # lep_ep_2 = LepEpisode(**lep_ep_2_dict)
     lep_ep_2 = LepEpisode(episode=2, post_title="2. Test episode #2")
     episodes = [
         lep_ep_1,
@@ -538,7 +567,7 @@ def test_writing_lep_episodes_to_json() -> None:
         assert len(py_from_json) == 2
         assert (
             py_from_json[0]["url"]
-            == "https://teacherluke.co.uk/2021/01/25/702-emergency-questions-with-james/"
+            == "https://teacherluke.co.uk/2021/01/25/702-emergency-questions-with-james/"  # noqa: E501,B950
         )
         file = Path(temp_file.name)
     file.unlink()
@@ -717,7 +746,10 @@ def test_updating_json_database_with_new_episodes(
         text=modified_json_less_db_mock,
     )
 
-    with tempfile.NamedTemporaryFile(prefix="LEP_tmp_", delete=False) as temp_file:
+    with tempfile.NamedTemporaryFile(
+        prefix="LEP_tmp_",
+        delete=False,
+    ) as temp_file:
         json_file = Path(temp_file.name)
         parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, json_file)
         py_from_json = json.load(temp_file, object_hook=as_lep_episode_obj)
@@ -748,8 +780,9 @@ def test_updating_json_database_with_extra_episodes(
 
     parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
     captured = capsys.readouterr()
+    expected_message = "Database contains more episodes than current archive!"
     assert "[WARNING]" in captured.out
-    assert "Database contains more episodes than current archive!" in captured.out
+    assert expected_message in captured.out
 
 
 def test_parsing_invalid_html_in_main_actions(
@@ -761,8 +794,9 @@ def test_parsing_invalid_html_in_main_actions(
     requests_mock.get(conf.ARCHIVE_URL, text=markup)
     parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
     captured = capsys.readouterr()
+    expected_message = "Can't parse any episodes from archive page."
     assert "[ERROR]" in captured.out
-    assert "Can't parse any episodes from archive page." in captured.out
+    assert expected_message in captured.out
 
 
 def test_encoding_non_serializable_json_object() -> None:
