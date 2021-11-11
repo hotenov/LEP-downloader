@@ -15,7 +15,6 @@ from bs4 import BeautifulSoup
 from pytest import CaptureFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
-from requests_mock.response import _Context as rm_Context
 
 from lep_downloader import config as conf
 from lep_downloader import lep
@@ -23,12 +22,6 @@ from lep_downloader import parser
 from lep_downloader.data_getter import get_web_page_html_text
 from lep_downloader.lep import as_lep_episode_obj
 from lep_downloader.lep import LepEpisode
-
-
-OFFLINE_HTML_DIR = Path(
-    Path(__file__).resolve().parent,
-    "fixtures",
-)
 
 
 s = requests.Session()
@@ -527,18 +520,12 @@ def test_writing_lep_episodes_to_json() -> None:
     file.unlink()
 
 
-def mock_json_db(request: requests.Request, context: rm_Context) -> t.IO[bytes]:
-    """Callback for creating mocked Response of episode page."""
-    # context.status_code = 200
-    local_path = OFFLINE_HTML_DIR / "mocked-db-json-equal-786-objects.json"
-    return open(local_path, "rb")
-
-
 def test_no_new_episodes_on_archive_vs_json_db(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
+    json_db_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints when no new episodes on archive page."""
@@ -550,7 +537,7 @@ def test_no_new_episodes_on_archive_vs_json_db(
     )
     requests_mock.get(
         conf.JSON_DB_URL,
-        body=mock_json_db,
+        text=json_db_mock,
     )
 
     parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
@@ -687,25 +674,12 @@ def test_invalid_objects_in_json_not_included(
     assert "no valid episode objects" in captured.out
 
 
-def modified_json_db(request: requests.Request, context: rm_Context) -> str:
-    """Callback for creating mocked JSON database with less episodes."""
-    # context.status_code = 200
-    local_path = OFFLINE_HTML_DIR / "mocked-db-json-equal-786-objects.json"
-    mocked_json = local_path.read_text(encoding="utf-8")
-    db_episodes = json.loads(mocked_json, object_hook=as_lep_episode_obj)
-    # Delete three episodes
-    del db_episodes[0]
-    del db_episodes[1]
-    del db_episodes[6]
-    modified_json = json.dumps(db_episodes, cls=lep.LepJsonEncoder)
-    return modified_json
-
-
 def test_updating_json_database_with_new_episodes(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
+    modified_json_less_db_mock: str,
 ) -> None:
     """It retrives and saves new episodes from archive."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -716,7 +690,7 @@ def test_updating_json_database_with_new_episodes(
     )
     requests_mock.get(
         conf.JSON_DB_URL,
-        text=modified_json_db,
+        text=modified_json_less_db_mock,
     )
 
     with tempfile.NamedTemporaryFile(prefix="LEP_tmp_", delete=False) as temp_file:
@@ -728,26 +702,12 @@ def test_updating_json_database_with_new_episodes(
     assert len(py_from_json) == 786
 
 
-def modified_json_with_extra_episode(
-    request: requests.Request,
-    context: rm_Context,
-) -> str:
-    """Callback for creating mocked JSON database with more episodes."""
-    local_path = OFFLINE_HTML_DIR / "mocked-db-json-equal-786-objects.json"
-    mocked_json = local_path.read_text(encoding="utf-8")
-    db_episodes = json.loads(mocked_json, object_hook=as_lep_episode_obj)
-    # Add extra episode
-    lep_ep = LepEpisode(episode=999, post_title="Extra episode")
-    db_episodes.append(lep_ep)
-    modified_json = json.dumps(db_episodes, cls=lep.LepJsonEncoder)
-    return modified_json
-
-
 def test_updating_json_database_with_extra_episodes(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
+    modified_json_extra_db_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints warning if database contains more episodes than archive."""
@@ -759,7 +719,7 @@ def test_updating_json_database_with_extra_episodes(
     )
     requests_mock.get(
         conf.JSON_DB_URL,
-        text=modified_json_with_extra_episode,
+        text=modified_json_extra_db_mock,
     )
 
     parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)

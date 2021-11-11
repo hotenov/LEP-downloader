@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Package-wide test fixtures."""
+import json
 from pathlib import Path
 from typing import Callable
 from typing import Dict
@@ -32,6 +33,7 @@ from requests_mock.request import _RequestObjectProxy
 from requests_mock.response import _Context as rm_Context
 
 from lep_downloader import config as conf
+from lep_downloader import lep
 
 
 # yapf: disable
@@ -122,11 +124,8 @@ def single_page_mock(
         context: rm_Context,
     ) -> str:
         """Callback for creating mocked Response of episode page."""
-        # context.status_code = 200
         url = request.url.lower()
-        # local_path = OFFLINE_HTML_DIR / "ep_htmls" / LINK_FILE_MAPPING[url]
         page_path = html_mocks_path / url_html_map[url]
-        # return open(local_path, "rb")
         return page_path.read_text(encoding="utf-8")
 
     return _mock_single_page
@@ -146,3 +145,42 @@ def single_page_matcher(
         return url in mocked_urls
 
     return _single_page_matcher
+
+
+@pytest.fixture(scope="session")
+def json_db_mock(mocks_dir_path: Path) -> str:
+    """Returns str object of JSON mocked database."""
+    json_path = mocks_dir_path / conf.LOCAL_JSON_DB
+    return json_path.read_text(encoding="utf-8")
+
+
+@pytest.fixture
+def db_episodes(json_db_mock: str) -> List[lep.LepEpisode]:
+    """Returns reusable list of LepEpisode objects from JSON mocked database."""
+    db_episodes: List[lep.LepEpisode] = json.loads(
+        json_db_mock,
+        object_hook=lep.as_lep_episode_obj,
+    )
+    return db_episodes
+
+
+@pytest.fixture
+def modified_json_less_db_mock(db_episodes: List[lep.LepEpisode]) -> str:
+    """Returns mocked JSON database with less episodes."""
+    # Delete three episodes
+    del db_episodes[0]
+    del db_episodes[1]
+    del db_episodes[6]
+    modified_json = json.dumps(db_episodes, cls=lep.LepJsonEncoder)
+    del db_episodes
+    return modified_json
+
+
+@pytest.fixture
+def modified_json_extra_db_mock(db_episodes: List[lep.LepEpisode]) -> str:
+    """Returns mocked JSON database with plus one episode."""
+    lep_ep = lep.LepEpisode(episode=999, post_title="Extra episode")
+    db_episodes.append(lep_ep)  # Add extra episode
+    modified_json = json.dumps(db_episodes, cls=lep.LepJsonEncoder)
+    del db_episodes
+    return modified_json
