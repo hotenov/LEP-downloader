@@ -4,6 +4,9 @@ import tempfile
 import typing as t
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
+from typing import List
+from typing import Optional
 
 import pytest
 import requests
@@ -11,6 +14,7 @@ import requests_mock as req_mock
 from bs4 import BeautifulSoup
 from pytest import CaptureFixture
 from requests_mock.mocker import Mocker as rm_Mocker
+from requests_mock.request import _RequestObjectProxy
 from requests_mock.response import _Context as rm_Context
 
 from lep_downloader import config as conf
@@ -26,27 +30,6 @@ OFFLINE_HTML_DIR = Path(
     "fixtures",
 )
 
-LINK_FILE_MAPPING = {
-    "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/": "2021-09-13_05-37-36 teacherluke.co.uk _2009_04_12_episode-1-introduction_.html",
-    "https://teacherluke.co.uk/2009/10/19/extra-podcast-12-phrasal-verbs/": "2021-09-07_09-14-02 teacherluke.co.uk _2009_10_19_extra-podcast-12-phrasal-verbs_.html",
-    "https://teacherluke.co.uk/2009/10/19/episode-11-michael-jackson/": "2021-09-07_09-14-02 teacherluke.co.uk _2009_10_19_episode-11-michael-jackson_.html",
-    "https://teacherluke.co.uk/2010/03/25/london-video-interviews-pt-1/": "2021-09-07_09-14-02 teacherluke.co.uk _2010_03_25_london-video-interviews-pt-1_.html",
-    "http://teacherluke.wordpress.com/2012/09/27/113-setting-the-world-to-rights/": "2021-09-07_09-14-02 teacherluke.wordpress.com _2012_09_27_113-setting-the-world-to-rights_.html",
-    "https://teacherluke.co.uk/2014/06/30/193-culture-shock-life-in-london-pt-2/": "2021-09-07_09-14-02 teacherluke.co.uk _2014_06_30_193-culture-shock-life-in-london-pt-2_.html",
-    "https://teacherluke.co.uk/2015/10/21/304-back-to-the-future-part-1/": "2021-09-07_09-14-02 teacherluke.co.uk _2015_10_07_300-episode-300-part-1_.html",
-    "https://teacherluke.co.uk/2015/10/22/305-back-to-the-future-part-2/": "2021-09-07_09-14-02 teacherluke.co.uk _2015_10_07_300-episode-300-part-2_.html",
-    "https://teacherluke.co.uk/2016/08/07/370-in-conversation-with-rob-ager-from-liverpool-part-1-life-in-liverpool-interest-in-film-analysis/": "2021-09-07_09-14-02 teacherluke.co.uk _2016_08_07_370-in-conversation-with-rob-ager-from.html",
-    "https://teacherluke.co.uk/2017/03/11/lep-on-zep-my-recent-interview-on-zdeneks-english-podcast/": "2021-09-07_09-14-02 teacherluke.co.uk _2017_03_11_lep-on-zep-my-recent-interview-on-zden.html",
-    "https://teacherluke.co.uk/2017/05/26/i-was-invited-onto-the-english-across-the-pond-podcast/": "2021-09-07_09-14-02 teacherluke.co.uk _2017_05_26_i-was-invited-onto-the-english-across-.html",
-    "https://teacherluke.co.uk/2017/08/26/website-only-a-history-of-british-pop-a-musical-tour-through-james-vinyl-collection/": "2021-09-07_09-14-02 teacherluke.co.uk _2017_08_26_website-only-a-history-of-british-pop-.html",
-    "https://teacherluke.co.uk/2021/02/03/703-walaa-from-syria-wisbolep-competition-winner-%f0%9f%8f%86/": "2021-08-11_lep-e703-page-content-pretty.html",
-    "https://teacherluke.co.uk/2021/03/26/711-william-from-france-%f0%9f%87%ab%f0%9f%87%b7-wisbolep-runner-up/": "2021-08-11_lep-e711-page-content-pretty.html",
-    "https://teacherluke.co.uk/2021/04/11/714-robin-from-hamburg-%f0%9f%87%a9%f0%9f%87%aa-wisbolep-runner-up/": "2021-09-07_09-14-02 teacherluke.co.uk _2021_04_11_714-robin-from-hamburg-🇩🇪-wisbolep-run.html",
-    "https://teacherluke.co.uk/2021/08/03/733-a-summer-ramble/": "2021-08-11_lep-e733-page-content-pretty.html",
-    "https://teacherluke.co.uk/premium/archive-comment-section/": "2021-09-28_10-44-00 Archive & Comment Section _ (premium archive).html",  # None-episode link
-}
-
-MAPPING_KEYS: t.List[str] = [*LINK_FILE_MAPPING]
 
 s = requests.Session()
 
@@ -235,6 +218,7 @@ def test_short_links_substitution() -> None:
 def test_parsing_result(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    mocked_urls: List[str],
 ) -> None:
     """It parses mocked archived page."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -245,7 +229,7 @@ def test_parsing_result(
     assert len(all_links) > 781
     assert "/2009/04/12/episode-1-introduction" in all_links[-1]
     # Intersection of mocked pages and all links
-    intersection = set(MAPPING_KEYS) & set(all_links)
+    intersection = set(mocked_urls) & set(all_links)
     assert len(intersection) > 15
 
     link_strings = parsing_result[2]
@@ -289,29 +273,11 @@ def test_parsing_archive_with_known_duplicates() -> None:
     assert len(texts) == 0
 
 
-def mocked_single_page_matcher(
-    request: requests.Request,
-) -> t.Optional[requests.Response]:
-    """Return OK response if URL has mocked (pre-saved) local file."""
-    url = request.url.lower()
-    if url in MAPPING_KEYS:
-        resp = requests.Response()
-        resp.status_code = 200
-        return resp
-    return None
-
-
-def mock_single_page(request: requests.Request, context: rm_Context) -> t.IO[bytes]:
-    """Callback for creating mocked Response of episode page."""
-    # context.status_code = 200
-    url = request.url.lower()
-    local_path = OFFLINE_HTML_DIR / "ep_htmls" / LINK_FILE_MAPPING[url]
-    return open(local_path, "rb")
-
-
 def test_mocking_single_page(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
 ) -> None:
     """It parses mocked episode page."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -325,8 +291,8 @@ def test_mocking_single_page(
 
     requests_mock.get(
         req_mock.ANY,
-        additional_matcher=mocked_single_page_matcher,
-        body=mock_single_page,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
     )
 
     parsed_episodes = parser.get_parsed_episodes(all_links, session, all_texts)
@@ -415,6 +381,8 @@ def test_parsing_non_episode_link(requests_mock: rm_Mocker) -> None:
 def test_parsing_links_to_audio_for_mocked_episodes(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
 ) -> None:
     """It parses links to audio (if they exist)."""
     # TODO: Complete test (now it's simple copy-paste)
@@ -429,8 +397,8 @@ def test_parsing_links_to_audio_for_mocked_episodes(
 
     requests_mock.get(
         req_mock.ANY,
-        additional_matcher=mocked_single_page_matcher,
-        body=mock_single_page,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
     )
 
     parsed_episodes = parser.get_parsed_episodes(all_links, session, all_texts)
@@ -569,14 +537,16 @@ def mock_json_db(request: requests.Request, context: rm_Context) -> t.IO[bytes]:
 def test_no_new_episodes_on_archive_vs_json_db(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints when no new episodes on archive page."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
-        additional_matcher=mocked_single_page_matcher,
-        body=mock_single_page,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
     )
     requests_mock.get(
         conf.JSON_DB_URL,
@@ -591,6 +561,8 @@ def test_no_new_episodes_on_archive_vs_json_db(
 def test_no_valid_episode_objects_in_json_db(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints warning when there are no valid episode objects."""
@@ -598,8 +570,8 @@ def test_no_valid_episode_objects_in_json_db(
 
     requests_mock.get(
         req_mock.ANY,
-        additional_matcher=mocked_single_page_matcher,
-        body=mock_single_page,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
     )
 
     requests_mock.get(
@@ -618,14 +590,16 @@ def test_no_valid_episode_objects_in_json_db(
 def test_json_db_not_valid(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints error for invalid JSON document."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
-        additional_matcher=mocked_single_page_matcher,
-        body=mock_single_page,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
     )
     requests_mock.get(
         conf.JSON_DB_URL,
@@ -641,14 +615,16 @@ def test_json_db_not_valid(
 def test_json_db_not_available(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints error for unavailable JSON database."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
-        additional_matcher=mocked_single_page_matcher,
-        body=mock_single_page,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
     )
     requests_mock.get(
         conf.JSON_DB_URL,
@@ -664,14 +640,16 @@ def test_json_db_not_available(
 def test_json_db_contains_only_string(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints warning for JSON as str."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
-        additional_matcher=mocked_single_page_matcher,
-        body=mock_single_page,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
     )
     requests_mock.get(
         conf.JSON_DB_URL,
@@ -687,14 +665,16 @@ def test_json_db_contains_only_string(
 def test_invalid_objects_in_json_not_included(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It skips invalid objects in JSON database."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
-        additional_matcher=mocked_single_page_matcher,
-        body=mock_single_page,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
     )
     requests_mock.get(
         conf.JSON_DB_URL,
@@ -724,13 +704,15 @@ def modified_json_db(request: requests.Request, context: rm_Context) -> str:
 def test_updating_json_database_with_new_episodes(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
 ) -> None:
     """It retrives and saves new episodes from archive."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
-        additional_matcher=mocked_single_page_matcher,
-        body=mock_single_page,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
     )
     requests_mock.get(
         conf.JSON_DB_URL,
@@ -764,14 +746,16 @@ def modified_json_with_extra_episode(
 def test_updating_json_database_with_extra_episodes(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
     capsys: CaptureFixture[str],
 ) -> None:
     """It prints warning if database contains more episodes than archive."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
         req_mock.ANY,
-        additional_matcher=mocked_single_page_matcher,
-        body=mock_single_page,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
     )
     requests_mock.get(
         conf.JSON_DB_URL,
