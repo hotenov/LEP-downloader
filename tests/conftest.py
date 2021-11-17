@@ -32,9 +32,6 @@ import requests
 from requests_mock.request import _RequestObjectProxy
 from requests_mock.response import _Context as rm_Context
 
-from lep_downloader import config as conf
-from lep_downloader import lep
-
 
 # yapf: disable
 URL_HTML_MAPPING = {
@@ -115,6 +112,8 @@ def html_mocks_path(mocks_dir_path: Path) -> Path:
 @pytest.fixture(scope="module")
 def archive_page_mock(mocks_dir_path: Path) -> str:
     """Returns str object of archive HTML mocked page."""
+    from lep_downloader import config as conf
+
     page_path = mocks_dir_path / conf.LOCAL_ARCHIVE_HTML
     return page_path.read_text(encoding="utf-8")
 
@@ -157,14 +156,18 @@ def single_page_matcher(
 @pytest.fixture(scope="session")
 def json_db_mock(mocks_dir_path: Path) -> str:
     """Returns str object of JSON mocked database."""
+    from lep_downloader import config as conf
+
     json_path = mocks_dir_path / conf.LOCAL_JSON_DB
     return json_path.read_text(encoding="utf-8")
 
 
 @pytest.fixture
-def db_episodes(json_db_mock: str) -> List[lep.LepEpisode]:
+def db_episodes(json_db_mock: str) -> List[object]:
     """Returns reusable list of LepEpisode objects from JSON mocked database."""
-    db_episodes: List[lep.LepEpisode] = json.loads(
+    from lep_downloader import lep
+
+    db_episodes: List[object] = json.loads(
         json_db_mock,
         object_hook=lep.as_lep_episode_obj,
     )
@@ -172,8 +175,10 @@ def db_episodes(json_db_mock: str) -> List[lep.LepEpisode]:
 
 
 @pytest.fixture
-def modified_json_less_db_mock(db_episodes: List[lep.LepEpisode]) -> str:
+def modified_json_less_db_mock(db_episodes: List[object]) -> str:
     """Returns mocked JSON database with less episodes."""
+    from lep_downloader import lep
+
     # Delete three episodes
     del db_episodes[0]
     del db_episodes[1]
@@ -184,8 +189,10 @@ def modified_json_less_db_mock(db_episodes: List[lep.LepEpisode]) -> str:
 
 
 @pytest.fixture
-def modified_json_extra_db_mock(db_episodes: List[lep.LepEpisode]) -> str:
+def modified_json_extra_db_mock(db_episodes: List[object]) -> str:
     """Returns mocked JSON database with plus one episode."""
+    from lep_downloader import lep
+
     lep_ep = lep.LepEpisode(episode=999, post_title="Extra episode")
     db_episodes.append(lep_ep)  # Add extra episode
     modified_json = json.dumps(db_episodes, cls=lep.LepJsonEncoder)
