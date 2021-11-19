@@ -21,14 +21,19 @@
 # SOFTWARE.
 """Package-wide test fixtures."""
 import json
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 import pytest
 import requests
+import requests_mock as req_mock
+from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
 from requests_mock.response import _Context as rm_Context
 
@@ -198,3 +203,62 @@ def modified_json_extra_db_mock(db_episodes: List[object]) -> str:
     modified_json = json.dumps(db_episodes, cls=lep.LepJsonEncoder)
     del db_episodes
     return modified_json
+
+
+@pytest.fixture
+def archive_parsing_results_mock(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+) -> Tuple[List[str], List[str]]:
+    """Returns two lists: links and texts from mocked archive page."""
+    from lep_downloader import config as conf
+    from lep_downloader import parser
+
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    parsing_result: Tuple[List[str], ...]
+    parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
+    all_links: List[str] = parsing_result[0]
+    all_texts: List[str] = parsing_result[2]
+    return all_links, all_texts
+
+
+@pytest.fixture
+def parsed_episodes_mock(
+    requests_mock: rm_Mocker,
+    archive_parsing_results_mock: Tuple[List[str], List[str]],
+    single_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    req_ses: requests.Session,
+) -> List[Any]:
+    """Returns list of LepEpisode objects.
+
+    Mocked episodes among others with correct post date.
+    """
+    from lep_downloader import parser
+
+    all_links, all_texts = archive_parsing_results_mock
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    parsed_episodes = parser.get_parsed_episodes(all_links, req_ses, all_texts)
+    return parsed_episodes
+
+
+@pytest.fixture
+def mocked_episodes(
+    parsed_episodes_mock: List[Any],
+) -> List[Any]:
+    """Only episodes which have HTML mock page."""
+    lep_date_format = "%Y-%m-%dT%H:%M:%S%z"
+    min_date = datetime.strptime(
+        "2009-03-03T03:03:03+02:00",
+        lep_date_format,
+    )
+    mocked_episodes = [
+        ep
+        for ep in parsed_episodes_mock
+        if datetime.strptime(ep.__dict__["date"], lep_date_format) > min_date
+    ]
+    return mocked_episodes
