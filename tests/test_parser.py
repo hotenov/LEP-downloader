@@ -23,11 +23,11 @@
 import json
 import tempfile
 import typing as t
-from datetime import datetime
 from pathlib import Path
 from typing import Callable
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 import pytest
 import requests
@@ -254,25 +254,18 @@ def test_short_links_substitution() -> None:
     assert replaced == expected
 
 
-def test_parsing_result(
-    requests_mock: rm_Mocker,
-    archive_page_mock: str,
+def test_parsing_posts_from_archive_page(
+    archive_parsing_results_mock: Tuple[List[str], List[str]],
     mocked_urls: List[str],
 ) -> None:
-    """It parses mocked archived page."""
-    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
-    all_links = parsing_result[0]
-    all_texts = parsing_result[2]
+    """It parses links and texts from mocked archived page."""
+    all_links, all_texts = archive_parsing_results_mock
     assert len(all_links) == len(all_texts)
     assert len(all_links) > 781
     assert "/2009/04/12/episode-1-introduction" in all_links[-1]
     # Intersection of mocked pages and all links
     intersection = set(mocked_urls) & set(all_links)
     assert len(intersection) > 15
-
-    link_strings = parsing_result[2]
-    assert len(link_strings) > 781
 
 
 def test_parsing_invalid_html(requests_mock: rm_Mocker) -> None:
@@ -312,54 +305,11 @@ def test_parsing_archive_with_known_duplicates() -> None:
     assert len(texts) == 0
 
 
-def test_mocking_single_page(
-    requests_mock: rm_Mocker,
-    archive_page_mock: str,
-    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
-    single_page_mock: str,
+def test_parsing_all_episodes_from_mocked_archive(
+    parsed_episodes_mock: List[lep.LepEpisode],
 ) -> None:
-    """It parses mocked episode page."""
-    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    parsing_result: t.Tuple[t.List[str], ...]
-    parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
-    all_links: t.List[str] = parsing_result[0]
-    all_texts: t.List[str] = parsing_result[2]
-    session = requests.Session()
-    parsed_episodes = []
-
-    requests_mock.get(
-        req_mock.ANY,
-        additional_matcher=single_page_matcher,
-        text=single_page_mock,
-    )
-
-    parsed_episodes = parser.get_parsed_episodes(all_links, session, all_texts)
-
-    non_episode_list = parser.get_parsed_episodes(
-        ["https://teacherluke.co.uk/premium/archive-comment-section/"],
-        session,
-        ["Non-episode link"],
-    )
-    assert len(non_episode_list) == 0
-
-    assert len(parsed_episodes) > 781
-
-    min_date = datetime.strptime(
-        "2009-03-03T03:03:03+02:00",
-        lep_date_format,
-    )
-    mocked_episodes = [
-        ep
-        for ep in parsed_episodes
-        if datetime.strptime(ep.__dict__["date"], lep_date_format) > min_date
-    ]
-    assert len(mocked_episodes) > 15
-
-    sorted_episodes = parser.sort_episodes_by_post_date(parsed_episodes)
-    assert (
-        sorted_episodes[0].__dict__["url"]
-        == "https://teacherluke.co.uk/2021/08/03/733-a-summer-ramble/"
-    )
+    """It parses all episodes from mocked archive HTML."""
+    assert len(parsed_episodes_mock) == 786
 
 
 def test_parsing_post_datetime() -> None:
@@ -425,41 +375,19 @@ def test_parsing_non_episode_link(
 
 
 def test_parsing_links_to_audio_for_mocked_episodes(
-    requests_mock: rm_Mocker,
-    archive_page_mock: str,
-    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
-    single_page_mock: str,
+    mocked_episodes: List[lep.LepEpisode],
 ) -> None:
     """It parses links to audio (if they exist)."""
-    # TODO: Complete test (now it'req_ses simple copy-paste)
-    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    parsing_result: t.Tuple[t.List[str], ...]
-    parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
-    all_links: t.List[str] = parsing_result[0]
-    all_texts: t.List[str] = parsing_result[2]
-    session = requests.Session()
-    parsed_episodes = []
-
-    requests_mock.get(
-        req_mock.ANY,
-        additional_matcher=single_page_matcher,
-        text=single_page_mock,
-    )
-
-    parsed_episodes = parser.get_parsed_episodes(all_links, session, all_texts)
-
-    assert len(parsed_episodes) > 781
-
-    min_date = datetime.strptime(
-        "2009-03-03T03:03:03+02:00",
-        lep_date_format,
-    )
-    mocked_episodes = [
-        ep
-        for ep in parsed_episodes
-        if datetime.strptime(ep.__dict__["date"], lep_date_format) > min_date
+    assert len(mocked_episodes) == 17
+    assert mocked_episodes[3].episode == 35
+    assert mocked_episodes[3].audios == [
+        [
+            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"  # noqa: E501,B950
+        ]
     ]
-    assert len(mocked_episodes) > 15
+    assert mocked_episodes[12].audios == []
+    if mocked_episodes[10].audios is not None:
+        assert len(mocked_episodes[10].audios) == 5
 
 
 def test_no_appropriate_mp3_links_by_title() -> None:
