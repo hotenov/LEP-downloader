@@ -21,7 +21,6 @@
 # SOFTWARE.
 """Test cases for the parser module."""
 import json
-import tempfile
 import typing as t
 from pathlib import Path
 from typing import Callable
@@ -475,7 +474,7 @@ def test_episodes_sorting_by_date() -> None:
     assert sorted_episodes == expected_sorted
 
 
-def test_writing_lep_episodes_to_json() -> None:
+def test_writing_lep_episodes_to_json(lep_temp_path: Path) -> None:
     """It creates JSON file from list of LepEpisode objects."""
     lep_ep_1 = LepEpisode(
         702,
@@ -487,18 +486,16 @@ def test_writing_lep_episodes_to_json() -> None:
         lep_ep_1,
         lep_ep_2,
     ]
-    file = Path()
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        json_file = Path(temp_file.name)
-        parser.write_parsed_episodes_to_json(episodes, json_file)
-        py_from_json = json.load(temp_file)
-        assert len(py_from_json) == 2
-        assert (
-            py_from_json[0]["url"]
-            == "https://teacherluke.co.uk/2021/01/25/702-emergency-questions-with-james/"  # noqa: E501,B950
-        )
-        file = Path(temp_file.name)
-    file.unlink()
+
+    json_file = lep_temp_path / "json_db_tmp.json"
+    parser.write_parsed_episodes_to_json(episodes, json_file)
+    with open(json_file, "rb") as f:
+        py_from_json = json.load(f)
+    assert len(py_from_json) == 2
+    assert (
+        py_from_json[0]["url"]
+        == "https://teacherluke.co.uk/2021/01/25/702-emergency-questions-with-james/"  # noqa: E501,B950
+    )
 
 
 def test_no_new_episodes_on_archive_vs_json_db(
@@ -661,6 +658,7 @@ def test_updating_json_database_with_new_episodes(
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
     modified_json_less_db_mock: str,
+    lep_temp_path: Path,
 ) -> None:
     """It retrives and saves new episodes from archive."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -674,14 +672,10 @@ def test_updating_json_database_with_new_episodes(
         text=modified_json_less_db_mock,
     )
 
-    with tempfile.NamedTemporaryFile(
-        prefix="LEP_tmp_",
-        delete=False,
-    ) as temp_file:
-        json_file = Path(temp_file.name)
-        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, json_file)
-        py_from_json = json.load(temp_file, object_hook=as_lep_episode_obj)
-    json_file.unlink()
+    json_file = lep_temp_path / "json_db_tmp.json"
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, json_file)
+    with open(json_file, "rb") as f:
+        py_from_json = json.load(f, object_hook=as_lep_episode_obj)
 
     assert len(py_from_json) == 786
 

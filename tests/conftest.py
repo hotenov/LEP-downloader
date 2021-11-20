@@ -21,11 +21,13 @@
 # SOFTWARE.
 """Package-wide test fixtures."""
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -33,6 +35,7 @@ from typing import Tuple
 import pytest
 import requests
 import requests_mock as req_mock
+from pytest import TempPathFactory
 from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
 from requests_mock.response import _Context as rm_Context
@@ -262,3 +265,15 @@ def mocked_episodes(
         if datetime.strptime(ep.__dict__["date"], lep_date_format) > min_date
     ]
     return mocked_episodes
+
+
+@pytest.fixture(scope="session")
+def lep_temp_path(tmp_path_factory: TempPathFactory) -> Iterator[Path]:
+    """Returns path to custom temp directory."""
+    temp_path = tmp_path_factory.mktemp("lep_tmp")
+    yield temp_path
+    # Cleanup all folders in fixture's base temp directory
+    shutil.rmtree(tmp_path_factory.getbasetemp().resolve())
+    # If we clean base temp directory itself
+    # 'typeguard' will warn on Windows hosts
+    # tmp_path_factory.getbasetemp().parent.rmdir()
