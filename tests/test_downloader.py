@@ -20,7 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Test cases for the downloader module."""
-import tempfile
 from pathlib import Path
 from typing import List
 from typing import Tuple
@@ -108,7 +107,9 @@ def test_forming_safe_filename_for_downloading() -> None:
     assert audio_links[9] == excepted_link
 
 
-def test_separating_existing_and_non_existing_mp3() -> None:
+def test_separating_existing_and_non_existing_mp3(
+    tmp_path: Path,
+) -> None:
     """It detects when file has already been downloaded."""
     audio_episodes = downloader.select_all_audio_episodes(MOCKED_DB_EPISODES)
     audio_data = downloader.get_audios_data(audio_episodes)
@@ -116,15 +117,13 @@ def test_separating_existing_and_non_existing_mp3() -> None:
 
     filename_1 = "[2021-08-03] # 733. A Summer Ramble.mp3"
     filename_2 = "[2017-03-11] # LEP on ZEP – My recent interview on Zdenek’s English Podcast [Part 05].mp3"
-    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
-        save_tmp_dir = Path(temp_dir)
-        Path(save_tmp_dir / filename_1).write_text("Here are mp3 1 bytes")
-        Path(save_tmp_dir / filename_2).write_text("Here are mp3 2 bytes")
+    Path(tmp_path / filename_1).write_text("Here are mp3 1 bytes")
+    Path(tmp_path / filename_2).write_text("Here are mp3 2 bytes")
 
-        existing, non_existing = downloader.detect_existing_files(
-            audio_links,
-            save_tmp_dir,
-        )
+    existing, non_existing = downloader.detect_existing_files(
+        audio_links,
+        tmp_path,
+    )
 
     assert len(existing) == 2
     assert len(non_existing) == 17
@@ -152,7 +151,10 @@ def test_retrieving_audios_as_none() -> None:
     assert audio_data[0][2] == []
 
 
-def test_downloading_mocked_mp3_files(requests_mock: rm_Mocker) -> None:
+def test_downloading_mocked_mp3_files(
+    requests_mock: rm_Mocker,
+    tmp_path: Path,
+) -> None:
     """It downloads file on disc."""
     test_downloads: List[Tuple[str, List[str]]] = []
     file_1 = (
@@ -178,19 +180,20 @@ def test_downloading_mocked_mp3_files(requests_mock: rm_Mocker) -> None:
         content=mocked_file_2.read_bytes(),
     )
 
-    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
-        save_tmp_dir = Path(temp_dir)
-        downloader.download_files(test_downloads, save_tmp_dir)
-        expected_file_1 = Path(save_tmp_dir / "Test File #1.mp3")
-        expected_file_2 = Path(save_tmp_dir / "Test File #2.mp3")
-        assert expected_file_1.exists()
-        assert 21460 < expected_file_1.stat().st_size < 22000
-        assert expected_file_2.exists()
-        assert 18300 < expected_file_2.stat().st_size < 18350
-        assert len(downloader.successful_downloaded) == 2
+    downloader.download_files(test_downloads, tmp_path)
+    expected_file_1 = tmp_path / "Test File #1.mp3"
+    expected_file_2 = tmp_path / "Test File #2.mp3"
+    assert expected_file_1.exists()
+    assert 21460 < expected_file_1.stat().st_size < 22000
+    assert expected_file_2.exists()
+    assert 18300 < expected_file_2.stat().st_size < 18350
+    assert len(downloader.successful_downloaded) == 2
 
 
-def test_skipping_downloaded_url(requests_mock: rm_Mocker) -> None:
+def test_skipping_downloaded_url(
+    requests_mock: rm_Mocker,
+    tmp_path: Path,
+) -> None:
     """It skips URL if it was downloaded before."""
     test_downloads: List[Tuple[str, List[str]]] = []
     file_1 = (
@@ -220,16 +223,17 @@ def test_skipping_downloaded_url(requests_mock: rm_Mocker) -> None:
         content=mocked_file_2.read_bytes(),
     )
 
-    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
-        save_tmp_dir = Path(temp_dir)
-        downloader.download_files(test_downloads, save_tmp_dir)
-        expected_file_1 = Path(save_tmp_dir / "Test File #1.mp3")
-        assert expected_file_1.exists()
-        assert len(list(save_tmp_dir.iterdir())) == 1
-        assert len(downloader.duplicated_links) == 1
+    downloader.download_files(test_downloads, tmp_path)
+    expected_file_1 = tmp_path / "Test File #1.mp3"
+    assert expected_file_1.exists()
+    assert len(list(tmp_path.iterdir())) == 1
+    assert len(downloader.duplicated_links) == 1
 
 
-def test_skipping_downloaded_file_on_disc(requests_mock: rm_Mocker) -> None:
+def test_skipping_downloaded_file_on_disc(
+    requests_mock: rm_Mocker,
+    tmp_path: Path,
+) -> None:
     """It skips (and does not override) URL if file was downloaded before."""
     downloader.successful_downloaded = {}  # Clear from previous tests
     test_downloads: List[Tuple[str, List[str]]] = []
@@ -258,19 +262,20 @@ def test_skipping_downloaded_file_on_disc(requests_mock: rm_Mocker) -> None:
         content=mocked_file_2.read_bytes(),
     )
 
-    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
-        save_tmp_dir = Path(temp_dir)
-        existing_file_1 = Path(save_tmp_dir / "Test File #1.mp3")
-        existing_file_1.write_text("Here are mp3 1 bytes")
-        downloader.download_files(test_downloads, save_tmp_dir)
-        expected_file_2 = Path(save_tmp_dir / "Test File #2.mp3")
-        assert existing_file_1.read_text() == "Here are mp3 1 bytes"
-        assert expected_file_2.exists()
-        assert len(list(save_tmp_dir.iterdir())) == 2
-        assert len(downloader.already_on_disc) == 1
+    existing_file_1 = tmp_path / "Test File #1.mp3"
+    existing_file_1.write_text("Here are mp3 1 bytes")
+    downloader.download_files(test_downloads, tmp_path)
+    expected_file_2 = tmp_path / "Test File #2.mp3"
+    assert existing_file_1.read_text() == "Here are mp3 1 bytes"
+    assert expected_file_2.exists()
+    assert len(list(tmp_path.iterdir())) == 2
+    assert len(downloader.already_on_disc) == 1
 
 
-def test_try_auxiliary_download_links(requests_mock: rm_Mocker) -> None:
+def test_try_auxiliary_download_links(
+    requests_mock: rm_Mocker,
+    tmp_path: Path,
+) -> None:
     """It downloads file by auxiliary link."""
     downloader.successful_downloaded = {}  # Clear from previous tests
     test_downloads: List[Tuple[str, List[str]]] = []
@@ -301,17 +306,16 @@ def test_try_auxiliary_download_links(requests_mock: rm_Mocker) -> None:
         content=mocked_file_1.read_bytes(),
     )
 
-    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
-        save_tmp_dir = Path(temp_dir)
-        downloader.download_files(test_downloads, save_tmp_dir)
-        expected_file_1 = Path(save_tmp_dir / "Test File #1.mp3")
-        assert expected_file_1.exists()
-        assert len(list(save_tmp_dir.iterdir())) == 1
-        assert len(downloader.successful_downloaded) == 1
+    downloader.download_files(test_downloads, tmp_path)
+    expected_file_1 = tmp_path / "Test File #1.mp3"
+    assert expected_file_1.exists()
+    assert len(list(tmp_path.iterdir())) == 1
+    assert len(downloader.successful_downloaded) == 1
 
 
 def test_primary_link_unavailable(
     requests_mock: rm_Mocker,
+    tmp_path: Path,
     capsys: CaptureFixture[str],
 ) -> None:
     """It records unavailable file and prints about that."""
@@ -331,21 +335,20 @@ def test_primary_link_unavailable(
         exc=Exception("Something wrong!"),
     )
 
-    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
-        save_tmp_dir = Path(temp_dir)
-        downloader.download_files(test_downloads, save_tmp_dir)
-        captured = capsys.readouterr()
-        assert len(list(save_tmp_dir.iterdir())) == 0
-        assert len(downloader.successful_downloaded) == 0
-        assert len(downloader.unavailable_links) == 1
-        assert "[ERROR]: Unknown error:" in captured.out
-        assert "Something wrong!" in captured.out
-        assert "[INFO]: Can't download:" in captured.out
-        assert "Test File #1.mp3" in captured.out
+    downloader.download_files(test_downloads, tmp_path)
+    captured = capsys.readouterr()
+    assert len(list(tmp_path.iterdir())) == 0
+    assert len(downloader.successful_downloaded) == 0
+    assert len(downloader.unavailable_links) == 1
+    assert "[ERROR]: Unknown error:" in captured.out
+    assert "Something wrong!" in captured.out
+    assert "[INFO]: Can't download:" in captured.out
+    assert "Test File #1.mp3" in captured.out
 
 
 def test_both_primary_and_auxiliary_links_404(
     requests_mock: rm_Mocker,
+    tmp_path: Path,
     capsys: CaptureFixture[str],
 ) -> None:
     """It records unavailable files and prints about that."""
@@ -372,12 +375,10 @@ def test_both_primary_and_auxiliary_links_404(
         status_code=404,
     )
 
-    with tempfile.TemporaryDirectory(prefix="LEP_save_") as temp_dir:
-        save_tmp_dir = Path(temp_dir)
-        downloader.download_files(test_downloads, save_tmp_dir)
-        captured = capsys.readouterr()
-        assert len(list(save_tmp_dir.iterdir())) == 0
-        assert len(downloader.successful_downloaded) == 0
-        assert len(downloader.unavailable_links) == 1
-        assert "[INFO]: Can't download:" in captured.out
-        assert "Test File #1.mp3" in captured.out
+    downloader.download_files(test_downloads, tmp_path)
+    captured = capsys.readouterr()
+    assert len(list(tmp_path.iterdir())) == 0
+    assert len(downloader.successful_downloaded) == 0
+    assert len(downloader.unavailable_links) == 1
+    assert "[INFO]: Can't download:" in captured.out
+    assert "Test File #1.mp3" in captured.out
