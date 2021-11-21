@@ -41,6 +41,9 @@ from requests_mock.request import _RequestObjectProxy
 from requests_mock.response import _Context as rm_Context
 
 
+DataForEpisodeAudio = List[Tuple[str, str, List[List[str]], bool]]
+NamesWithAudios = List[Tuple[str, List[str]]]
+
 # yapf: disable
 URL_HTML_MAPPING = {
     "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/":
@@ -269,7 +272,13 @@ def mocked_episodes(
 
 @pytest.fixture(scope="session")
 def lep_temp_path(tmp_path_factory: TempPathFactory) -> Iterator[Path]:
-    """Returns path to custom temp directory."""
+    """Returns path to custom temp directory.
+
+    This fixture is redundant, but it lets to clear
+    the base pytest temp directory at the end of session.
+    https://github.com/pytest-dev/pytest/issues/8141
+    If disc space is not a problem - can be replaced with 'tmp_path'
+    """
     temp_path = tmp_path_factory.mktemp("lep_tmp")
     yield temp_path
     # Cleanup all folders in fixture's base temp directory
@@ -298,3 +307,39 @@ def mp3_file2_mock(mp3_mocks_path: Path) -> bytes:
     """Returns bytes of the second mocked mp3 file."""
     mocked_file_2 = mp3_mocks_path / "test_lep_audio2.mp3"
     return mocked_file_2.read_bytes()
+
+
+@pytest.fixture(scope="session")
+def only_valid_episodes(json_db_mock: str) -> List[Any]:
+    """Returns list of valid LepEpisode objects from JSON mocked database."""
+    from lep_downloader import data_getter
+
+    mocked_db_episodes = data_getter.get_list_of_valid_episodes(json_db_mock)
+    return mocked_db_episodes
+
+
+@pytest.fixture(scope="session")
+def only_audio_episodes(only_valid_episodes: List[Any]) -> List[Any]:
+    """Returns only audio episodes from all."""
+    from lep_downloader import downloader
+
+    audio_episodes = downloader.select_all_audio_episodes(only_valid_episodes)
+    return audio_episodes
+
+
+@pytest.fixture(scope="session")
+def only_audio_data(only_audio_episodes: List[Any]) -> DataForEpisodeAudio:
+    """Returns only extracted audio data from audio episodes."""
+    from lep_downloader import downloader
+
+    audio_data = downloader.get_audios_data(only_audio_episodes)
+    return audio_data
+
+
+@pytest.fixture(scope="session")
+def only_audio_links(only_audio_data: DataForEpisodeAudio) -> NamesWithAudios:
+    """Returns only links and names for audio files."""
+    from lep_downloader import downloader
+
+    audio_links = downloader.bind_name_and_file_url(only_audio_data)
+    return audio_links
