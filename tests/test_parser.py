@@ -373,6 +373,36 @@ def test_parsing_non_episode_link(
     assert episode is None
 
 
+def test_skipping_non_episode_link(
+    requests_mock: rm_Mocker,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    req_ses: requests.Session,
+) -> None:
+    """It skips non-episode link."""
+    test_urls = [
+        "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/",
+        "https://teacherluke.co.uk/premium/archive-comment-section/",  # noqa: E501,B950
+    ]
+    test_texts = [
+        "Episode 1 Link",
+        "Non Episode Title Link",
+    ]
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        "https://teacherluke.co.uk/premium/archive-comment-section/",
+        text="No need to parse this page",
+        status_code=200,
+    )
+    episodes = parser.get_parsed_episodes(test_urls, req_ses, test_texts)
+    assert len(episodes) == 1
+    assert episodes[0].post_title == "Episode 1 Link"
+
+
 def test_parsing_links_to_audio_for_mocked_episodes(
     mocked_episodes: List[lep.LepEpisode],
 ) -> None:
