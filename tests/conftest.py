@@ -277,3 +277,24 @@ def lep_temp_path(tmp_path_factory: TempPathFactory) -> Iterator[Path]:
     # If we clean base temp directory itself
     # 'typeguard' will warn on Windows hosts
     # tmp_path_factory.getbasetemp().parent.rmdir()
+
+
+@pytest.fixture(scope="module")
+def mp3_mocks_path(mocks_dir_path: Path) -> Path:
+    """Returns path to 'mp3' sub-direcory of mocks."""
+    mp3_dir = mocks_dir_path / "mp3"
+    return mp3_dir
+
+
+@pytest.fixture(scope="module")
+def mp3_file1_mock(mp3_mocks_path: Path) -> bytes:
+    """Returns bytes of the first mocked mp3 file."""
+    mocked_file_1 = mp3_mocks_path / "test_lep_audio1.mp3"
+    return mocked_file_1.read_bytes()
+
+
+@pytest.fixture(scope="module")
+def mp3_file2_mock(mp3_mocks_path: Path) -> bytes:
+    """Returns bytes of the second mocked mp3 file."""
+    mocked_file_2 = mp3_mocks_path / "test_lep_audio2.mp3"
+    return mocked_file_2.read_bytes()

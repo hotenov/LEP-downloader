@@ -53,10 +53,10 @@ def test_extracting_audio_data() -> None:
     audio_episodes = downloader.select_all_audio_episodes(MOCKED_DB_EPISODES)
     expected_ep = (
         "2009-10-19",
-        "15. Extra Podcast – 12 Phrasal Verbs",  # dash as Unicode character here.
+        "15. Extra Podcast – 12 Phrasal Verbs",  # noqa: E501,B950  # dash as Unicode character here.
         [
             [
-                "http://traffic.libsyn.com/teacherluke/15-extra-podcast-12-phrasal-verbs.mp3"
+                "http://traffic.libsyn.com/teacherluke/15-extra-podcast-12-phrasal-verbs.mp3"  # noqa: E501,B950
             ]
         ],
         False,
@@ -71,9 +71,9 @@ def test_forming_multipart_download_links() -> None:
     audio_data = downloader.get_audios_data(audio_episodes)
     audio_links = downloader.bind_name_and_file_url(audio_data)
     excepted_link = (
-        "[2017-03-11] # LEP on ZEP – My recent interview on Zdenek’s English Podcast [Part 02]",
+        "[2017-03-11] # LEP on ZEP – My recent interview on Zdenek’s English Podcast [Part 02]",  # noqa: E501,B950
         [
-            "https://audioboom.com/posts/5621870-episode-167-luke-back-on-zep-part-2.mp3",
+            "https://audioboom.com/posts/5621870-episode-167-luke-back-on-zep-part-2.mp3",  # noqa: E501,B950
         ],
     )
     assert audio_links[11] == excepted_link
@@ -87,7 +87,7 @@ def test_forming_numbered_download_link() -> None:
     excepted_link = (
         "[2021-02-03] # 703. Walaa from Syria – WISBOLEP Competition Winner",
         [
-            "https://traffic.libsyn.com/secure/teacherluke/703._Walaa_from_Syria_-_WISBOLEP_Competition_Winner_.mp3",
+            "https://traffic.libsyn.com/secure/teacherluke/703._Walaa_from_Syria_-_WISBOLEP_Competition_Winner_.mp3",  # noqa: E501,B950
         ],
     )
     assert audio_links[15] == excepted_link
@@ -99,9 +99,9 @@ def test_forming_safe_filename_for_downloading() -> None:
     audio_data = downloader.get_audios_data(audio_episodes)
     audio_links = downloader.bind_name_and_file_url(audio_data)
     excepted_link = (
-        "[2016-08-07] # 370. In Conversation with Rob Ager from Liverpool (PART 1_ Life in Liverpool _ Interest in Film Analysis)",
+        "[2016-08-07] # 370. In Conversation with Rob Ager from Liverpool (PART 1_ Life in Liverpool _ Interest in Film Analysis)",  # noqa: E501,B950
         [
-            "http://traffic.libsyn.com/teacherluke/370-in-conversation-with-rob-ager-from-liverpool-part-1-life-in-liverpool-interest-in-film-analysis.mp3",
+            "http://traffic.libsyn.com/teacherluke/370-in-conversation-with-rob-ager-from-liverpool-part-1-life-in-liverpool-interest-in-film-analysis.mp3",  # noqa: E501,B950
         ],
     )
     assert audio_links[9] == excepted_link
@@ -116,7 +116,7 @@ def test_separating_existing_and_non_existing_mp3(
     audio_links = downloader.bind_name_and_file_url(audio_data)
 
     filename_1 = "[2021-08-03] # 733. A Summer Ramble.mp3"
-    filename_2 = "[2017-03-11] # LEP on ZEP – My recent interview on Zdenek’s English Podcast [Part 05].mp3"
+    filename_2 = "[2017-03-11] # LEP on ZEP – My recent interview on Zdenek’s English Podcast [Part 05].mp3"  # noqa: E501,B950
     Path(tmp_path / filename_1).write_text("Here are mp3 1 bytes")
     Path(tmp_path / filename_2).write_text("Here are mp3 2 bytes")
 
@@ -145,7 +145,7 @@ def test_retrieving_audios_as_none() -> None:
                 "admin_note": "Edge case - null in 'audios'"
             }
         ]
-    """
+    """  # noqa: E501,B950
     db_episodes = get_list_of_valid_episodes(json_test)
     audio_data = downloader.get_audios_data(db_episodes)
     assert audio_data[0][2] == []
@@ -153,31 +153,34 @@ def test_retrieving_audios_as_none() -> None:
 
 def test_downloading_mocked_mp3_files(
     requests_mock: rm_Mocker,
+    mp3_file1_mock: bytes,
+    mp3_file2_mock: bytes,
     tmp_path: Path,
 ) -> None:
     """It downloads file on disc."""
     test_downloads: List[Tuple[str, List[str]]] = []
     file_1 = (
         "Test File #1",
-        ["https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"],
+        [
+            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"  # noqa: E501,B950
+        ],
     )
     file_2 = (
         "Test File #2",
-        ["https://audioboom.com/posts/5678762-episode-169-luke-back-on-zep-part-4.mp3"],
+        [
+            "https://audioboom.com/posts/5678762-episode-169-luke-back-on-zep-part-4.mp3"  # noqa: E501,B950
+        ],
     )
     test_downloads.append(file_1)
     test_downloads.append(file_2)
 
-    mocked_file_1 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio1.mp3"
     requests_mock.get(
-        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
-        content=mocked_file_1.read_bytes(),
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
+        content=mp3_file1_mock,
     )
-
-    mocked_file_2 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio2.mp3"
     requests_mock.get(
-        "https://audioboom.com/posts/5678762-episode-169-luke-back-on-zep-part-4.mp3",
-        content=mocked_file_2.read_bytes(),
+        "https://audioboom.com/posts/5678762-episode-169-luke-back-on-zep-part-4.mp3",  # noqa: E501,B950
+        content=mp3_file2_mock,
     )
 
     downloader.download_files(test_downloads, tmp_path)
@@ -192,6 +195,8 @@ def test_downloading_mocked_mp3_files(
 
 def test_skipping_downloaded_url(
     requests_mock: rm_Mocker,
+    mp3_file1_mock: bytes,
+    mp3_file2_mock: bytes,
     tmp_path: Path,
 ) -> None:
     """It skips URL if it was downloaded before."""
@@ -199,28 +204,25 @@ def test_skipping_downloaded_url(
     file_1 = (
         "Test File #1",
         [
-            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"
+            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"  # noqa: E501,B950
         ],
     )
     file_2 = (
         "Test File #2",
         [
-            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"
+            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"  # noqa: E501,B950
         ],
     )
     test_downloads.append(file_1)
     test_downloads.append(file_2)
 
-    mocked_file_1 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio1.mp3"
     requests_mock.get(
-        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",
-        content=mocked_file_1.read_bytes(),
+        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",  # noqa: E501,B950
+        content=mp3_file1_mock,
     )
-
-    mocked_file_2 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio2.mp3"
     requests_mock.get(
-        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",
-        content=mocked_file_2.read_bytes(),
+        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",  # noqa: E501,B950
+        content=mp3_file2_mock,
     )
 
     downloader.download_files(test_downloads, tmp_path)
@@ -232,6 +234,8 @@ def test_skipping_downloaded_url(
 
 def test_skipping_downloaded_file_on_disc(
     requests_mock: rm_Mocker,
+    mp3_file1_mock: bytes,
+    mp3_file2_mock: bytes,
     tmp_path: Path,
 ) -> None:
     """It skips (and does not override) URL if file was downloaded before."""
@@ -240,26 +244,25 @@ def test_skipping_downloaded_file_on_disc(
     file_1 = (
         "Test File #1",
         [
-            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"
+            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"  # noqa: E501,B950
         ],
     )
     file_2 = (
         "Test File #2",
-        ["https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"],
+        [
+            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"  # noqa: E501,B950
+        ],
     )
     test_downloads.append(file_1)
     test_downloads.append(file_2)
 
-    mocked_file_1 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio1.mp3"
     requests_mock.get(
-        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",
-        content=mocked_file_1.read_bytes(),
+        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",  # noqa: E501,B950
+        content=mp3_file1_mock,
     )
-
-    mocked_file_2 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio2.mp3"
     requests_mock.get(
-        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
-        content=mocked_file_2.read_bytes(),
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
+        content=mp3_file2_mock,
     )
 
     existing_file_1 = tmp_path / "Test File #1.mp3"
@@ -274,6 +277,7 @@ def test_skipping_downloaded_file_on_disc(
 
 def test_try_auxiliary_download_links(
     requests_mock: rm_Mocker,
+    mp3_file1_mock: bytes,
     tmp_path: Path,
 ) -> None:
     """It downloads file by auxiliary link."""
@@ -282,17 +286,15 @@ def test_try_auxiliary_download_links(
     file_1 = (
         "Test File #1",
         [
-            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
             "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
             "https://hotenov.com/d/lep/some_auxiliary_2.mp3",
         ],
     )
     test_downloads.append(file_1)
 
-    mocked_file_1 = OFFLINE_HTML_DIR / "mp3" / "test_lep_audio1.mp3"
-
     requests_mock.get(
-        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
         text="Response not OK",
         status_code=404,
     )
@@ -303,7 +305,7 @@ def test_try_auxiliary_download_links(
     )
     requests_mock.get(
         "https://hotenov.com/d/lep/some_auxiliary_2.mp3",
-        content=mocked_file_1.read_bytes(),
+        content=mp3_file1_mock,
     )
 
     downloader.download_files(test_downloads, tmp_path)
@@ -325,13 +327,13 @@ def test_primary_link_unavailable(
     file_1 = (
         "Test File #1",
         [
-            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
         ],
     )
     test_downloads.append(file_1)
 
     requests_mock.get(
-        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
         exc=Exception("Something wrong!"),
     )
 
@@ -358,14 +360,14 @@ def test_both_primary_and_auxiliary_links_404(
     file_1 = (
         "Test File #1",
         [
-            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
             "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
         ],
     )
     test_downloads.append(file_1)
 
     requests_mock.get(
-        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
         text="Response not OK",
         status_code=404,
     )
