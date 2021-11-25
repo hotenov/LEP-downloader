@@ -1,14 +1,9 @@
 """Command-line interface."""
-import click
-
-from lep_downloader import __version__
+from lep_downloader import cli  # pragma: no cover
 
 
-@click.command()
-@click.version_option(version=__version__)
-def main() -> None:
-    """LEP Downloader."""
+cli.cli_main()  # pragma: no cover
 
 
-if __name__ == "__main__":
-    main(prog_name="lep-downloader")  # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover
+    cli.cli_main(prog_name="lep-downloader")  # pragma: no cover
