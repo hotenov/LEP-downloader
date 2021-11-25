@@ -35,6 +35,7 @@ from typing import Tuple
 import pytest
 import requests
 import requests_mock as req_mock
+from click.testing import CliRunner
 from pytest import TempPathFactory
 from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
@@ -343,3 +344,9 @@ def only_audio_links(only_audio_data: DataForEpisodeAudio) -> NamesWithAudios:
 
     audio_links = downloader.bind_name_and_file_url(only_audio_data)
     return audio_links
+
+
+@pytest.fixture
+def runner() -> CliRunner:
+    """Fixture for invoking command-line interfaces."""
+    return CliRunner()
