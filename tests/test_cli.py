@@ -1,26 +1,19 @@
-"""Test cases for the __main__ module."""
-import pytest
+"""Test cases for the cli module."""
 from click.testing import CliRunner
 
-from lep_downloader import __main__
-
-
-@pytest.fixture
-def runner() -> CliRunner:
-    """Fixture for invoking command-line interfaces."""
-    return CliRunner()
+from lep_downloader import cli
 
 
 def test_main_succeeds(runner: CliRunner) -> None:
     """It exits with a status code of zero."""
-    result = runner.invoke(__main__.main)
+    result = runner.invoke(cli.cli_main)
     assert result.exit_code == 0
 
 
 def test_cli_prints_version(runner: CliRunner) -> None:
     """It prints version."""
     result = runner.invoke(
-        __main__.main,
+        cli.cli_main,
         ["--version"],
         prog_name="lep-downloader",
     )
