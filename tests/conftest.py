@@ -35,6 +35,8 @@ from typing import Tuple
 import pytest
 import requests
 import requests_mock as req_mock
+from click.testing import CliRunner
+from click.testing import Result
 from pytest import TempPathFactory
 from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
@@ -343,3 +345,25 @@ def only_audio_links(only_audio_data: DataForEpisodeAudio) -> NamesWithAudios:
 
     audio_links = downloader.bind_name_and_file_url(only_audio_data)
     return audio_links
+
+
+@pytest.fixture
+def runner() -> CliRunner:
+    """Fixture for invoking command-line interfaces."""
+    return CliRunner()
+
+
+@pytest.fixture
+def run_cli_with_args(runner: CliRunner) -> Callable[[List[str]], Result]:
+    """Fixture for getting CLI runner result for this package."""
+    from lep_downloader import cli
+
+    def _my_pkg_result(cli_args: List[str]) -> Result:
+        result = runner.invoke(
+            cli.cli,
+            cli_args,
+            prog_name="lep-downloader",
+        )
+        return result
+
+    return _my_pkg_result
