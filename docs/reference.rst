@@ -6,8 +6,8 @@ Reference
     :backlinks: none
 
 
-lep_downloader.__main__
+lep_downloader.cli
 -----------------------
 
-.. automodule:: lep_downloader.__main__
+.. automodule:: lep_downloader.cli
    :members:

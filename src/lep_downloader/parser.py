@@ -350,13 +350,18 @@ def do_parsing_actions(
         if status_db_ok:
             db_episodes = get_list_of_valid_episodes(json_body, json_url)
             if db_episodes:
-                # Get differences between database and current posts archive URLs
+                # Get differences between database and current archive
                 zipped_diff = get_only_new_post_urls(db_episodes, links, texts)
             else:
+                print(
+                    "JSON is available, but",
+                    "\nthere are NO episode in this file. Exit.",
+                )
                 return None
             if zipped_diff is None:
                 print(
-                    "[WARNING]: Database contains more episodes than current archive!"
+                    "[WARNING]: Database contains more episodes",
+                    "than current archive!",
                 )
                 return None
             if len(zipped_diff) > 0:

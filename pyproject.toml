@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lep-downloader"
-version = "3.0.0"
+version = "3.0.0a1"
 description = "LEP Downloader - CLI app for parsing and downloading episodes of Luke's English Podcast"
 authors = ["Artem Hotenov <qa@hotenov.com>"]
 license = "MIT"
@@ -23,6 +23,7 @@ click = "^8.0.1"
 requests = "^2.26.0"
 beautifulsoup4 = "^4.9.3"
 lxml = "^4.6.3"
+single-source = "^0.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
