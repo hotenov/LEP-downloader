@@ -48,9 +48,19 @@ class LepJsonEncoder(json.JSONEncoder):
     def default(self, obj: t.Any) -> t.Any:
         """Override 'default' method for encoding JSON objects."""
         if isinstance(obj, LepEpisode):
-            return obj.__dict__
+            return {
+                "episode": obj.episode,
+                "date": obj.date,
+                "url": obj.url,
+                "post_title": obj.post_title,
+                "post_type": obj.post_type,
+                "audios": obj.audios,
+                "parsing_utc": obj.parsing_utc,
+                "index": obj.index,
+                "admin_note": obj.admin_note,
+            }
         # Let the base class default method raise the TypeError
-        return json.JSONEncoder.default(self, obj)
+        return super().default(obj)
 
 
 def as_lep_episode_obj(dct: t.Dict[str, t.Any]) -> t.Optional[LepEpisode]:
