@@ -40,6 +40,7 @@ from lep_downloader import config as conf
 from lep_downloader import lep
 from lep_downloader import parser
 from lep_downloader.data_getter import get_web_page_html_text
+from lep_downloader.lep import archive
 from lep_downloader.lep import as_lep_episode_obj
 from lep_downloader.lep import LepEpisode
 
@@ -337,21 +338,25 @@ def test_parsing_post_datetime_without_element() -> None:
 
 def test_generating_new_post_index() -> None:
     """It generates index from URL."""
-    indexes: t.List[int] = []
+    archive.used_indexes = set()
     test_url = "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/"
-    index = parser.generate_post_index(test_url, indexes)
-    expected_index = int("2009041201")
+    index = parser.generate_post_index(test_url, archive.used_indexes)
+    expected_index = 2009041201
     assert index == expected_index
 
 
 def test_generating_new_post_index_on_same_day() -> None:
     """It generates index from URL if posts are on the same day."""
-    indexes: t.List[int] = [2009041201]
+    # indexes: t.List[int] = [2009041201]
+    archive.used_indexes = set()
+    archive.used_indexes.add(2009041201)
     test_url = "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/"
-    index = parser.generate_post_index(test_url, indexes)
-    expected_index = int("2009041202")
+    # index = parser.generate_post_index(test_url, indexes)
+    index = parser.generate_post_index(test_url, archive.used_indexes)
+    expected_index = 2009041202
     assert index == expected_index
-    index2 = parser.generate_post_index(test_url, indexes)
+    # index2 = parser.generate_post_index(test_url, indexes)
+    index2 = parser.generate_post_index(test_url, archive.used_indexes)
     assert index2 == expected_index + 1
 
 
