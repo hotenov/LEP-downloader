@@ -25,6 +25,7 @@
 ARCHIVE_URL = "https://hotenov.com"
 
 JSON_DB_URL = "https://hotenov.com/some_json.json"
+DEFAULT_JSON_NAME = "lep-db.min.json"
 
 LOCAL_ARCHIVE_HTML = "2021-08-10_lep-archive-page-content-pretty.html"
 LOCAL_JSON_DB = "mocked-db-json-equal-786-objects.json"
@@ -52,7 +53,7 @@ SHORT_LINKS_MAPPING_DICT = {
 }
 # yapf: enable
 
-IRRELEVANT_LINKS = ("https://wp.me/P4IuUx-82H",)
+IRRELEVANT_LINKS = {"https://wp.me/P4IuUx-82H"}
 
 EPISODE_LINK_RE = r"https?://((?P<short>wp\.me/p4IuUx-[\w-]+)|(teacherluke\.(co\.uk|wordpress\.com)/(?P<date>\d{4}/\d{2}/\d{2})/))"  # noqa: E501,B950
 
