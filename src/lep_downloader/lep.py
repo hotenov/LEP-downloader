@@ -21,10 +21,16 @@
 # SOFTWARE.
 """LEP module for general logic and classes."""
 import json
+from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Set
+
+import requests
+
+from lep_downloader import config as conf
 
 
 class LepEpisode(object):
@@ -100,3 +106,45 @@ def as_lep_episode_obj(dct: Dict[str, Any]) -> Optional[LepEpisode]:
         return None
     else:
         return lep_ep
+
+
+class Lep:
+    """Represent base class for general attributes."""
+
+    def __init__(self, session: requests.Session = None) -> None:
+        """Default instance of LepTemplate.
+
+        Args:
+            session (requests.Session): General session for descendants.
+        """
+        # TODO (hotenov): Take default session from config file.
+        # Or move this field into parser / downloader classes only
+        self.ses = session if session else requests.Session()
+
+    def get_web_content(self, url: str) -> str:
+        """Return text content by given URL."""
+        print("LepTemplate.get_web_content() executed" + "f\tURL:'{url}'")
+        return "Web page content"
+
+    def save_string_to_file(self, text: str, dest: Path, name: str) -> None:
+        """Save text in to file."""
+        pass
+
+
+class Archive(Lep):
+    """Represent archive page object."""
+
+    def __init__(self, url: str = "") -> None:
+        """Default instance of Archive.
+
+        Args:
+            url (str): URL to archive page.
+                if not passed, take default from config file.
+        """
+        self.url = url if url else conf.ARCHIVE_URL
+        self.collected_links: Dict[str, str] = {}
+        self.deleted_links: Set[str] = set()
+        self.used_indexes: Set[int] = set()
+
+
+archive = Archive()

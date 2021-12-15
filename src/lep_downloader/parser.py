@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 from typing import List
 from typing import Optional
+from typing import Set
 from typing import Tuple
 
 import requests
@@ -21,11 +22,13 @@ from lep_downloader import config as conf
 from lep_downloader.data_getter import get_list_of_valid_episodes
 from lep_downloader.data_getter import get_web_page_html_text
 from lep_downloader.data_getter import s
+from lep_downloader.lep import archive
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepJsonEncoder
 
 
-deleted_links = []
+# deleted_links = []
+# archive = Archive()
 
 
 # COMPILED REGEX PATTERNS #
@@ -50,11 +53,6 @@ only_a_tags_with_mp3 = SoupStrainer(
     "a",
     href=re.compile(r"^(?!.*boos/(2794795|3727124))(?!.*uploads).*\.mp3$", re.I),
 )
-
-post_indexes: List[int] = []
-
-
-DEFAULT_JSON_PATH = Path("lep-db.min.json")
 
 
 def tag_a_with_episode(tag_a: Tag) -> bool:
@@ -113,7 +111,8 @@ def remove_irrelevant_links(
     """Return list of links without known irrelevant links."""
     for i, link in enumerate(links[:]):
         if link in conf.IRRELEVANT_LINKS:
-            deleted_links.append(link)
+            # deleted_links.append(link)
+            archive.deleted_links.add(link)
             del links[i]
             del texts[i]
     return (links, texts)
@@ -150,7 +149,7 @@ def get_archive_parsing_results(archive_url: str) -> Any:
             link_strings,
         )
         final_list = substitute_short_links(cleaned_links)
-        parsing_result = (final_list, deleted_links, cleaned_strings)
+        parsing_result = (final_list, archive.deleted_links, cleaned_strings)
         return parsing_result
     else:
         print("[ERROR] Can't parse this page: <article> tag was not found.")
@@ -177,7 +176,7 @@ def parse_episode_number(post_title: str) -> int:
         return 0
 
 
-def generate_post_index(post_url: str, indexes: List[int]) -> int:
+def generate_post_index(post_url: str, indexes: Set[int]) -> int:
     """Returns index number for post."""
     match = EP_LINK_PATTERN.match(post_url)
     if match:
@@ -193,7 +192,8 @@ def generate_post_index(post_url: str, indexes: List[int]) -> int:
             if new_index in indexes:
                 new_index += 1
             else:
-                indexes.append(new_index)
+                # indexes.append(new_index)
+                archive.used_indexes.add(new_index)
                 exists = True
         return new_index
     else:
@@ -246,7 +246,8 @@ def parse_single_page(
 
     html_page, final_location, is_url_ok = get_web_page_html_text(url, session)
 
-    index = generate_post_index(final_location, post_indexes)
+    # index = generate_post_index(final_location, post_indexes)
+    index = generate_post_index(final_location, archive.used_indexes)
     if index == 0:
         return None
 
@@ -327,17 +328,19 @@ def get_only_new_post_urls(
 
 def write_parsed_episodes_to_json(
     lep_objects: List[LepEpisode],
-    path: Path = DEFAULT_JSON_PATH,
+    # path: Path = DEFAULT_JSON_PATH,
+    json_name: str = conf.DEFAULT_JSON_NAME,
 ) -> None:
     """Write list of LepEpisode objects to file."""
-    with open(path, "w") as outfile:
+    with open(Path(json_name), "w") as outfile:
         json.dump(lep_objects, outfile, indent=4, cls=LepJsonEncoder)
 
 
 def do_parsing_actions(
     json_url: str,
     archive_url: str,
-    path_to_json: Path = DEFAULT_JSON_PATH,
+    # path_to_json: Path = DEFAULT_JSON_PATH,
+    json_name: str = conf.DEFAULT_JSON_NAME,
 ) -> None:
     """Main methdod to do parsing."""
     db_episodes: Optional[List[LepEpisode]] = []
@@ -373,7 +376,7 @@ def do_parsing_actions(
                 all_episodes = new_episodes + db_episodes
                 all_episodes = sort_episodes_by_post_date(all_episodes)
 
-                write_parsed_episodes_to_json(all_episodes, path_to_json)
+                write_parsed_episodes_to_json(all_episodes, json_name)
             else:
                 print("There are no new episodes. Exit.")
                 return None
@@ -384,3 +387,36 @@ def do_parsing_actions(
     else:
         print("[ERROR]: Can't parse any episodes from archive page.")
         return
+
+
+class LepParser:
+    """Basic class for LEP archive parsers."""
+
+    def get_archive_content(self) -> None:
+        """Retrive text content of archive web page."""
+        raise NotImplementedError()
+
+    def replace_misspelled_link(self) -> None:
+        """Substitute link with '.ukm' misspelled LTD."""
+        raise NotImplementedError()
+
+    def collect_episode_links(self) -> None:
+        """Parse all links matching episode URL."""
+        raise NotImplementedError()
+
+    def clean_links(self) -> None:
+        """Remove irrelevant links and substitute short links."""
+        raise NotImplementedError()
+
+    def parse_archive(self) -> None:
+        """Perform parsing."""
+        self.get_archive_content()
+        self.replace_misspelled_link()
+        self.collect_episode_links()
+        self.clean_links()
+
+
+class SoupParser(LepParser):
+    """Parsing using BeautifulSoup."""
+
+    pass
