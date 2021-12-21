@@ -26,7 +26,7 @@ import typing as t
 import requests
 
 from lep_downloader.lep import as_lep_episode_obj
-from lep_downloader.lep import LepEpisode
+from lep_downloader.lep import LepEpisodeList
 
 
 s = requests.Session()
@@ -56,7 +56,6 @@ def get_web_page_html_text(page_url: str, session: requests.Session) -> t.Any:
             )
         else:
             resp.encoding = "utf-8"
-            final_location = resp.url
             is_url_ok = True
             return (resp.text, final_location, is_url_ok)
 
@@ -64,21 +63,22 @@ def get_web_page_html_text(page_url: str, session: requests.Session) -> t.Any:
 def get_list_of_valid_episodes(
     json_body: str,
     json_url: t.Optional[str] = None,
-) -> t.List[LepEpisode]:
+) -> LepEpisodeList:
     """Return list of valid (not None) LepEpisode objects."""
-    db_episodes: t.List[LepEpisode] = []
+    db_episodes = LepEpisodeList()
     try:
         db_episodes = json.loads(json_body, object_hook=as_lep_episode_obj)
     except json.JSONDecodeError:
         print(f"[ERROR]: Data is not a valid JSON document.\n\tURL: {json_url}")
-        return []
+        return LepEpisodeList()
     else:
         is_db_str: bool = isinstance(db_episodes, str)
-        db_episodes = [obj for obj in db_episodes if obj]
+        # Remove None elements
+        db_episodes = LepEpisodeList(obj for obj in db_episodes if obj)
         if not db_episodes or is_db_str:
             print(
                 f"[WARNING]: JSON file ({json_url}) has no valid episode objects."  # noqa: E501,B950
             )
-            return []
+            return LepEpisodeList()
         else:
             return db_episodes
