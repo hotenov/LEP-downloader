@@ -125,7 +125,7 @@ def test_retrieving_audios_as_none() -> None:
                 "post_title": "3. Music/The Beatles",
                 "post_type": "",
                 "audios": null,
-                "parsing_utc": "2021-10-14T07:35:24.575575Z",
+                "parsed_at": "2021-10-14T07:35:24.575575Z",
                 "index": 2009041501,
                 "admin_note": "Edge case - null in 'audios'"
             }
