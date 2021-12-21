@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Package-wide test fixtures."""
+import copy
 import json
 import shutil
 from datetime import datetime
@@ -193,9 +194,9 @@ def modified_json_less_db_mock(db_episodes: List[object]) -> str:
     from lep_downloader import lep
 
     # Delete three episodes
-    del db_episodes[0]
-    del db_episodes[1]
-    del db_episodes[6]
+    del db_episodes[0]  # Remove '733'
+    del db_episodes[0]  # Remove '714'
+    del db_episodes[4]  # Remove 'LEP on ZEP'
     modified_json = json.dumps(db_episodes, cls=lep.LepJsonEncoder)
     del db_episodes
     return modified_json
@@ -217,40 +218,47 @@ def modified_json_extra_db_mock(db_episodes: List[object]) -> str:
 def archive_parsing_results_mock(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
-) -> Tuple[List[str], List[str]]:
+    req_ses: requests.Session,
+) -> Dict[str, str]:
     """Returns two lists: links and texts from mocked archive page."""
     from lep_downloader import config as conf
     from lep_downloader import parser
+    from lep_downloader.lep import Archive
 
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    parsing_result: Tuple[List[str], ...]
-    parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
-    all_links: List[str] = parsing_result[0]
-    all_texts: List[str] = parsing_result[2]
-    return all_links, all_texts
+    archive_parser = parser.ArchiveParser(conf.ARCHIVE_URL, req_ses)
+    archive_parser.parse_url()
+    archive_urls = Archive.collected_links.copy()
+    del archive_parser
+    return archive_urls
 
 
 @pytest.fixture
 def parsed_episodes_mock(
     requests_mock: rm_Mocker,
-    archive_parsing_results_mock: Tuple[List[str], List[str]],
+    archive_parsing_results_mock: Dict[str, str],
     single_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     req_ses: requests.Session,
-) -> List[Any]:
+) -> Any:
     """Returns list of LepEpisode objects.
 
-    Mocked episodes among others with correct post date.
+    Mocked episodes among others, with parsed (not default) post date.
     """
     from lep_downloader import parser
+    from lep_downloader.lep import Archive
+    from lep_downloader.lep import LepEpisodeList
 
-    all_links, all_texts = archive_parsing_results_mock
+    Archive.episodes = LepEpisodeList()
+
+    parsed_episodes: LepEpisodeList
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=single_page_matcher,
         text=single_page_mock,
     )
-    parsed_episodes = parser.get_parsed_episodes(all_links, req_ses, all_texts)
+    parser.parse_each_episode(archive_parsing_results_mock, req_ses)
+    parsed_episodes = copy.deepcopy(Archive.episodes)
     return parsed_episodes
 
 
@@ -258,7 +266,7 @@ def parsed_episodes_mock(
 def mocked_episodes(
     parsed_episodes_mock: List[Any],
 ) -> List[Any]:
-    """Only episodes which have HTML mock page."""
+    """Fixture with episodes which have HTML mock page only."""
     lep_date_format = "%Y-%m-%dT%H:%M:%S%z"
     min_date = datetime.strptime(
         "2009-03-03T03:03:03+02:00",
@@ -267,7 +275,7 @@ def mocked_episodes(
     mocked_episodes = [
         ep
         for ep in parsed_episodes_mock
-        if datetime.strptime(ep.__dict__["date"], lep_date_format) > min_date
+        if datetime.strptime(ep.date, lep_date_format) > min_date
     ]
     return mocked_episodes
 
