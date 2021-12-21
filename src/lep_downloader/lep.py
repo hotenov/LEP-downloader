@@ -21,8 +21,9 @@
 # SOFTWARE.
 """LEP module for general logic and classes."""
 import json
-from pathlib import Path
+from operator import attrgetter
 from typing import Any
+from typing import ClassVar
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -33,8 +34,28 @@ import requests
 from lep_downloader import config as conf
 
 
-class LepEpisode(object):
-    """LEP episode class."""
+class LepEpisode:
+    """LEP episode class.
+
+    Args:
+        episode (int): Episode number.
+        date (str): Post datetime (default 2000-01-01T00:00:00+00:00).
+        url (str): Final location of post URL.
+        post_title (str): Post title
+            extracted from tag <a> and safe for windows path.
+        post_type (str): Post type ("AUDIO", "TEXT", etc.).
+        audios (list): List of links lists (for multi-part episodes).
+        parsed_at (str): Parsing datetime in UTC timezone
+            with microseconds).
+        index (int): Parsing index
+            concatenation of URL date and increment (for several posts).
+        admin_note (str): Note for administrator
+            and storing error message (for bad response)
+        updated_at (str): Datetime in UTC when episode was updated
+            (usually manually by admin)
+        html_title (str): Page title in HTML tag <title>.
+            Important: Not stored in JSON database.
+    """
 
     def __init__(
         self,
@@ -43,37 +64,25 @@ class LepEpisode(object):
         url: str = "",
         post_title: str = "",
         post_type: str = "",
-        parsing_utc: str = "",
+        parsed_at: str = "",
         index: int = 0,
         audios: Optional[List[List[str]]] = None,
         admin_note: str = "",
+        updated_at: str = "",
+        html_title: str = "",
     ) -> None:
-        """Default instance of LepEpisode.
-
-        Args:
-            episode (int): Episode number.
-            date (str): Post datetime (default 2000-01-01T00:00:00+00:00).
-            url (str): Final location of post URL.
-            post_title (str): Post title
-                extracted from tag <a> and safe for windows path.
-            post_type (str): Post type ("AUDIO", "TEXT", etc.).
-            audios (list): List of links lists (for multi-part episodes).
-            parsing_utc (str): Parsing datetime in UTC timezone
-                with microseconds).
-            index (int): Parsing index
-                concatenation of URL date and increment (for several posts).
-            admin_note (str): Note for administrator
-                and storing error message (for bad response)
-        """
+        """Initialize default instance of LepEpisode."""
         self.episode = episode
         self.date = date
         self.url = url
         self.post_title = post_title
         self.post_type = post_type
         self.audios = audios
-        self.parsing_utc = parsing_utc
+        self.parsed_at = parsed_at
         self.index = index
         self.admin_note = admin_note
+        self.updated_at = updated_at
+        self._title = html_title
 
 
 class LepJsonEncoder(json.JSONEncoder):
@@ -89,9 +98,10 @@ class LepJsonEncoder(json.JSONEncoder):
                 "post_title": obj.post_title,
                 "post_type": obj.post_type,
                 "audios": obj.audios,
-                "parsing_utc": obj.parsing_utc,
+                "parsed_at": obj.parsed_at,
                 "index": obj.index,
                 "admin_note": obj.admin_note,
+                "updated_at": obj.updated_at,
             }
         # Let the base class default method raise the TypeError
         return super().default(obj)
@@ -121,18 +131,25 @@ class Lep:
         # Or move this field into parser / downloader classes only
         self.ses = session if session else requests.Session()
 
-    def get_web_content(self, url: str) -> str:
-        """Return text content by given URL."""
-        print("LepTemplate.get_web_content() executed" + "f\tURL:'{url}'")
-        return "Web page content"
 
-    def save_string_to_file(self, text: str, dest: Path, name: str) -> None:
-        """Save text in to file."""
-        pass
+class LepEpisodeList(List[Any]):
+    """Represent list of LepEpisode objects."""
+
+    def desc_sort_by_date_and_index(self) -> Any:
+        """Return new sorted list by post datetime, then index."""
+        sorted_episodes = LepEpisodeList(
+            sorted(self, key=attrgetter("date", "index"), reverse=True)
+        )
+        return sorted_episodes
 
 
 class Archive(Lep):
     """Represent archive page object."""
+
+    collected_links: ClassVar[Dict[str, str]] = {}
+    deleted_links: ClassVar[Set[str]] = set()
+    used_indexes: ClassVar[Set[int]] = set()
+    episodes: ClassVar[LepEpisodeList] = LepEpisodeList()
 
     def __init__(self, url: str = "") -> None:
         """Default instance of Archive.
@@ -141,10 +158,5 @@ class Archive(Lep):
             url (str): URL to archive page.
                 if not passed, take default from config file.
         """
+        super().__init__()
         self.url = url if url else conf.ARCHIVE_URL
-        self.collected_links: Dict[str, str] = {}
-        self.deleted_links: Set[str] = set()
-        self.used_indexes: Set[int] = set()
-
-
-archive = Archive()
