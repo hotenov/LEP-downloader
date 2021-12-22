@@ -292,10 +292,13 @@ class LepParser:
         self.final_location = get_result[1]
         self.is_url_ok = get_result[2]
 
-        # TODO (hotenov): Think how to improve steps
-        # for 'bad' URLs (they must be also 'parsed')
-        if not self.is_url_ok:
-            self.do_pre_parsing()
+    def do_pre_parsing(self) -> None:
+        """Extract useful data before and prepare for parsing.
+
+        For archive page - Substitute link with '.ukm' misspelled TLD.
+        For episode page - Generate index, parsed_at; parse episode number, etc.
+        """
+        raise NotImplementedError()
 
     def parse_dom_for_article_container(self) -> None:
         """Parse DOM for <article> tag only."""
@@ -305,14 +308,6 @@ class LepParser:
                 self.final_location,
                 "[ERROR] Can't parse this page: <article> tag was not found.",
             )
-
-    def do_pre_parsing(self) -> None:
-        """Parse separate elements on the page or from URL.
-
-        For archive page - Substitute link with '.ukm' misspelled LTD.
-        For episode page - Parse date, number, etc.
-        """
-        raise NotImplementedError()
 
     def collect_links(self) -> None:
         """Parse all links matching regex pattern."""
@@ -325,8 +320,8 @@ class LepParser:
     def parse_url(self) -> None:
         """Perform parsing."""
         self.get_url()
-        self.parse_dom_for_article_container()
         self.do_pre_parsing()
+        self.parse_dom_for_article_container()
         self.collect_links()
         self.do_post_parsing()
 
@@ -335,15 +330,8 @@ class ArchiveParser(LepParser):
     """Parser object for archive page."""
 
     def do_pre_parsing(self) -> None:
-        """Substitute link with '.ukm' misspelled TLD in soup object."""
-        misspelled_tag_a = self.soup.find(
-            "a", href="https://teacherluke.co.ukm/2012/08/06/london-olympics-2012/"
-        )
-        if misspelled_tag_a:
-            misspelled_tag_a[
-                "href"
-            ] = "https://teacherluke.co.uk/2012/08/06/london-olympics-2012/"
-        del misspelled_tag_a
+        """Substitute link with '.ukm' misspelled TLD in HTML content."""
+        self.content = self.content.replace(".co.ukm", ".co.uk")
 
     def collect_links(self) -> None:
         """Parse all links matching episode URL and their texts.
@@ -433,10 +421,9 @@ class EpisodeParser(LepParser):
             self.episode.admin_note = self.content[:50]
             raise LepEpisodeNotFound(self.episode)
 
-        self.episode.date = parse_post_publish_datetime(self.soup)
-
     def collect_links(self) -> None:
         """Parse link(s) to episode audio(s)."""
+        self.episode.date = parse_post_publish_datetime(self.soup)
         self.episode.audios = parse_post_audio(self.soup)
         if not self.episode.audios:
             self.episode.post_type = "TEXT"
