@@ -852,3 +852,19 @@ def test_encoding_non_serializable_json_object() -> None:
     obj = [complex(2 + 1)]
     with pytest.raises(TypeError):
         _ = json.dumps(obj, cls=lep.LepJsonEncoder)
+
+
+def test_invoking_not_implemented_methods() -> None:
+    """It raises exceptions if someone forget to override methods."""
+
+    class NewParser(parser.LepParser):
+        """Future new subclass."""
+
+        pass
+
+    with pytest.raises(NotImplementedError):
+        NewParser("Some URL").do_pre_parsing()
+    with pytest.raises(NotImplementedError):
+        NewParser("Some URL").collect_links()
+    with pytest.raises(NotImplementedError):
+        NewParser("Some URL").do_post_parsing()
