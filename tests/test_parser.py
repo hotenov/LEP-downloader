@@ -365,6 +365,25 @@ def test_parsing_archive_with_known_duplicates() -> None:
     )
 
 
+def test_parsing_archive_with_only_duplicates() -> None:
+    """It does not fail when there are only duplicated links on page."""
+    markup = """<html><head><title>Known Duplicates</title></head>
+            <a href="https://teacherluke.co.uk/2016/03/20/i-was-invited-onto-craig-wealands-weekly-blab-and-we-talked-about-comedy-video/">[VIDEO]</a>;
+            <a href="https://teacherluke.co.uk/2018/04/18/522-learning-english-at-summer-school-in-the-uk-a-rambling-chat-with-raphael-miller/">episode 522</a>;
+            <a href="https://teacherluke.co.uk/2017/08/14/website-content-lukes-criminal-past-zep-episode-185/">[Website content]</a>;
+    """  # noqa: E501,B950
+    soup = BeautifulSoup(markup, "lxml")
+    Archive.collected_links = {}
+    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
+    soup_parser.soup = soup
+    soup_parser.collect_links()
+    assert len(Archive.collected_links) == 0
+    soup_parser.remove_irrelevant_links()
+    assert len(Archive.collected_links) == 0
+    soup_parser.substitute_short_links()
+    assert len(Archive.collected_links) == 0
+
+
 def test_parsing_all_episodes_from_mocked_archive(
     parsed_episodes_mock: LepEpisodeList,
 ) -> None:
