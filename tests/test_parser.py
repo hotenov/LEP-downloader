@@ -193,7 +193,7 @@ def test_retrieve_all_episode_links_from_soup() -> None:
 
 
 def test_replacing_misspelled_link() -> None:
-    """It replaces misspelled link and returns modified soup object."""
+    """It replaces misspelled link in archive HTML content."""
     html_doc = """<html><head><title>The Dormouse'req_ses story</title></head>
         <body>
             <p class="story">Once upon a time there were three little sisters; and their names were
@@ -203,17 +203,18 @@ def test_replacing_misspelled_link() -> None:
                 and they lived at the bottom of a well.
             </p>
     """  # noqa: E501,B950
-    soup = BeautifulSoup(html_doc, "lxml")
+
     Archive.collected_links = {}
     soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
-    soup_parser.soup = soup
-    soup_before = copy.copy(soup_parser.soup)
+    soup_parser.content = html_doc
+    content_before = copy.copy(soup_parser.content)
     soup_parser.do_pre_parsing()
-    soup_after = soup_parser.soup
-    new_href = soup_parser.soup("a")[1]["href"]
+    content_after = soup_parser.content
+    soup = BeautifulSoup(content_after, "lxml")
+    new_href = soup("a")[1]["href"]
     expected = "https://teacherluke.co.uk/2012/08/06/london-olympics-2012/"
     assert new_href == expected
-    assert soup_before != soup_after
+    assert content_before != content_after
 
 
 def test_replacing_nothing_when_no_misspelled_link() -> None:
@@ -227,14 +228,13 @@ def test_replacing_nothing_when_no_misspelled_link() -> None:
                 and they lived at the bottom of a well.
             </p>
     """  # noqa: E501,B950
-    soup = BeautifulSoup(html_doc, "lxml")
     Archive.collected_links = {}
     soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
-    soup_parser.soup = soup
-    soup_before = copy.copy(soup_parser.soup)
+    soup_parser.content = html_doc
+    content_before = copy.copy(soup_parser.content)
     soup_parser.do_pre_parsing()
-    soup_after = soup_parser.soup
-    assert soup_before == soup_after
+    content_after = soup_parser.content
+    assert content_before == content_after
 
 
 def test_removing_irrelevant_links() -> None:
