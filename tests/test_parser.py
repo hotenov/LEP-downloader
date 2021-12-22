@@ -868,3 +868,19 @@ def test_invoking_not_implemented_methods() -> None:
         NewParser("Some URL").collect_links()
     with pytest.raises(NotImplementedError):
         NewParser("Some URL").do_post_parsing()
+
+
+def test_extracting_date_from_url_negative() -> None:
+    """It returns empty string if URL does not contain valid date."""
+    date = parser.extract_date_from_url(
+        "https://teacherluke.co.uk/200904/12/episode-1-introduction/"
+    )
+    assert date == ""
+
+
+def test_converting_invalid_date() -> None:
+    """It raises ValueError for invalid date format."""
+    # TODO (hotenov): Add handling this exception in other functions.
+    with pytest.raises(ValueError) as ex:
+        _ = parser.convert_date_from_url("")
+    assert "does not match format '%Y/%m/%d'" in ex.value.args[0]
