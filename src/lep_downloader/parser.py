@@ -346,19 +346,24 @@ class ArchiveParser(LepParser):
         del misspelled_tag_a
 
     def collect_links(self) -> None:
-        """Parse all links matching episode URL and their texts."""
+        """Parse all links matching episode URL and their texts.
+
+        Also remove duplicated links. If an archive page consists completely of
+            duplicated links - silently go further (as if there are no episodes at all).
+        """
         soup_a_only = BeautifulSoup(
             str(self.soup),
             features="lxml",
             parse_only=only_a_tags_with_ep_link,
         )
         if len(soup_a_only) > 1:  # tag DOCTYPE always at [0] position
+            # Remove all duplicated links
             tags_a_episodes = soup_a_only.find_all(is_tag_a_repeated, recursive=False)
-            if len(tags_a_episodes) > 0:
-                for tag_a in tags_a_episodes:
-                    link = tag_a["href"].strip()
-                    link_string = " ".join([text for text in tag_a.stripped_strings])
-                    Archive.collected_links[link] = link_string
+
+            for tag_a in tags_a_episodes:
+                link = tag_a["href"].strip()
+                link_string = " ".join([text for text in tag_a.stripped_strings])
+                Archive.collected_links[link] = link_string
         else:
             raise NoEpisodeLinksError(
                 self.final_location,
