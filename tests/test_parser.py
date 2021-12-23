@@ -880,3 +880,14 @@ def test_converting_invalid_date() -> None:
     with pytest.raises(ValueError) as ex:
         _ = parser.convert_date_from_url("")
     assert "does not match format '%Y/%m/%d'" in ex.value.args[0]
+
+
+def test_replacing_chars_in_post_title() -> None:
+    """It replaces invalid path characters with "_"."""
+    ep = LepEpisode()
+    ep.post_title = r"999. [1/2]. Asterisk * and question mark ?"
+    assert ep.post_title == "999. [1_2]. Asterisk _ and question mark _"
+    assert ep._origin_post_title == "999. [1/2]. Asterisk * and question mark ?"
+    ep.post_title = r"Other invalid chars: [<>:\"/\\\\|?*]"
+    assert ep.post_title == "Other invalid chars_ [_____________]"
+    assert ep._origin_post_title == r"Other invalid chars: [<>:\"/\\\\|?*]"
