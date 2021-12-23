@@ -21,6 +21,10 @@
 # SOFTWARE.
 """LEP module for general logic and classes."""
 import json
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
+from functools import total_ordering
 from operator import attrgetter
 from typing import Any
 from typing import ClassVar
@@ -28,18 +32,21 @@ from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Set
+from typing import Union
 
 import requests
 
 from lep_downloader import config as conf
 
 
+@total_ordering
 class LepEpisode:
     """LEP episode class.
 
     Args:
         episode (int): Episode number.
-        date (str): Post datetime (default 2000-01-01T00:00:00+00:00).
+        date (str | datetime | None): Post datetime (default 2000-01-01T00:00:00+00:00).
+            It will be converted to UTC timezone. For None value default is set.
         url (str): Final location of post URL.
         post_title (str): Post title
             extracted from tag <a> and safe for windows path.
@@ -57,10 +64,26 @@ class LepEpisode:
             Important: Not stored in JSON database.
     """
 
+    def _convert_date(self, date: Union[datetime, str, None]) -> datetime:
+        """Convert string date to datetime object and UTC timezone.
+
+        Input format: 2000-01-01T00:00:00+00:00
+        If datetime is passed, then only convert date to UTC timezone.
+        """
+        if isinstance(date, str):
+            converted_date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S%z")
+            converted_date = converted_date.astimezone(timezone.utc)
+        else:
+            if date is not None:  # To satisfy 'typeguard' check
+                converted_date = date.astimezone(timezone.utc)
+            else:
+                converted_date = datetime(2000, 1, 1, tzinfo=timezone.utc)
+        return converted_date
+
     def __init__(
         self,
         episode: int = 0,
-        date: str = "2000-01-01T00:00:00+00:00",
+        date: Union[datetime, str, None] = None,
         url: str = "",
         post_title: str = "",
         post_type: str = "",
@@ -84,6 +107,33 @@ class LepEpisode:
         self.updated_at = updated_at
         self._title = html_title
 
+    @property
+    def date(self) -> Any:
+        """Episode date."""
+        return self._date
+
+    @date.setter
+    def date(self, new_post_date: Union[datetime, str, None]) -> None:
+        """Episode date setter."""
+        self._date = self._convert_date(new_post_date)
+
+    def __lt__(self, object: Any) -> Any:
+        """Compare objects 'less than'."""
+        return self.date < object.date
+
+    def __eq__(self, object: Any) -> bool:
+        """Compare equal objects."""
+        return all(
+            (
+                self.date == object.date,
+                self.index == object.index,
+            )
+        )
+
+    def __repr__(self) -> str:
+        """String representation of LepEpisode object."""
+        return f"{self.index}:{self.episode}:{self.post_title[:16]}"
+
 
 class LepJsonEncoder(json.JSONEncoder):
     """Custom JSONEncoder for LepEpisode objects."""
@@ -91,9 +141,10 @@ class LepJsonEncoder(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
         """Override 'default' method for encoding JSON objects."""
         if isinstance(obj, LepEpisode):
+            date_0200_zone = obj.date.astimezone(timezone(timedelta(hours=2)))
             return {
                 "episode": obj.episode,
-                "date": obj.date,
+                "date": date_0200_zone.strftime(r"%Y-%m-%dT%H:%M:%S%z"),
                 "url": obj.url,
                 "post_title": obj.post_title,
                 "post_type": obj.post_type,
