@@ -24,6 +24,7 @@ import copy
 import json
 import shutil
 from datetime import datetime
+from datetime import timezone
 from pathlib import Path
 from typing import Any
 from typing import Callable
@@ -267,15 +268,17 @@ def mocked_episodes(
     parsed_episodes_mock: List[Any],
 ) -> List[Any]:
     """Fixture with episodes which have HTML mock page only."""
-    lep_date_format = "%Y-%m-%dT%H:%M:%S%z"
-    min_date = datetime.strptime(
-        "2009-03-03T03:03:03+02:00",
-        lep_date_format,
-    )
+    # lep_date_format = "%Y-%m-%dT%H:%M:%S%z"
+    # min_date = datetime.strptime(
+    #     "2009-03-03T03:03:03+02:00",
+    #     lep_date_format,
+    # )
+    min_date = datetime(2009, 3, 3, 3, 3, 3, tzinfo=timezone.utc)
     mocked_episodes = [
         ep
         for ep in parsed_episodes_mock
-        if datetime.strptime(ep.date, lep_date_format) > min_date
+        # if datetime.strptime(ep.date, lep_date_format) > min_date
+        if ep.date > min_date
     ]
     return mocked_episodes
 

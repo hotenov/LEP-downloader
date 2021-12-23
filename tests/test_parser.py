@@ -567,16 +567,12 @@ def test_appropriate_mp3_link_with_word_audio() -> None:
 
 def test_episodes_sorting_by_date() -> None:
     """It sorts LepEpisodes by datetime then by episode number."""
-    test_lep_ep_1 = LepEpisode(
-        episode=35,
-        date="2010-03-25T22:59:36+01:00",
-        index=2010032501,
-    )
-    test_lep_ep_2 = LepEpisode(
-        episode=0,
-        date="2010-03-25T22:59:36+01:00",
-        index=2010032502,
-    )
+    test_lep_ep_1 = LepEpisode(episode=35, index=2010032501)
+    test_lep_ep_1.date = "2010-03-25T22:59:36+01:00"
+
+    test_lep_ep_2 = LepEpisode(episode=0, index=2010032502)
+    test_lep_ep_2.date = "2010-03-25T22:59:36+01:00"
+
     test_lep_ep_3 = LepEpisode(episode=100)
     episodes = LepEpisodeList()
     episodes.append(test_lep_ep_1)
