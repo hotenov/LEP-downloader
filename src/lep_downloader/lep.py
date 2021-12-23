@@ -21,6 +21,7 @@
 # SOFTWARE.
 """LEP module for general logic and classes."""
 import json
+import re
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -39,6 +40,11 @@ import requests
 from lep_downloader import config as conf
 
 
+# COMPILED REGEX PATTERNS #
+
+INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
+
+
 @total_ordering
 class LepEpisode:
     """LEP episode class.
@@ -49,7 +55,7 @@ class LepEpisode:
             It will be converted to UTC timezone. For None value default is set.
         url (str): Final location of post URL.
         post_title (str): Post title
-            extracted from tag <a> and safe for windows path.
+            extracted from tag <a> text and converted to be safe for Windows path.
         post_type (str): Post type ("AUDIO", "TEXT", etc.).
         audios (list): List of links lists (for multi-part episodes).
         parsed_at (str): Parsing datetime in UTC timezone
@@ -98,7 +104,8 @@ class LepEpisode:
         self.episode = episode
         self.date = date
         self.url = url
-        self.post_title = post_title
+        self._post_title = post_title
+        self._origin_post_title = post_title
         self.post_type = post_type
         self.audios = audios
         self.parsed_at = parsed_at
@@ -116,6 +123,17 @@ class LepEpisode:
     def date(self, new_post_date: Union[datetime, str, None]) -> None:
         """Episode date setter."""
         self._date = self._convert_date(new_post_date)
+
+    @property
+    def post_title(self) -> str:
+        """Post title (safe to use as filename)."""
+        return self._post_title
+
+    @post_title.setter
+    def post_title(self, new_post_title: str) -> None:
+        """Post title setter (makes it safe)."""
+        self._origin_post_title = new_post_title
+        self._post_title = replace_unsafe_chars(new_post_title)
 
     def __lt__(self, object: Any) -> Any:
         """Compare objects 'less than'."""
@@ -211,3 +229,8 @@ class Archive(Lep):
         """
         super().__init__()
         self.url = url if url else conf.ARCHIVE_URL
+
+
+def replace_unsafe_chars(filename: str) -> str:
+    """Replace most common invalid path characters with '_'."""
+    return INVALID_PATH_CHARS_PATTERN.sub("_", filename)
