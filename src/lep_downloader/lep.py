@@ -137,7 +137,12 @@ class LepEpisode:
 
     def __lt__(self, object: Any) -> Any:
         """Compare objects 'less than'."""
-        return self.date < object.date
+        return any(
+            (
+                self.date < object.date,
+                self.index < object.index,
+            )
+        )
 
     def __eq__(self, object: Any) -> bool:
         """Compare equal objects."""
