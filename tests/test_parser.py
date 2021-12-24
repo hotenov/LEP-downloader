@@ -21,6 +21,7 @@
 # SOFTWARE.
 """Test cases for the parser module."""
 import copy
+from datetime import datetime, timedelta, timezone
 import json
 import typing as t
 from pathlib import Path
@@ -940,3 +941,13 @@ def test_episode_object_reprisentation() -> None:
     obj_repr = repr(ep_1)
     excepted_repr = "2021122403: 777:777. Some _ good"
     assert obj_repr == excepted_repr
+
+
+def test_setting_episode_date_as_datetime() -> None:
+    """It lets to pass datetime as episode date."""
+    t_zone = timezone(timedelta(hours=3))  # GMT+03:00
+    new_date = datetime(2021, 12, 24, 17, 18, 19, tzinfo=t_zone)
+    ep = LepEpisode(date=new_date)
+    as_str = ep.date.strftime(r"%Y-%m-%dT%H:%M:%S%z")
+    except_date = "2021-12-24T14:18:19+0000"
+    assert as_str == except_date
