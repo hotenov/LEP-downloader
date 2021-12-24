@@ -566,22 +566,41 @@ def test_appropriate_mp3_link_with_word_audio() -> None:
 
 
 def test_episodes_sorting_by_date() -> None:
-    """It sorts LepEpisodes by datetime then by episode number."""
-    test_lep_ep_1 = LepEpisode(episode=35, index=2010032501)
-    test_lep_ep_1.date = "2010-03-25T22:59:36+01:00"
-
-    test_lep_ep_2 = LepEpisode(episode=0, index=2010032502)
+    """It sorts LepEpisodes by datetime first."""
+    test_lep_ep_1 = LepEpisode(episode=0, index=2010032502)
+    test_lep_ep_1.date = "2010-03-25T22:59:36+02:00"
+    test_lep_ep_2 = LepEpisode(episode=35, index=2010032501)
     test_lep_ep_2.date = "2010-03-25T22:59:36+01:00"
+    assert test_lep_ep_1 < test_lep_ep_2
 
     test_lep_ep_3 = LepEpisode(episode=100)
-    episodes = LepEpisodeList()
-    episodes.append(test_lep_ep_1)
-    episodes.append(test_lep_ep_2)
-    episodes.append(test_lep_ep_3)
+
+    episodes = LepEpisodeList([test_lep_ep_1, test_lep_ep_2, test_lep_ep_3])
     expected_sorted = [
         test_lep_ep_2,
         test_lep_ep_1,
         test_lep_ep_3,
+    ]
+    sorted_episodes = episodes.desc_sort_by_date_and_index()
+    assert sorted_episodes == expected_sorted
+
+
+def test_episodes_sorting_by_date_and_index() -> None:
+    """It sorts LepEpisodes by datetime then by index number."""
+    test_lep_ep_1 = LepEpisode(episode=35, index=2010032501)
+    test_lep_ep_1.date = "2021-12-24T22:22:22+02:00"
+    test_lep_ep_2 = LepEpisode(episode=0, index=2010032502)
+    test_lep_ep_2.date = "2021-12-24T22:22:22+02:00"
+    assert test_lep_ep_1 < test_lep_ep_2
+
+    test_lep_ep_3 = LepEpisode(episode=13, index=2010032503)
+    test_lep_ep_3.date = "2021-12-24T22:22:22+02:00"
+
+    episodes = LepEpisodeList([test_lep_ep_1, test_lep_ep_2, test_lep_ep_3])
+    expected_sorted = [
+        test_lep_ep_3,
+        test_lep_ep_2,
+        test_lep_ep_1,
     ]
     sorted_episodes = episodes.desc_sort_by_date_and_index()
     assert sorted_episodes == expected_sorted
@@ -891,3 +910,22 @@ def test_replacing_chars_in_post_title() -> None:
     ep.post_title = r"Other invalid chars: [<>:\"/\\\\|?*]"
     assert ep.post_title == "Other invalid chars_ [_____________]"
     assert ep._origin_post_title == r"Other invalid chars: [<>:\"/\\\\|?*]"
+
+
+def test_comparison_operators_for_episode_objects() -> None:
+    """It lets to compare two episode objects."""
+    ep_1 = LepEpisode()
+    ep_1.date = "2021-12-24T22:22:22+02:00"
+    ep_2 = LepEpisode()
+    ep_2.date = "2021-12-24T20:33:22Z"
+    assert ep_1 < ep_2  # Because it converts to UTC
+    ep_3 = LepEpisode()
+    ep_3.date = "2021-12-24T22:22:22+02:00"
+    ep_3.index = 2021122401
+    ep_4 = LepEpisode()
+    ep_4.date = "2021-12-24T22:22:22+02:00"
+    ep_4.index = 2021122401
+    assert ep_3 == ep_4
+    ep_4.index = 2021122402
+    assert ep_3 != ep_4
+    assert ep_3 < ep_4
