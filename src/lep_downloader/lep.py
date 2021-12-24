@@ -155,7 +155,7 @@ class LepEpisode:
 
     def __repr__(self) -> str:
         """String representation of LepEpisode object."""
-        return f"{self.index}:{self.episode}:{self.post_title[:16]}"
+        return f"{self.index}:{self.episode:{4}}:{self.post_title[:16]}"
 
 
 class LepJsonEncoder(json.JSONEncoder):

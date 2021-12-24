@@ -929,3 +929,14 @@ def test_comparison_operators_for_episode_objects() -> None:
     ep_4.index = 2021122402
     assert ep_3 != ep_4
     assert ep_3 < ep_4
+
+
+def test_episode_object_reprisentation() -> None:
+    """Check work of __repr__ method of LepEpisode object."""
+    ep_1 = LepEpisode()
+    ep_1.index = 2021122403
+    ep_1.episode = 777
+    ep_1.post_title = "777. Some / good title more than sixteen chars."
+    obj_repr = repr(ep_1)
+    excepted_repr = "2021122403: 777:777. Some _ good"
+    assert obj_repr == excepted_repr
