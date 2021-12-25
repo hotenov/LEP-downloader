@@ -245,7 +245,7 @@ def do_parsing_actions(
                 # with parsed episodes (list empty until this statement)
                 parse_each_episode(updates)
                 new_episodes = Archive.episodes
-                new_episodes = LepEpisodeList(i for i in reversed(new_episodes))
+                new_episodes = LepEpisodeList(reversed(new_episodes))
                 all_episodes = LepEpisodeList(new_episodes + db_episodes)
                 all_episodes = all_episodes.desc_sort_by_date_and_index()
                 write_parsed_episodes_to_json(all_episodes, json_name)
