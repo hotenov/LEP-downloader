@@ -27,9 +27,9 @@ from typing import Tuple
 from pytest import CaptureFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 
-from lep_downloader import data_getter
 from lep_downloader import downloader
 from lep_downloader.lep import LepEpisode
+from lep_downloader.lep import Lep
 
 
 def test_selecting_only_audio_episodes(
@@ -131,7 +131,7 @@ def test_retrieving_audios_as_none() -> None:
             }
         ]
     """  # noqa: E501,B950
-    db_episodes = data_getter.get_list_of_valid_episodes(json_test)
+    db_episodes = Lep.extract_only_valid_episodes(json_test)
     audio_data = downloader.get_audios_data(db_episodes)
     assert audio_data[0][2] == []
 

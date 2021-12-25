@@ -21,12 +21,14 @@
 # SOFTWARE.
 """Test cases for the parser module."""
 import copy
-from datetime import datetime, timedelta, timezone
 import json
-import typing as t
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from pathlib import Path
 from typing import Callable
 from typing import Dict
+from typing import List
 from typing import Optional
 
 import pytest
@@ -40,11 +42,11 @@ from requests_mock.request import _RequestObjectProxy
 from lep_downloader import config as conf
 from lep_downloader import lep
 from lep_downloader import parser
-from lep_downloader.data_getter import get_web_page_html_text
 from lep_downloader.exceptions import NoEpisodeLinksError
 from lep_downloader.exceptions import NotEpisodeURLError
 from lep_downloader.lep import Archive
 from lep_downloader.lep import as_lep_episode_obj
+from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
 
@@ -58,7 +60,7 @@ def test_getting_success_page_response(
 ) -> None:
     """It gets HTML content as text."""
     requests_mock.get(req_mock.ANY, text="Response OK")
-    resp = get_web_page_html_text(conf.ARCHIVE_URL, req_ses)[0]
+    resp = Lep.get_web_document(conf.ARCHIVE_URL, req_ses)[0]
     assert resp == "Response OK"
 
 
@@ -68,7 +70,7 @@ def test_getting_404_page_response(
 ) -> None:
     """It handles HTTPError if page is not found."""
     requests_mock.get(req_mock.ANY, text="Response OK", status_code=404)
-    resp = get_web_page_html_text("http://example.com", req_ses)[0]
+    resp = Lep.get_web_document("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
     assert "404" in resp
 
@@ -79,7 +81,7 @@ def test_getting_503_page_response(
 ) -> None:
     """It handle HTTPError if service is unavailable."""
     requests_mock.get(req_mock.ANY, text="Response OK", status_code=503)
-    resp = get_web_page_html_text("http://example.com", req_ses)[0]
+    resp = Lep.get_web_document("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
     assert "503" in resp
 
@@ -90,7 +92,7 @@ def test_timeout_error(
 ) -> None:
     """It handle any Timeout exception for page."""
     requests_mock.get(req_mock.ANY, exc=requests.exceptions.Timeout)
-    resp = get_web_page_html_text("http://example.com", req_ses)[0]
+    resp = Lep.get_web_document("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
     assert "Timeout" in resp
 
@@ -101,7 +103,7 @@ def test_connection_error(
 ) -> None:
     """It handles ConnectionError exception for bad request."""
     requests_mock.get(req_mock.ANY, exc=requests.exceptions.ConnectionError)
-    resp = get_web_page_html_text("http://example.com", req_ses)[0]
+    resp = Lep.get_web_document("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
     assert "Bad request" in resp
 
@@ -112,7 +114,7 @@ def test_unknown_error(
 ) -> None:
     """It handles any other exceptions during getting response from URL."""
     requests_mock.get(req_mock.ANY, exc=Exception("Something Bad"))
-    resp = get_web_page_html_text("http://example.com", req_ses)[0]
+    resp = Lep.get_web_document("http://example.com", req_ses)[0]
     assert "[ERROR]" in resp
     assert "Unhandled error" in resp
 
@@ -129,7 +131,7 @@ def test_final_location_for_good_redirect(
         headers={"Location": "https://final.location/"},
     )
     requests_mock.get("https://final.location", text="Final location")
-    text, final_location, is_url_ok = get_web_page_html_text(
+    text, final_location, is_url_ok = Lep.get_web_document(
         "https://re.direct",
         req_ses,
     )
@@ -154,7 +156,7 @@ def test_final_location_for_bad_redirect(
         text="Final location",
         status_code=404,
     )
-    text, final_location, is_url_ok = get_web_page_html_text(
+    text, final_location, is_url_ok = Lep.get_web_document(
         "https://re.direct",
         req_ses,
     )
@@ -240,13 +242,13 @@ def test_replacing_nothing_when_no_misspelled_link() -> None:
 
 def test_removing_irrelevant_links() -> None:
     """It removes known (from config list) irrelevant links."""
-    test_links: t.List[str] = [
+    test_links: List[str] = [
         "https://teacherluke.co.uk/2020/11/23/wisbolep/",
         "https://wp.me/P4IuUx-82H",  # <- Link to app
         "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",  # noqa: E501,B950
         "https://teacherluke.co.uk/2021/03/26/711-william-from-france-%f0%9f%87%ab%f0%9f%87%b7-wisbolep-runner-up/",  # noqa: E501,B950
     ]
-    test_texts: t.List[str] = [
+    test_texts: List[str] = [
         "1. Link",
         "Link to App (irrelevant)",
         "2. Link",
@@ -266,13 +268,13 @@ def test_removing_irrelevant_links() -> None:
 
 def test_short_links_substitution() -> None:
     """It replaces short links with links from config dictionary."""
-    test_links: t.List[str] = [
+    test_links: List[str] = [
         "http://wp.me/p4IuUx-7sg",  # <- Short link (replacing)
         "https://wp.me/P4IuUx-82H",  # <- Link to app (NO replacing)
         "https://teacherluke.co.uk/2014/04/01/177-what-londoners-say-vs-what-they-mean/",  # noqa: E501,B950
         "https://wp.me/p4IuUx-29",  # <- Short link (replacing)
     ]
-    test_texts: t.List[str] = [
+    test_texts: List[str] = [
         "1. Substitution 1",
         "Link to App (irrelevant)",
         "2. Link",

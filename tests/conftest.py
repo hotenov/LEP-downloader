@@ -92,6 +92,10 @@ URL_HTML_MAPPING = {
 def req_ses() -> requests.Session:
     """Returns global (for all tests) requests session."""
     s = requests.Session()
+    test_headers = {
+        'User-Agent': 'MOCKzilla/0.666',  # noqa: BLK100
+    }
+    s.headers.update(test_headers)
     return s
 
 
@@ -268,18 +272,8 @@ def mocked_episodes(
     parsed_episodes_mock: List[Any],
 ) -> List[Any]:
     """Fixture with episodes which have HTML mock page only."""
-    # lep_date_format = "%Y-%m-%dT%H:%M:%S%z"
-    # min_date = datetime.strptime(
-    #     "2009-03-03T03:03:03+02:00",
-    #     lep_date_format,
-    # )
     min_date = datetime(2009, 3, 3, 3, 3, 3, tzinfo=timezone.utc)
-    mocked_episodes = [
-        ep
-        for ep in parsed_episodes_mock
-        # if datetime.strptime(ep.date, lep_date_format) > min_date
-        if ep.date > min_date
-    ]
+    mocked_episodes = [ep for ep in parsed_episodes_mock if ep.date > min_date]
     return mocked_episodes
 
 
@@ -325,9 +319,9 @@ def mp3_file2_mock(mp3_mocks_path: Path) -> bytes:
 @pytest.fixture(scope="session")
 def only_valid_episodes(json_db_mock: str) -> List[Any]:
     """Returns list of valid LepEpisode objects from JSON mocked database."""
-    from lep_downloader import data_getter
+    from lep_downloader.lep import Lep
 
-    mocked_db_episodes = data_getter.get_list_of_valid_episodes(json_db_mock)
+    mocked_db_episodes = Lep.extract_only_valid_episodes(json_db_mock)
     return mocked_db_episodes
 
 
