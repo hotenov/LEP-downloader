@@ -15,21 +15,14 @@ from bs4 import SoupStrainer
 from bs4.element import Tag
 
 from lep_downloader import config as conf
-from lep_downloader import data_getter
-from lep_downloader.data_getter import get_list_of_valid_episodes
-from lep_downloader.data_getter import get_web_page_html_text
-from lep_downloader.data_getter import s
 from lep_downloader.exceptions import LepEpisodeNotFound
 from lep_downloader.exceptions import NoEpisodeLinksError
 from lep_downloader.exceptions import NotEpisodeURLError
 from lep_downloader.lep import Archive
+from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
 from lep_downloader.lep import LepJsonEncoder
-
-
-# deleted_links = []
-# archive = Archive()
 
 
 # COMPILED REGEX PATTERNS #
@@ -147,7 +140,7 @@ def parse_post_audio(soup: BeautifulSoup) -> List[List[str]]:
 
 def parse_each_episode(
     urls: Dict[str, str],
-    session: requests.Session,
+    session: Optional[requests.Session] = None,
 ) -> None:
     """Parse each episode collected from archive page.
 
@@ -158,7 +151,7 @@ def parse_each_episode(
     # https://docs.python.org/3/library/typing.html#typing.Reversible
     for url, text in reversed(urls.items()):
         try:
-            EpisodeParser(url, session, text).parse_url()
+            EpisodeParser(url, post_title=text).parse_url()
         except (NotEpisodeURLError):
             # TODO (hotenov): Write to log / statistics
             # for non-episode URL, but skip here
@@ -221,17 +214,18 @@ def do_parsing_actions(
     json_url: str,
     archive_url: str,
     json_name: str = conf.DEFAULT_JSON_NAME,
+    session: Optional[requests.Session] = None,
 ) -> None:
-    """Main methdod to do parsing."""
+    """Main methdod to do parsing job."""
     db_episodes: LepEpisodeList = LepEpisodeList()
     updates: Dict[str, str] = {}
-    # Collect (get) links and their texts from web archive page.
+    # Collect (get and parse) links and their texts from web archive page.
     ArchiveParser(archive_url).parse_url()
     if Archive.collected_links:
         # Get web database JSON content
-        json_body, _, status_db_ok = get_web_page_html_text(json_url, s)
+        json_body, _, status_db_ok = Lep.get_web_document(json_url, session)
         if status_db_ok:
-            db_episodes = get_list_of_valid_episodes(json_body, json_url)
+            db_episodes = Lep.extract_only_valid_episodes(json_body, json_url)
             if db_episodes:
                 updates = fetch_updates(db_episodes)
             else:
@@ -249,7 +243,7 @@ def do_parsing_actions(
             if len(updates) > 0:
                 # Parse new episodes and add them to shared class list
                 # with parsed episodes (list empty until this statement)
-                parse_each_episode(updates, s)
+                parse_each_episode(updates)
                 new_episodes = Archive.episodes
                 new_episodes = LepEpisodeList(i for i in reversed(new_episodes))
                 all_episodes = LepEpisodeList(new_episodes + db_episodes)
@@ -267,7 +261,7 @@ def do_parsing_actions(
         return
 
 
-class LepParser:
+class LepParser(Lep):
     """Base class for LEP archive parsers."""
 
     def __init__(self, url: str, session: requests.Session = None) -> None:
@@ -276,10 +270,10 @@ class LepParser:
         Args:
             url (str): URL for parsing.
             session (requests.Session): Requests session object
-                if None, get default session.
+                if None, get default global session.
         """
+        super().__init__(session)
         self.url = url
-        self.session = session if session else requests.Session()
         self.content: str = ""
         self.soup: BeautifulSoup = None
         self.final_location: str = self.url
@@ -287,7 +281,7 @@ class LepParser:
 
     def get_url(self) -> None:
         """Retrive text content of archive web page."""
-        get_result = data_getter.get_web_page_html_text(self.url, self.session)
+        get_result = Lep.get_web_document(self.url, self.session)
         self.content = get_result[0]
         self.final_location = get_result[1]
         self.is_url_ok = get_result[2]
@@ -397,7 +391,7 @@ class EpisodeParser(LepParser):
     def __init__(
         self,
         url: str,
-        session: requests.Session = None,
+        session: Optional[requests.Session] = None,
         post_title: str = "",
     ) -> None:
         """Initialize EpisodeParser object."""

@@ -44,6 +44,10 @@ from lep_downloader import config as conf
 
 INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
 
+# PRODUCTION SESSION #
+PROD_SES = requests.Session()
+PROD_SES.headers.update(conf.ses_headers)
+
 
 @total_ordering
 class LepEpisode:
@@ -158,6 +162,17 @@ class LepEpisode:
         return f"{self.index}:{self.episode:{4}}:{self.post_title[:16]}"
 
 
+class LepEpisodeList(List[Any]):
+    """Represent list of LepEpisode objects."""
+
+    def desc_sort_by_date_and_index(self) -> Any:
+        """Return new sorted list by post datetime, then index."""
+        sorted_episodes = LepEpisodeList(
+            sorted(self, key=attrgetter("date", "index"), reverse=True)
+        )
+        return sorted_episodes
+
+
 class LepJsonEncoder(json.JSONEncoder):
     """Custom JSONEncoder for LepEpisode objects."""
 
@@ -195,26 +210,73 @@ def as_lep_episode_obj(dct: Dict[str, Any]) -> Optional[LepEpisode]:
 class Lep:
     """Represent base class for general attributes."""
 
-    def __init__(self, session: requests.Session = None) -> None:
+    session: ClassVar[requests.Session] = requests.Session()
+
+    def __init__(self, session: Optional[requests.Session] = None) -> None:
         """Default instance of LepTemplate.
 
         Args:
-            session (requests.Session): General session for descendants.
+            session (requests.Session): Global session for descendants.
         """
-        # TODO (hotenov): Take default session from config file.
-        # Or move this field into parser / downloader classes only
-        self.ses = session if session else requests.Session()
+        Lep.session = session if session else PROD_SES
 
+    @classmethod
+    def get_web_document(
+        cls,
+        page_url: str,
+        session: Optional[requests.Session] = None,
+    ) -> Any:
+        """Return text content of web document (HTML, JSON, etc.)."""
+        session = session if session else cls.session
+        final_location = page_url
+        is_url_ok = False
+        with session:
+            try:
+                resp = session.get(page_url, timeout=(6, 33))
+                final_location = resp.url
+                if not resp.ok:
+                    resp.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                return (f"[ERROR]: {err}", final_location, is_url_ok)
+            except requests.exceptions.Timeout as err:
+                return (f"[ERROR]: Timeout | {err}", final_location, is_url_ok)
+            except requests.exceptions.ConnectionError as err:
+                return (f"[ERROR]: Bad request | {err}", final_location, is_url_ok)
+            except Exception as err:
+                return (
+                    f"[ERROR]: Unhandled error | {err}",
+                    final_location,
+                    is_url_ok,
+                )
+            else:
+                resp.encoding = "utf-8"
+                is_url_ok = True
+                return (resp.text, final_location, is_url_ok)
 
-class LepEpisodeList(List[Any]):
-    """Represent list of LepEpisode objects."""
-
-    def desc_sort_by_date_and_index(self) -> Any:
-        """Return new sorted list by post datetime, then index."""
-        sorted_episodes = LepEpisodeList(
-            sorted(self, key=attrgetter("date", "index"), reverse=True)
-        )
-        return sorted_episodes
+    @classmethod
+    def extract_only_valid_episodes(
+        cls,
+        json_body: str,
+        json_url: Optional[str] = None,
+    ) -> LepEpisodeList:
+        """Return list of valid (not None) LepEpisode objects."""
+        db_episodes = LepEpisodeList()
+        try:
+            db_episodes = json.loads(json_body, object_hook=as_lep_episode_obj)
+        except json.JSONDecodeError:
+            print(f"[ERROR]: Data is not a valid JSON document.\n\tURL: {json_url}")
+            return LepEpisodeList()
+        else:
+            is_db_str: bool = isinstance(db_episodes, str)
+            # Remove None elements
+            db_episodes = LepEpisodeList(obj for obj in db_episodes if obj)
+            if not db_episodes or is_db_str:
+                print(
+                    f"[WARNING]: JSON file ({json_url}) has no valid episode objects."  # noqa: E501,B950
+                )
+                return LepEpisodeList()
+            else:
+                return db_episodes
 
 
 class Archive(Lep):
@@ -224,16 +286,6 @@ class Archive(Lep):
     deleted_links: ClassVar[Set[str]] = set()
     used_indexes: ClassVar[Set[int]] = set()
     episodes: ClassVar[LepEpisodeList] = LepEpisodeList()
-
-    def __init__(self, url: str = "") -> None:
-        """Default instance of Archive.
-
-        Args:
-            url (str): URL to archive page.
-                if not passed, take default from config file.
-        """
-        super().__init__()
-        self.url = url if url else conf.ARCHIVE_URL
 
 
 def replace_unsafe_chars(filename: str) -> str:

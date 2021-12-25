@@ -29,8 +29,8 @@ from typing import Tuple
 import requests
 
 from lep_downloader import config as conf
-from lep_downloader.data_getter import s
 from lep_downloader.lep import LepEpisode
+from lep_downloader.lep import Lep
 
 
 DataForEpisodeAudio = List[Tuple[str, str, List[List[str]], bool]]
@@ -166,14 +166,19 @@ def download_files(
             duplicated_links[primary_link] = filename
             continue  # Skip already processed URL.
 
-        result_ok = download_and_write_file(primary_link, s, save_dir, filename)
+        result_ok = download_and_write_file(
+            primary_link,
+            Lep().session,
+            save_dir,
+            filename,
+        )
         if result_ok:
             successful_downloaded[primary_link] = filename
         else:
             if len(links) > 1:  # Try downloading for auxiliary links
                 for aux_link in links[1:]:
                     aux_result_ok = download_and_write_file(
-                        aux_link, s, save_dir, filename
+                        aux_link, Lep().session, save_dir, filename
                     )
                 if not aux_result_ok:
                     unavailable_links[aux_link] = filename
