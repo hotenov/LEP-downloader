@@ -24,7 +24,6 @@ from typing import Callable
 from typing import List
 from typing import Optional
 
-import pytest
 import requests_mock as req_mock
 from click.testing import Result
 from requests_mock.mocker import Mocker as rm_Mocker
@@ -33,7 +32,6 @@ from requests_mock.request import _RequestObjectProxy
 from lep_downloader import config as conf
 
 
-@pytest.mark.skip("Need to implement new exceptions handling.")
 def test_parse_incorrect_archive_url(
     requests_mock: rm_Mocker,
     run_cli_with_args: Callable[[List[str]], Result],
@@ -41,8 +39,38 @@ def test_parse_incorrect_archive_url(
     """It prints error text and exits for incorrect archive page."""
     requests_mock.get(conf.ARCHIVE_URL, text="Invalid archive page")
     result = run_cli_with_args(["parse"])
-    assert "[ERROR]" in result.output
-    assert "Can't parse any episodes from archive page" in result.output
+    assert "[ERROR]:" in result.output
+    assert "Can't parse this page: <article> tag was not found." in result.output
+    assert f"\t{conf.ARCHIVE_URL}" in result.output
+    assert "Archive page has invalid HTML content. Exit." in result.output
+    assert result.exit_code == 0
+
+
+def test_parse_archive_without_episodes(
+    requests_mock: rm_Mocker,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It prints error text and exits for 'empty'archive."""
+    fake_html = """
+    <!DOCTYPE html>
+    <html>
+        <article id="post-1043" class="post-1043 page type-page status-publish has-post-thumbnail hentry">
+            <header class="entry-header">
+                <img width="624" height="277" src="" />
+                <h1 class="entry-title">EPISODES</h1>
+            </header>
+            <div class="entry-content">
+                <h2><strong>THE ARCHIVE OF ALL EPISODES OF THE PODCAST + some extra content</strong></h2>
+            </div>
+        </article>
+    </html>
+    """  # noqa: E501,B950
+    requests_mock.get(conf.ARCHIVE_URL, text=fake_html)
+    result = run_cli_with_args(["parse"])
+    # assert "[ERROR]:" in result.output
+    assert "[ERROR]: No episode links on archive page" in result.output
+    assert f"\t{conf.ARCHIVE_URL}" in result.output
+    assert "Can't parse any episodes. Exit." in result.output
     assert result.exit_code == 0
 
 
@@ -95,8 +123,8 @@ def test_parse_json_db_does_not_contain_episodes_in_plain_str(
     assert "[WARNING]" in result.output
     assert f"({conf.JSON_DB_URL})" in result.output
     assert "has no valid episode objects" in result.output
-    assert "JSON is available, but" in result.output
-    assert "there are NO episode in this file. Exit." in result.output
+    assert "\tJSON is available, but" in result.output
+    assert "there are NO episodes in this file. Exit." in result.output
     assert result.exit_code == 0
 
 
@@ -123,8 +151,8 @@ def test_parse_json_db_invalid_document(
     assert "[ERROR]" in result.output
     assert "Data is not a valid JSON document" in result.output
     assert f"URL: {conf.JSON_DB_URL}" in result.output
-    assert "JSON is available, but " in result.output
-    assert "there are NO episode in this file. Exit." in result.output
+    assert "\tJSON is available, but" in result.output
+    assert "there are NO episodes in this file. Exit." in result.output
     assert result.exit_code == 0
 
 

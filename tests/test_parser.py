@@ -42,7 +42,9 @@ from requests_mock.request import _RequestObjectProxy
 from lep_downloader import config as conf
 from lep_downloader import lep
 from lep_downloader import parser
+from lep_downloader.exceptions import DataBaseUnavailable
 from lep_downloader.exceptions import NoEpisodeLinksError
+from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.exceptions import NotEpisodeURLError
 from lep_downloader.lep import Archive
 from lep_downloader.lep import as_lep_episode_obj
@@ -323,7 +325,7 @@ def test_parsing_invalid_html(requests_mock: rm_Mocker) -> None:
     assert conf.ARCHIVE_URL in ex.value.args[0]  # Trailing slash for domain URL
     assert (
         ex.value.args[1]
-        == "[ERROR] Can't parse this page: <article> tag was not found."
+        == "[ERROR]: Can't parse this page: <article> tag was not found."
     )
 
 
@@ -345,7 +347,7 @@ def test_parsing_archive_without_episodes() -> None:
         soup_parser.collect_links()
     assert len(Archive.collected_links) == 0
     assert ex.value.args[0] == conf.ARCHIVE_URL
-    assert ex.value.args[1] == "[ERROR]: No episode links on archive page."
+    assert ex.value.args[1] == "[ERROR]: No episode links on archive page"
 
 
 def test_parsing_archive_with_known_duplicates() -> None:
@@ -676,10 +678,11 @@ def test_no_valid_episode_objects_in_json_db(
         text="[]",
     )
 
-    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    with pytest.raises(NoEpisodesInDataBase) as ex:
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    assert "there are NO episodes" in ex.value.args[0]
 
     captured = capsys.readouterr()
-
     assert "[WARNING]" in captured.out
     assert "no valid episode objects" in captured.out
 
@@ -703,7 +706,9 @@ def test_json_db_not_valid(
         text="",
     )
 
-    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    with pytest.raises(NoEpisodesInDataBase) as ex:
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    assert "there are NO episodes" in ex.value.args[0]
     captured = capsys.readouterr()
     assert "[ERROR]" in captured.out
     assert "Data is not a valid JSON document." in captured.out
@@ -714,7 +719,7 @@ def test_json_db_not_available(
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
-    capsys: CaptureFixture[str],
+    # capsys: CaptureFixture[str],
 ) -> None:
     """It prints error for unavailable JSON database."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -729,9 +734,11 @@ def test_json_db_not_available(
         status_code=404,
     )
 
-    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
-    captured = capsys.readouterr()
-    assert "JSON database is not available. Exit." in captured.out
+    with pytest.raises(DataBaseUnavailable):
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    # assert "" in ex.value.args[0]
+    # captured = capsys.readouterr()
+    # assert "JSON database is not available. Exit." in captured.out
 
 
 def test_json_db_contains_only_string(
@@ -753,7 +760,9 @@ def test_json_db_contains_only_string(
         text='"episode"',
     )
 
-    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    with pytest.raises(NoEpisodesInDataBase) as ex:
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    assert "there are NO episodes" in ex.value.args[0]
     captured = capsys.readouterr()
     assert "[WARNING]" in captured.out
     assert "no valid episode objects" in captured.out
@@ -778,7 +787,9 @@ def test_invalid_objects_in_json_not_included(
         text='[{"episode": 1, "fake_key": "Skip me"}]',
     )
 
-    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    with pytest.raises(NoEpisodesInDataBase) as ex:
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    assert "there are NO episodes" in ex.value.args[0]
     captured = capsys.readouterr()
     assert "[WARNING]" in captured.out
     assert "no valid episode objects" in captured.out
@@ -861,7 +872,7 @@ def test_parsing_invalid_html_in_main_actions(
     assert conf.ARCHIVE_URL in ex.value.args[0]
     assert (
         ex.value.args[1]
-        == "[ERROR] Can't parse this page: <article> tag was not found."
+        == "[ERROR]: Can't parse this page: <article> tag was not found."
     )
 
 
