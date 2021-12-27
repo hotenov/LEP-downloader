@@ -20,7 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Module for LEP custom exceptions."""
-from lep_downloader.lep import LepEpisode
 
 
 class LepException(Exception):
@@ -66,7 +65,31 @@ class LepEpisodeNotFound(LepException):
         message (str): Explanation of the error. Default is ''
     """
 
-    def __init__(self, episode: LepEpisode, message: str = "") -> None:
+    def __init__(self, episode: object, message: str = "") -> None:
         """Initialize  NotEpisodeURLError exception."""
         self.bad_episode = episode
+        self.message = message
+
+
+class DataBaseUnavailable(LepException):
+    """Raised when JSON database file is not available.
+
+    Attributes:
+        message (str): Explanation of the error. Default is ''
+    """
+
+    def __init__(self, message: str = "") -> None:
+        """Initialize  DataBaseUnavailable exception."""
+        self.message = message
+
+
+class NoEpisodesInDataBase(LepException):
+    """Raised when JSON database has no any valid episode.
+
+    Attributes:
+        message (str): Explanation of the error. Default is ''
+    """
+
+    def __init__(self, message: str = "") -> None:
+        """Initialize  NoEpisodesInDataBase exception."""
         self.message = message
