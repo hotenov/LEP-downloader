@@ -118,6 +118,7 @@ class LepEpisode:
         self.admin_note = admin_note
         self.updated_at = updated_at
         self._title = html_title
+        self._short_date = ""
 
     @property
     def date(self) -> Any:
@@ -128,6 +129,7 @@ class LepEpisode:
     def date(self, new_post_date: Union[datetime, str, None]) -> None:
         """Episode date setter."""
         self._date = self._convert_date(new_post_date)
+        self._short_date = self._date.strftime(r"%Y-%m-%d")
 
     @property
     def post_title(self) -> str:
@@ -206,6 +208,7 @@ def as_lep_episode_obj(dct: Dict[str, Any]) -> Optional[LepEpisode]:
     """Specialize JSON object decoding."""
     try:
         lep_ep = LepEpisode(**dct)
+        lep_ep._short_date = lep_ep.date.strftime(r"%Y-%m-%d")
     except TypeError:
         print(f"[WARNING]: Invalid object in JSON!\n\t{dct}")
         return None
