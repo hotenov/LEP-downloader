@@ -17,6 +17,7 @@ from bs4.element import Tag
 from lep_downloader import config as conf
 from lep_downloader.exceptions import LepEpisodeNotFound
 from lep_downloader.exceptions import NoEpisodeLinksError
+from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.exceptions import NotEpisodeURLError
 from lep_downloader.lep import Archive
 from lep_downloader.lep import Lep
@@ -217,43 +218,40 @@ def do_parsing_actions(
     session: Optional[requests.Session] = None,
 ) -> None:
     """Main methdod to do parsing job."""
-    db_episodes: LepEpisodeList = LepEpisodeList()
+    session = session if session else Lep.session
+    # db_episodes: LepEpisodeList = LepEpisodeList()
     updates: Dict[str, str] = {}
     # Collect (get and parse) links and their texts from web archive page.
     ArchiveParser(archive_url).parse_url()
     if Archive.collected_links:
         # Get web database JSON content
-        json_body, _, status_db_ok = Lep.get_web_document(json_url, session)
-        if status_db_ok:
-            db_episodes = Lep.extract_only_valid_episodes(json_body, json_url)
-            if db_episodes:
-                updates = fetch_updates(db_episodes)
-            else:
-                print(
-                    "JSON is available, but",
-                    "\nthere are NO episode in this file. Exit.",
-                )
-                return None
-            if updates is None:
-                print(
-                    "[WARNING]: Database contains more episodes",
-                    "than current archive!",
-                )
-                return None
-            if len(updates) > 0:
-                # Parse new episodes and add them to shared class list
-                # with parsed episodes (list empty until this statement)
-                parse_each_episode(updates)
-                new_episodes = Archive.episodes
-                new_episodes = LepEpisodeList(reversed(new_episodes))
-                all_episodes = LepEpisodeList(new_episodes + db_episodes)
-                all_episodes = all_episodes.desc_sort_by_date_and_index()
-                write_parsed_episodes_to_json(all_episodes, json_name)
-            else:
-                print("There are no new episodes. Exit.")
-                return None
+        # json_body, _, status_db_ok = Lep.get_web_document(json_url, session)
+        # if status_db_ok:
+        #     db_episodes = Lep.extract_only_valid_episodes(json_body, json_url)
+        Lep.db_episodes = Lep.get_db_episodes(json_url, session)
+        if Lep.db_episodes:
+            updates = fetch_updates(Lep.db_episodes)
         else:
-            print("JSON database is not available. Exit.")
+            raise NoEpisodesInDataBase(
+                "JSON is available, but\nthere are NO episodes in this file. Exit."
+            )
+        if updates is None:
+            print(
+                "[WARNING]: Database contains more episodes",
+                "than current archive!",
+            )
+            return None
+        if len(updates) > 0:
+            # Parse new episodes and add them to shared class list
+            # with parsed episodes (list empty until this statement)
+            parse_each_episode(updates)
+            new_episodes = Archive.episodes
+            new_episodes = LepEpisodeList(reversed(new_episodes))
+            all_episodes = LepEpisodeList(new_episodes + Lep.db_episodes)
+            all_episodes = all_episodes.desc_sort_by_date_and_index()
+            write_parsed_episodes_to_json(all_episodes, json_name)
+        else:
+            print("There are no new episodes. Exit.")
             return None
 
     else:
