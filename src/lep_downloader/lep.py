@@ -38,6 +38,7 @@ from typing import Union
 import requests
 
 from lep_downloader import config as conf
+from lep_downloader.exceptions import DataBaseUnavailable
 
 
 # COMPILED REGEX PATTERNS #
@@ -172,6 +173,11 @@ class LepEpisodeList(List[Any]):
         )
         return sorted_episodes
 
+    def filter_by_type(self, type: str) -> Any:
+        """Return new filtered list with passed episode type (AUDIO, TEXT, etc)."""
+        filtered = LepEpisodeList(ep for ep in self if ep.post_type == type)
+        return filtered
+
 
 class LepJsonEncoder(json.JSONEncoder):
     """Custom JSONEncoder for LepEpisode objects."""
@@ -211,6 +217,8 @@ class Lep:
     """Represent base class for general attributes."""
 
     session: ClassVar[requests.Session] = requests.Session()
+    json_body: ClassVar[str] = ""
+    db_episodes: ClassVar[LepEpisodeList] = LepEpisodeList()
 
     def __init__(self, session: Optional[requests.Session] = None) -> None:
         """Default instance of LepTemplate.
@@ -277,6 +285,21 @@ class Lep:
                 return LepEpisodeList()
             else:
                 return db_episodes
+
+    @classmethod
+    def get_db_episodes(
+        cls,
+        json_url: str,
+        session: Optional[requests.Session] = None,
+    ) -> LepEpisodeList:
+        """Get valid episode list by passed URL."""
+        db_episodes = LepEpisodeList()
+        cls.json_body, _, status_db_ok = Lep.get_web_document(json_url, session)
+        if status_db_ok:
+            db_episodes = Lep.extract_only_valid_episodes(cls.json_body, json_url)
+        else:
+            raise DataBaseUnavailable()
+        return db_episodes
 
 
 class Archive(Lep):
