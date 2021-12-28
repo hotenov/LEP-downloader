@@ -67,7 +67,7 @@ def get_audios_data(audio_episodes: List[LepEpisode]) -> DataForEpisodeAudio:
     for ep in reversed(audio_episodes):
         short_date = ep._short_date
         title = ep.post_title
-        audios = ep.audios
+        audios = ep.files["audios"]
         if audios is not None:
             is_multi_part = False if len(audios) < 2 else True
         else:

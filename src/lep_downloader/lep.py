@@ -62,11 +62,11 @@ class LepEpisode:
         post_title (str): Post title
             extracted from tag <a> text and converted to be safe for Windows path.
         post_type (str): Post type ("AUDIO", "TEXT", etc.).
-        audios (list): List of links lists (for multi-part episodes).
-        parsed_at (str): Parsing datetime in UTC timezone
-            with microseconds).
+        files (dict | None): Dictionary with files for episode.
+            Category file ("audios", "audiotrack", "page_pdf", etc) as 'files' key.
+        parsed_at (str): Parsing datetime in UTC timezone, with microseconds.
         index (int): Parsing index
-            concatenation of URL date and increment (for several posts).
+            concatenation of URL date and increment (for several posts in a day).
         admin_note (str): Note for administrator
             and storing error message (for bad response)
         updated_at (str): Datetime in UTC when episode was updated
@@ -100,7 +100,7 @@ class LepEpisode:
         post_type: str = "",
         parsed_at: str = "",
         index: int = 0,
-        audios: Optional[List[List[str]]] = None,
+        files: Optional[Dict[str, Any]] = None,
         admin_note: str = "",
         updated_at: str = "",
         html_title: str = "",
@@ -112,7 +112,7 @@ class LepEpisode:
         self._post_title = post_title
         self._origin_post_title = post_title
         self.post_type = post_type
-        self.audios = audios
+        self.files = files if files else {}
         self.parsed_at = parsed_at
         self.index = index
         self.admin_note = admin_note
@@ -194,7 +194,7 @@ class LepJsonEncoder(json.JSONEncoder):
                 "url": obj.url,
                 "post_title": obj.post_title,
                 "post_type": obj.post_type,
-                "audios": obj.audios,
+                "files": obj.files,
                 "parsed_at": obj.parsed_at,
                 "index": obj.index,
                 "admin_note": obj.admin_note,
@@ -204,8 +204,10 @@ class LepJsonEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def as_lep_episode_obj(dct: Dict[str, Any]) -> Optional[LepEpisode]:
-    """Specialize JSON object decoding."""
+def as_lep_episode_obj(dct: Dict[str, Any]) -> Any:
+    """Specialize JSON objects decoding."""
+    if dct == {} or ("audios" in dct):
+        return dct
     try:
         lep_ep = LepEpisode(**dct)
         lep_ep._short_date = lep_ep.date.strftime(r"%Y-%m-%d")
