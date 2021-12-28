@@ -396,6 +396,7 @@ class EpisodeParser(LepParser):
         if self.episode.index == 0:
             raise NotEpisodeURLError(self.final_location)
 
+        self.episode.url = self.final_location
         current_date_utc = datetime.now(timezone.utc)
         self.episode.parsed_at = current_date_utc.strftime(r"%Y-%m-%dT%H:%M:%S.%fZ")
 
@@ -409,8 +410,8 @@ class EpisodeParser(LepParser):
     def collect_links(self) -> None:
         """Parse link(s) to episode audio(s)."""
         self.episode.date = parse_post_publish_datetime(self.soup)
-        self.episode.audios = parse_post_audio(self.soup)
-        if not self.episode.audios:
+        self.episode.files["audios"] = parse_post_audio(self.soup)
+        if not self.episode.files["audios"]:
             self.episode.post_type = "TEXT"
         else:
             self.episode.post_type = "AUDIO"
