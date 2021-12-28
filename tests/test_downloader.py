@@ -37,7 +37,7 @@ def test_selecting_only_audio_episodes(
     only_audio_episodes: List[LepEpisode],
 ) -> None:
     """It returns filtered list with only audio episodes."""
-    assert len(only_audio_episodes) == 15
+    assert len(only_audio_episodes) == 14  # Withoud duplicates
 
 
 def test_extracting_audio_data(
@@ -68,7 +68,7 @@ def test_forming_multipart_download_links(
             "https://audioboom.com/posts/5621870-episode-167-luke-back-on-zep-part-2.mp3",  # noqa: E501,B950
         ],
     )
-    assert only_audio_links[11] == excepted_link
+    assert only_audio_links[10] == excepted_link
 
 
 def test_forming_numbered_download_link(
@@ -81,7 +81,7 @@ def test_forming_numbered_download_link(
             "https://traffic.libsyn.com/secure/teacherluke/703._Walaa_from_Syria_-_WISBOLEP_Competition_Winner_.mp3",  # noqa: E501,B950
         ],
     )
-    assert only_audio_links[15] == excepted_link
+    assert only_audio_links[14] == excepted_link
 
 
 def test_forming_safe_filename_for_downloading(
@@ -94,7 +94,7 @@ def test_forming_safe_filename_for_downloading(
             "http://traffic.libsyn.com/teacherluke/370-in-conversation-with-rob-ager-from-liverpool-part-1-life-in-liverpool-interest-in-film-analysis.mp3",  # noqa: E501,B950
         ],
     )
-    assert only_audio_links[9] == excepted_link
+    assert only_audio_links[8] == excepted_link
 
 
 def test_separating_existing_and_non_existing_mp3(
@@ -112,7 +112,7 @@ def test_separating_existing_and_non_existing_mp3(
         tmp_path,
     )
     assert len(existing) == 2
-    assert len(non_existing) == 17
+    assert len(non_existing) == 16
 
 
 def test_retrieving_audios_as_none() -> None:
@@ -125,7 +125,9 @@ def test_retrieving_audios_as_none() -> None:
                 "url": "https://teacherluke.co.uk/2009/04/15/episode-3-musicthe-beatles/",
                 "post_title": "3. Music/The Beatles",
                 "post_type": "",
-                "audios": null,
+                "files": {
+                    "audios": null
+                },
                 "parsed_at": "2021-10-14T07:35:24.575575Z",
                 "index": 2009041501,
                 "admin_note": "Edge case - null in 'audios'"

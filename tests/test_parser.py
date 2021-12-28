@@ -393,6 +393,11 @@ def test_parsing_all_episodes_from_mocked_archive(
     parsed_episodes_mock: LepEpisodeList,
 ) -> None:
     """It parses all episodes from mocked archive HTML."""
+    # SAVING MOCKED JSON DB # #
+    # sorted_eps = parsed_episodes_mock.desc_sort_by_date_and_index()
+    # parser.write_parsed_episodes_to_json(sorted_eps)
+    # SAVING MOCKED JSON DB # #
+
     # assert len(parsed_episodes_mock) == 786
     assert len(parsed_episodes_mock) == 782  # Without duplicates
 
@@ -502,14 +507,14 @@ def test_parsing_links_to_audio_for_mocked_episodes(
     # assert len(mocked_episodes) == 17
     assert len(mocked_episodes) == 16  # Now without duplicates
     assert mocked_episodes[3].episode == 35
-    assert mocked_episodes[3].audios == [
+    assert mocked_episodes[3].files["audios"] == [
         [
             "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"  # noqa: E501,B950
         ]
     ]
-    assert mocked_episodes[11].audios == []
-    if mocked_episodes[9].audios is not None:
-        assert len(mocked_episodes[9].audios) == 5
+    assert mocked_episodes[11].files["audios"] == []
+    if mocked_episodes[9].files["audios"] is not None:
+        assert len(mocked_episodes[9].files["audios"]) == 5
 
 
 def test_no_appropriate_mp3_links_by_title() -> None:
@@ -822,14 +827,14 @@ def test_updating_json_database_with_new_episodes(
     with open(json_file, "rb") as f:
         py_from_json: LepEpisodeList = json.load(f, object_hook=as_lep_episode_obj)
 
-    # CALCULATION: ! (for JSON v3.0.0a1 'with duplicates in JSON db')
-    # Initial total number of episodes = 786
+    # CALCULATION: ! (for JSON v3.0.0a2 'without duplicates in JSON db')
+    # Initial total number of episodes = 782
     # In 'modified_json_less_db_mock' we deleted 3 episodes
-    # Two from top (latest) and on in the middle
+    # Two from top (latest) and one in the middle
     # Last in db becomes # 711. In archive last # 733.
     # Between them 24 episodes (updates)
-    # 24 + 786 - 3 = 807
-    assert len(py_from_json) == 807
+    # 24 + 782 - 3 = 803
+    assert len(py_from_json) == 803
     # assert len(py_from_json) == 786
 
 
