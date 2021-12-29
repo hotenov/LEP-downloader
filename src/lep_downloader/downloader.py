@@ -71,6 +71,8 @@ class LepFile:
     short_date: str = ""
     filename: str = ""
     primary_url: str = ""
+    secondary_url: str = ""
+    tertiary_url: str = ""
 
 
 @dataclass
@@ -79,9 +81,6 @@ class Audio(LepFile):
 
     ext: str = ".mp3"
     part_no: int = 0
-    filename: str = ""
-    secondary_url: str = ""
-    tertiary_url: str = ""
 
     def __post_init__(self) -> None:
         """Compose filename for this instance."""
@@ -115,8 +114,11 @@ def add_each_audio_to_shared_list(
             primary_url = part_links[0]
         else:
             if part_urls_number == 2:
+                primary_url = part_links[0]
                 secondary_url = part_links[1]
-            elif part_urls_number == 2:
+            if part_urls_number == 3:
+                primary_url = part_links[0]
+                secondary_url = part_links[1]
                 tertiary_url = part_links[2]
         audio_file = Audio(
             ep_id=ep_id,
