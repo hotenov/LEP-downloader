@@ -21,6 +21,7 @@
 # SOFTWARE.
 """LEP module for downloading logic."""
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
 from typing import Dict
@@ -60,54 +61,134 @@ INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
 #     return audio_episodes
 
 
-def get_audios_data(audio_episodes: List[LepEpisode]) -> DataForEpisodeAudio:
-    """Return list with audios data for next downloading."""
-    audios_data: DataForEpisodeAudio = []
-    is_multi_part: bool = False
+@dataclass
+class LepFile:
+    """Represent base class for LEP file object."""
+
+    ep_id: int = 0
+    name: str = ""
+    ext: str = ""
+    short_date: str = ""
+    filename: str = ""
+    primary_url: str = ""
+
+
+@dataclass
+class Audio(LepFile):
+    """Represent episode (or part of it) audio object."""
+
+    ext: str = ".mp3"
+    part_no: int = 0
+    filename: str = ""
+    secondary_url: str = ""
+    tertiary_url: str = ""
+
+    def __post_init__(self) -> None:
+        """Compose filename for this instance."""
+        if self.part_no > 0:
+            self.filename = (
+                f"[{self.short_date}] # {self.name} [Part {str(self.part_no).zfill(2)}]"
+                + self.ext
+            )
+        else:
+            self.filename = f"[{self.short_date}] # {self.name}" + self.ext
+
+
+def add_each_audio_to_shared_list(
+    ep_id: int,
+    name: str,
+    short_date: str,
+    audios: List[List[str]],
+) -> None:
+    """Gather data for each episode audio.
+
+    Then add it as 'Audio' object to shared 'files' list of LepFile objects.
+    """
+    is_multi_part = False if len(audios) < 2 else True
+    start = int(is_multi_part)
+    primary_url = secondary_url = tertiary_url = ""
+
+    for i, part_links in enumerate(audios, start=start):
+        part_no = i
+        part_urls_number = len(part_links)
+        if part_urls_number == 1:
+            primary_url = part_links[0]
+        else:
+            if part_urls_number == 2:
+                secondary_url = part_links[1]
+            elif part_urls_number == 2:
+                tertiary_url = part_links[2]
+        audio_file = Audio(
+            ep_id=ep_id,
+            name=name,
+            short_date=short_date,
+            part_no=part_no,
+            primary_url=primary_url,
+            secondary_url=secondary_url,
+            tertiary_url=tertiary_url,
+        )
+        Downloader.files.append(audio_file)
+
+
+# def get_audios_data(audio_episodes: List[LepEpisode]) -> DataForEpisodeAudio:
+#     """Return list with audios data for next downloading."""
+#     audios_data: DataForEpisodeAudio = []
+#     is_multi_part: bool = False
+#     for ep in reversed(audio_episodes):
+#         short_date = ep._short_date
+#         title = ep.post_title
+#         audios = ep.files["audios"]
+#         if audios is not None:
+#             is_multi_part = False if len(audios) < 2 else True
+#         else:
+#             audios = []
+#         data_item = (short_date, title, audios, is_multi_part)
+#         audios_data.append(data_item)
+#     return audios_data
+def gather_all_audio_files(audio_episodes: List[LepEpisode]) -> None:
+    """Skim passed episode list and collect all audio files.
+
+    Add each file to shared 'files' list fo further actions.
+    """
     for ep in reversed(audio_episodes):
-        short_date = ep._short_date
-        title = ep.post_title
         audios = ep.files["audios"]
-        if audios is not None:
-            is_multi_part = False if len(audios) < 2 else True
-        else:
-            audios = []
-        data_item = (short_date, title, audios, is_multi_part)
-        audios_data.append(data_item)
-    return audios_data
+        if audios:
+            add_each_audio_to_shared_list(
+                ep.index, ep.post_title, ep._short_date, audios
+            )
 
 
-def bind_name_and_file_url(audios_data: DataForEpisodeAudio) -> NamesWithAudios:
-    """Return list of tuples (filename, list(file_urls))."""
-    single_part_name: str = ""
-    audios_links: NamesWithAudios = []
-    for item in audios_data:
-        short_date, title = item[0], item[1]
-        audios, is_multi_part = item[2], item[3]
-        single_part_name = f"[{short_date}] # {title}"
-        safe_part_name = INVALID_PATH_CHARS_PATTERN.sub("_", single_part_name)
-        if is_multi_part:
-            for i, audio_part in enumerate(audios, start=1):
-                part_name = safe_part_name + f" [Part {str(i).zfill(2)}]"
-                part_item = (part_name, audio_part)
-                audios_links.append(part_item)
-        else:
-            binding = (safe_part_name, item[2][0])
-            audios_links.append(binding)
-    return audios_links
+# def bind_name_and_file_url(audios_data: DataForEpisodeAudio) -> NamesWithAudios:
+#     """Return list of tuples (filename, list(file_urls))."""
+#     single_part_name: str = ""
+#     audios_links: NamesWithAudios = []
+#     for item in audios_data:
+#         short_date, title = item[0], item[1]
+#         audios, is_multi_part = item[2], item[3]
+#         single_part_name = f"[{short_date}] # {title}"
+#         safe_part_name = INVALID_PATH_CHARS_PATTERN.sub("_", single_part_name)
+#         if is_multi_part:
+#             for i, audio_part in enumerate(audios, start=1):
+#                 part_name = safe_part_name + f" [Part {str(i).zfill(2)}]"
+#                 part_item = (part_name, audio_part)
+#                 audios_links.append(part_item)
+#         else:
+#             binding = (safe_part_name, item[2][0])
+#             audios_links.append(binding)
+#     return audios_links
 
 
 def detect_existing_files(
-    audios_links: NamesWithAudios,
+    audios_links: List[Tuple[str, str]],
     save_dir: Path,
     file_ext: str = ".mp3",
-) -> Tuple[NamesWithAudios, NamesWithAudios]:
+) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]]]:
     """Return lists for existing and non-existing files."""
-    existing: NamesWithAudios = []
-    non_existing: NamesWithAudios = []
+    existing: List[Tuple[str, str]] = []
+    non_existing: List[Tuple[str, str]] = []
     only_files_by_ext: List[str] = []
     only_files_by_ext = [
-        p.stem for p in save_dir.glob("*") if p.suffix.lower() == file_ext
+        p.stem + file_ext for p in save_dir.glob("*") if p.suffix.lower() == file_ext
     ]
     for audio in audios_links:
         if audio[0] in only_files_by_ext:
@@ -156,6 +237,8 @@ class Downloader(Lep):
     not_found: ClassVar[Dict[str, str]] = {}
     existed: ClassVar[Dict[str, str]] = {}
 
+    files: ClassVar[List[LepFile]] = []
+
     # def __init__(self, url: str = "", session: requests.Session = None) -> None:
     #     """Initialize Downloader instance.
 
@@ -168,17 +251,17 @@ class Downloader(Lep):
     #     self.session = session if session else Lep.session
 
 
-def construct_audio_links_bunch(json_url: str) -> NamesWithAudios:
+def construct_audio_links_bunch(json_url: str) -> None:
     """Get and constract audio links with filenames for them."""
     if not Lep.db_episodes:
         Lep.db_episodes = Lep.get_db_episodes(json_url)
 
-    audio_links: NamesWithAudios = []
+    # audio_links: NamesWithAudios = []
     if Lep.db_episodes:
         audio_episodes = Lep.db_episodes.filter_by_type("AUDIO")
-        only_audio_data = get_audios_data(audio_episodes)
-        audio_links = bind_name_and_file_url(only_audio_data)
-    return audio_links
+        # only_audio_data = get_audios_data(audio_episodes)
+        # audio_links = bind_name_and_file_url(only_audio_data)
+        gather_all_audio_files(audio_episodes)
 
 
 def download_files(
