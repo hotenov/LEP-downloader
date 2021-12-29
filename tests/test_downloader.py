@@ -398,7 +398,7 @@ def test_gathering_audio_files(
     requests_mock: rm_Mocker,
     json_db_mock: str,
 ) -> None:
-    """."""
+    """It gets all audio files from mocked episodes."""
     Lep.db_episodes = LepEpisodeList()
     Downloader.files = []
     requests_mock.get(
@@ -408,3 +408,38 @@ def test_gathering_audio_files(
     downloader.construct_audio_links_bunch(conf.JSON_DB_URL)
     # got_files = Downloader.files
     assert len(Downloader.files) == 18
+
+
+def test_collecting_auxiliary_audio_links() -> None:
+    """It collects secondary and tertiary links as well."""
+    Downloader.files = []
+    json_test = """\
+        [
+            {
+                "episode": 3,
+                "date": "2000-01-01T00:00:00+00:00",
+                "url": "https://teacherluke.co.uk/2009/04/15/episode-3-musicthe-beatles/",
+                "post_title": "3. Music/The Beatles",
+                "post_type": "",
+                "files": {
+                    "audios": [
+                        [
+                            "https://someurl1.local", "https://someurl2.local", "https://someurl3.local"
+                        ],
+                        [
+                            "https://part2-someurl1.local", "https://part2-someurl2.local"
+                        ]
+                    ]
+                },
+                "parsed_at": "2021-10-14T07:35:24.575575Z",
+                "index": 2009041501,
+                "admin_note": "Edge case - null in 'audios'"
+            }
+        ]
+    """  # noqa: E501,B950
+    db_episodes = Lep.extract_only_valid_episodes(json_test)
+    downloader.gather_all_audio_files(db_episodes)
+    assert len(Downloader.files) == 2
+    assert Downloader.files[0].secondary_url == "https://someurl2.local"
+    assert Downloader.files[0].tertiary_url == "https://someurl3.local"
+    assert Downloader.files[1].secondary_url == "https://part2-someurl2.local"
