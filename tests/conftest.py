@@ -319,7 +319,8 @@ def mp3_file2_mock(mp3_mocks_path: Path) -> bytes:
 @pytest.fixture(scope="session")
 def only_valid_episodes(json_db_mock: str) -> List[Any]:
     """Returns list of valid LepEpisode objects from JSON mocked database."""
-    from lep_downloader.lep import Lep, LepEpisodeList
+    from lep_downloader.lep import Lep
+    from lep_downloader.lep import LepEpisodeList
 
     # mocked_db_episodes = Lep.extract_only_valid_episodes(json_db_mock)
     mocked_db_episodes: LepEpisodeList = Lep.extract_only_valid_episodes(json_db_mock)
@@ -338,20 +339,25 @@ def only_audio_episodes(only_valid_episodes: Any) -> List[Any]:
 
 
 @pytest.fixture(scope="session")
-def only_audio_data(only_audio_episodes: List[Any]) -> DataForEpisodeAudio:
+def only_audio_data(only_audio_episodes: List[Any]) -> List[Any]:
     """Returns only extracted audio data from audio episodes."""
     from lep_downloader import downloader
+    from lep_downloader.downloader import Downloader
 
-    audio_data = downloader.get_audios_data(only_audio_episodes)
-    return audio_data
+    Downloader.files = []
+    # audio_data = downloader.get_audios_data(only_audio_episodes)
+    downloader.gather_all_audio_files(only_audio_episodes)
+    audio_files = Downloader.files
+    return audio_files
 
 
 @pytest.fixture(scope="session")
-def only_audio_links(only_audio_data: DataForEpisodeAudio) -> NamesWithAudios:
+def only_audio_links(only_audio_data: List[Any]) -> List[Tuple[str, str]]:
     """Returns only links and names for audio files."""
-    from lep_downloader import downloader
+    # from lep_downloader import downloader
 
-    audio_links = downloader.bind_name_and_file_url(only_audio_data)
+    # audio_links = downloader.bind_name_and_file_url(only_audio_data)
+    audio_links = [(af.filename, af.primary_url) for af in only_audio_data]
     return audio_links
 
 

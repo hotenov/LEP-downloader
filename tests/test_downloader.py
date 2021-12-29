@@ -27,10 +27,13 @@ from typing import Tuple
 from pytest import CaptureFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 
+from lep_downloader import config as conf
 from lep_downloader import downloader
+from lep_downloader.downloader import Audio
 from lep_downloader.downloader import Downloader
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
+from lep_downloader.lep import LepEpisodeList
 
 
 def test_selecting_only_audio_episodes(
@@ -44,61 +47,64 @@ def test_extracting_audio_data(
     only_audio_episodes: List[LepEpisode],
 ) -> None:
     """It returns list of tuples with audio data."""
-    expected_ep = (
-        "2009-10-19",
-        "15. Extra Podcast – 12 Phrasal Verbs",  # noqa: E501,B950  # dash as Unicode character here.
-        [
-            [
-                "http://traffic.libsyn.com/teacherluke/15-extra-podcast-12-phrasal-verbs.mp3"  # noqa: E501,B950
-            ]
-        ],
-        False,
+    Downloader.files = []
+    expected_audio = Audio(
+        ep_id=2009101908,  # many posts in that day
+        name="15. Extra Podcast – 12 Phrasal Verbs",
+        short_date="2009-10-19",
+        filename="[2009-10-19] # 15. Extra Podcast – 12 Phrasal Verbs",
+        primary_url="http://traffic.libsyn.com/teacherluke/15-extra-podcast-12-phrasal-verbs.mp3",  # noqa: E501,B950
     )
-    audio_data = downloader.get_audios_data(only_audio_episodes)
-    assert audio_data[1] == expected_ep
+    # expected_ep = (
+    #     "2009-10-19",
+    #     "15. Extra Podcast – 12 Phrasal Verbs",  # noqa: E501,B950  # dash as Unicode character here.
+    #     [
+    #         [
+    #             "http://traffic.libsyn.com/teacherluke/15-extra-podcast-12-phrasal-verbs.mp3"  # noqa: E501,B950
+    #         ]
+    #     ],
+    #     False,
+    # )
+    # audio_data = downloader.get_audios_data(only_audio_episodes)
+    downloader.gather_all_audio_files(only_audio_episodes)
+    assert Downloader.files[1] == expected_audio
 
 
 def test_forming_multipart_download_links(
-    only_audio_links: downloader.NamesWithAudios,
+    only_audio_links: List[Tuple[str, str]],
 ) -> None:
-    """It returns list of URLs with titles for files."""
+    """It returns list of URLs with titles for multipart episode."""
     excepted_link = (
-        "[2017-03-11] # LEP on ZEP – My recent interview on Zdenek’s English Podcast [Part 02]",  # noqa: E501,B950
-        [
-            "https://audioboom.com/posts/5621870-episode-167-luke-back-on-zep-part-2.mp3",  # noqa: E501,B950
-        ],
+        "[2017-03-11] # LEP on ZEP – My recent interview on Zdenek’s English Podcast [Part 02].mp3",  # noqa: E501,B950
+        "https://audioboom.com/posts/5621870-episode-167-luke-back-on-zep-part-2.mp3",  # noqa: E501,B950
     )
     assert only_audio_links[10] == excepted_link
 
 
 def test_forming_numbered_download_link(
-    only_audio_links: downloader.NamesWithAudios,
+    only_audio_links: List[Tuple[str, str]],
 ) -> None:
     """It returns list of URLs with titles for files."""
     excepted_link = (
-        "[2021-02-03] # 703. Walaa from Syria – WISBOLEP Competition Winner",
-        [
-            "https://traffic.libsyn.com/secure/teacherluke/703._Walaa_from_Syria_-_WISBOLEP_Competition_Winner_.mp3",  # noqa: E501,B950
-        ],
+        "[2021-02-03] # 703. Walaa from Syria – WISBOLEP Competition Winner.mp3",
+        "https://traffic.libsyn.com/secure/teacherluke/703._Walaa_from_Syria_-_WISBOLEP_Competition_Winner_.mp3",  # noqa: E501,B950
     )
     assert only_audio_links[14] == excepted_link
 
 
 def test_forming_safe_filename_for_downloading(
-    only_audio_links: downloader.NamesWithAudios,
+    only_audio_links: List[Tuple[str, str]],
 ) -> None:
     """It replaces invalid path characters with '_'."""
     excepted_link = (
-        "[2016-08-07] # 370. In Conversation with Rob Ager from Liverpool (PART 1_ Life in Liverpool _ Interest in Film Analysis)",  # noqa: E501,B950
-        [
-            "http://traffic.libsyn.com/teacherluke/370-in-conversation-with-rob-ager-from-liverpool-part-1-life-in-liverpool-interest-in-film-analysis.mp3",  # noqa: E501,B950
-        ],
+        "[2016-08-07] # 370. In Conversation with Rob Ager from Liverpool (PART 1_ Life in Liverpool _ Interest in Film Analysis).mp3",  # noqa: E501,B950
+        "http://traffic.libsyn.com/teacherluke/370-in-conversation-with-rob-ager-from-liverpool-part-1-life-in-liverpool-interest-in-film-analysis.mp3",  # noqa: E501,B950
     )
     assert only_audio_links[8] == excepted_link
 
 
 def test_separating_existing_and_non_existing_mp3(
-    only_audio_links: downloader.NamesWithAudios,
+    only_audio_links: List[Tuple[str, str]],
     tmp_path: Path,
 ) -> None:
     """It detects when file has already been downloaded."""
@@ -116,7 +122,8 @@ def test_separating_existing_and_non_existing_mp3(
 
 
 def test_retrieving_audios_as_none() -> None:
-    """It replaces None to empty list."""
+    """It sets None to empty list and skip it."""
+    Downloader.files = []
     json_test = """\
         [
             {
@@ -135,8 +142,12 @@ def test_retrieving_audios_as_none() -> None:
         ]
     """  # noqa: E501,B950
     db_episodes = Lep.extract_only_valid_episodes(json_test)
-    audio_data = downloader.get_audios_data(db_episodes)
-    assert audio_data[0][2] == []
+    db_episodes[0].files["audios"] = None
+    # audio_data = downloader.get_audios_data(db_episodes)
+    # Check that 'empty' files (lists) are ignored.
+    downloader.gather_all_audio_files(db_episodes)
+    # assert audio_data[0][2] == []
+    assert Downloader.files == []
 
 
 def test_downloading_mocked_mp3_files(
@@ -381,3 +392,19 @@ def test_both_primary_and_auxiliary_links_404(
     assert len(Downloader.not_found) == 1
     assert "[INFO]: Can't download:" in captured.out
     assert "Test File #1.mp3" in captured.out
+
+
+def test_gathering_audio_files(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+) -> None:
+    """."""
+    Lep.db_episodes = LepEpisodeList()
+    Downloader.files = []
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+    downloader.construct_audio_links_bunch(conf.JSON_DB_URL)
+    # got_files = Downloader.files
+    assert len(Downloader.files) == 18
