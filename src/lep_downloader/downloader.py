@@ -31,6 +31,7 @@ from typing import Tuple
 import requests
 
 from lep_downloader import config as conf
+from lep_downloader.exceptions import EmptyDownloadsBunch
 from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
@@ -253,10 +254,20 @@ class Downloader(Lep):
     #     self.session = session if session else Lep.session
 
 
-def construct_audio_links_bunch(json_url: str) -> None:
-    """Get and constract audio links with filenames for them."""
+def use_or_get_db_episodes(json_url: str) -> None:
+    """Take database episodes after parsing stage.
+
+    Or get them from web JSON file.
+    """
     if not Lep.db_episodes:
         Lep.db_episodes = Lep.get_db_episodes(json_url)
+
+
+def construct_audio_links_bunch() -> None:
+    """Constract audio links with filenames for them."""
+    # if not Lep.db_episodes:
+    #     Lep.db_episodes = Lep.get_db_episodes(json_url)
+    # take_or_get_db_episodes(json_url)
 
     # audio_links: NamesWithAudios = []
     if Lep.db_episodes:
@@ -264,24 +275,28 @@ def construct_audio_links_bunch(json_url: str) -> None:
         # only_audio_data = get_audios_data(audio_episodes)
         # audio_links = bind_name_and_file_url(only_audio_data)
         gather_all_audio_files(audio_episodes)
-
-
-def download_files(
-    downloads_bunch: NamesWithAudios,
-    save_dir: Path,
-    file_ext: str = ".mp3",
-) -> None:
-    """Download files from passed links bunch."""
-    if not downloads_bunch:
+    else:
         raise NoEpisodesInDataBase(
             "JSON is available, but\nthere are NO episodes in this file. Exit."
         )
-    for item in downloads_bunch:
-        file_stem: str = item[0]
-        links: List[str] = item[1]
-        filename = file_stem + file_ext
 
-        primary_link = links[0]
+
+def download_files(
+    downloads_bunch: List[LepFile],
+    save_dir: Path,
+    # file_ext: str = ".mp3",
+) -> None:
+    """Download files from passed links bunch."""
+    if not downloads_bunch:
+        raise EmptyDownloadsBunch()
+    for item in downloads_bunch:
+        # file_stem: str = item[0]
+        # links: List[str] = item[1]
+        # filename = file_stem + file_ext
+        filename = item.filename
+
+        # primary_link = links[0]
+        primary_link = item.primary_url
         if Path(save_dir / filename).exists():
             Downloader.existed[primary_link] = filename
             continue  # Skip already downloaded file on disc.
@@ -298,8 +313,12 @@ def download_files(
         if result_ok:
             Downloader.downloaded[primary_link] = filename
         else:
-            if len(links) > 1:  # Try downloading for auxiliary links
-                for aux_link in links[1:]:
+            secondary_url = item.secondary_url
+            tertiary_url = item.tertiary_url
+            # if len(links) > 1:  # Try downloading for auxiliary links
+            if secondary_url or tertiary_url:  # Try downloading for auxiliary links
+                # for aux_link in links[1:]:
+                for aux_link in [secondary_url, tertiary_url]:
                     aux_result_ok = download_and_write_file(
                         aux_link, Lep().session, save_dir, filename
                     )
