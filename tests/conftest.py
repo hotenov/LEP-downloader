@@ -93,7 +93,7 @@ def req_ses() -> requests.Session:
     """Returns global (for all tests) requests session."""
     s = requests.Session()
     test_headers = {
-        'User-Agent': 'MOCKzilla/0.666',  # noqa: BLK100
+        "User-Agent": "MOCKzilla/0.666",
     }
     s.headers.update(test_headers)
     return s
