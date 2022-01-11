@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import List
 from typing import Tuple
 
+import pytest
 from pytest import CaptureFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 
@@ -31,6 +32,9 @@ from lep_downloader import config as conf
 from lep_downloader import downloader
 from lep_downloader.downloader import Audio
 from lep_downloader.downloader import Downloader
+from lep_downloader.downloader import LepFile
+from lep_downloader.exceptions import EmptyDownloadsBunch
+from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
@@ -157,18 +161,27 @@ def test_downloading_mocked_mp3_files(
     tmp_path: Path,
 ) -> None:
     """It downloads file on disc."""
-    test_downloads: List[Tuple[str, List[str]]] = []
-    file_1 = (
-        "Test File #1",
-        [
-            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"  # noqa: E501,B950
-        ],
+    # test_downloads: List[Tuple[str, List[str]]] = []
+    test_downloads: List[LepFile] = []
+    # file_1 = (
+    #     "Test File #1",
+    #     [
+    #         "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"  # noqa: E501,B950
+    #     ],
+    # )
+    # file_2 = (
+    #     "Test File #2",
+    #     [
+    #         "https://audioboom.com/posts/5678762-episode-169-luke-back-on-zep-part-4.mp3"  # noqa: E501,B950
+    #     ],
+    # )
+    file_1 = LepFile(
+        filename="Test File #1.mp3",
+        primary_url="https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
     )
-    file_2 = (
-        "Test File #2",
-        [
-            "https://audioboom.com/posts/5678762-episode-169-luke-back-on-zep-part-4.mp3"  # noqa: E501,B950
-        ],
+    file_2 = LepFile(
+        filename="Test File #2.mp3",
+        primary_url="https://audioboom.com/posts/5678762-episode-169-luke-back-on-zep-part-4.mp3",  # noqa: E501,B950
     )
     test_downloads.append(file_1)
     test_downloads.append(file_2)
@@ -242,19 +255,29 @@ def test_skipping_downloaded_file_on_disc(
     """It skips (and does not override) URL if file was downloaded before."""
     Downloader.downloaded = {}  # Clear from previous tests
     Downloader.existed = {}
-    test_downloads: List[Tuple[str, List[str]]] = []
-    file_1 = (
-        "Test File #1",
-        [
-            "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"  # noqa: E501,B950
-        ],
+    # test_downloads: List[Tuple[str, List[str]]] = []
+    test_downloads: List[LepFile] = []
+    # file_1 = (
+    #     "Test File #1",
+    #     [
+    #         "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"  # noqa: E501,B950
+    #     ],
+    # )
+    # file_2 = (
+    #     "Test File #2",
+    #     [
+    #         "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"  # noqa: E501,B950
+    #     ],
+    # )
+    file_1 = LepFile(
+        filename="Test File #1.mp3",
+        primary_url="http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",  # noqa: E501,B950
     )
-    file_2 = (
-        "Test File #2",
-        [
-            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"  # noqa: E501,B950
-        ],
+    file_2 = LepFile(
+        filename="Test File #2.mp3",
+        primary_url="https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
     )
+
     test_downloads.append(file_1)
     test_downloads.append(file_2)
 
@@ -285,14 +308,21 @@ def test_try_auxiliary_download_links(
 ) -> None:
     """It downloads file by auxiliary link."""
     Downloader.downloaded = {}  # Clear from previous tests
-    test_downloads: List[Tuple[str, List[str]]] = []
-    file_1 = (
-        "Test File #1",
-        [
-            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
-            "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
-            "https://hotenov.com/d/lep/some_auxiliary_2.mp3",
-        ],
+    # test_downloads: List[Tuple[str, List[str]]] = []
+    test_downloads: List[LepFile] = []
+    # file_1 = (
+    #     "Test File #1",
+    #     [
+    #         "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
+    #         "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
+    #         "https://hotenov.com/d/lep/some_auxiliary_2.mp3",
+    #     ],
+    # )
+    file_1 = LepFile(
+        filename="Test File #1.mp3",
+        primary_url="https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
+        secondary_url="https://hotenov.com/d/lep/some_auxiliary_1.mp3",
+        tertiary_url="https://hotenov.com/d/lep/some_auxiliary_2.mp3",
     )
     test_downloads.append(file_1)
 
@@ -327,12 +357,17 @@ def test_primary_link_unavailable(
     """It records unavailable file and prints about that."""
     Downloader.downloaded = {}  # Clear from previous tests
     Downloader.not_found = {}
-    test_downloads: List[Tuple[str, List[str]]] = []
-    file_1 = (
-        "Test File #1",
-        [
-            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
-        ],
+    # test_downloads: List[Tuple[str, List[str]]] = []
+    test_downloads: List[LepFile] = []
+    # file_1 = (
+    #     "Test File #1",
+    #     [
+    #         "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
+    #     ],
+    # )
+    file_1 = LepFile(
+        filename="Test File #1.mp3",
+        primary_url="https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
     )
     test_downloads.append(file_1)
 
@@ -362,14 +397,21 @@ def test_both_primary_and_auxiliary_links_404(
     """It records unavailable files and prints about that."""
     Downloader.downloaded = {}  # Clear from previous tests
     Downloader.not_found = {}
-    test_downloads: List[Tuple[str, List[str]]] = []
-    file_1 = (
-        "Test File #1",
-        [
-            "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
-            "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
-        ],
+    # test_downloads: List[Tuple[str, List[str]]] = []
+    test_downloads: List[LepFile] = []
+    # file_1 = (
+    #     "Test File #1",
+    #     [
+    #         "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
+    #         "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
+    #     ],
+    # )
+    file_1 = LepFile(
+        filename="Test File #1.mp3",
+        primary_url="https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
+        secondary_url="https://hotenov.com/d/lep/some_auxiliary_1.mp3",
     )
+
     test_downloads.append(file_1)
 
     requests_mock.get(
@@ -405,7 +447,8 @@ def test_gathering_audio_files(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
-    downloader.construct_audio_links_bunch(conf.JSON_DB_URL)
+    downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
+    downloader.construct_audio_links_bunch()
     # got_files = Downloader.files
     assert len(Downloader.files) == 18
 
@@ -443,3 +486,69 @@ def test_collecting_auxiliary_audio_links() -> None:
     assert Downloader.files[0].secondary_url == "https://someurl2.local"
     assert Downloader.files[0].tertiary_url == "https://someurl3.local"
     assert Downloader.files[1].secondary_url == "https://part2-someurl2.local"
+
+
+def test_using_db_episodes_after_parsing() -> None:
+    """It uses database episodes retrieved during parsing stage."""
+    Lep.db_episodes = LepEpisodeList()
+    Downloader.files = []
+    ep_1 = LepEpisode()
+    ep_1.index = 2022011101
+    ep_1.episode = 888
+    ep_1.post_title = "888. Some title."
+    ep_1._short_date = "2022-01-11"
+    ep_1.post_type = "AUDIO"
+    ep_1.files = {
+        "audios": [
+            [
+                "https://someurl1.local",
+                "https://someurl2.local",
+                "https://someurl3.local",
+            ]
+        ]
+    }
+    Lep.db_episodes.append(ep_1)
+    downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
+    downloader.construct_audio_links_bunch()
+    assert len(Downloader.files) == 1
+    assert Downloader.files[0].primary_url == "https://someurl1.local"
+    assert Downloader.files[0].filename == "[2022-01-11] # 888. Some title..mp3"
+
+
+def test_no_valid_episodes_in_database(requests_mock: rm_Mocker) -> None:
+    """It raises exception if there are no valid episodes in JSON file."""
+    Lep.db_episodes = LepEpisodeList()
+    Downloader.files = []
+    json_test = """\
+        [
+            {
+                "episode_number": 666,
+                "date": "2000-01-01T00:00:00+00:00",
+                "url": "https://teacherluke.co.uk/2009/04/15/episode-3-musicthe-beatles/",
+            }
+        ]
+    """  # noqa: E501,B950
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_test,
+    )
+    downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
+    with pytest.raises(NoEpisodesInDataBase) as ex:
+        downloader.construct_audio_links_bunch()
+    assert "JSON is available, but" in ex.value.args[0]
+    assert "\nthere are NO episodes in this file. Exit." in ex.value.args[0]
+
+
+def test_processing_empty_downloads_bunch(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+) -> None:
+    """It raises EmptyDownloadsBunch when nothing to download."""
+    Lep.db_episodes = LepEpisodeList()
+    Downloader.files = []
+    with pytest.raises(EmptyDownloadsBunch) as ex:
+        downloader.download_files(
+            Downloader.files,
+            Path(),
+        )
+    assert "Nothing to download in downloads bunch." in ex.value.message
