@@ -181,24 +181,41 @@ def gather_all_audio_files(audio_episodes: List[LepEpisode]) -> None:
 #     return audios_links
 
 
+# def detect_existing_files(
+#     audios_links: List[Tuple[str, str]],
+#     save_dir: Path,
+#     file_ext: str = ".mp3",
+# ) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]]]:
+#     """Return lists for existing and non-existing files."""
+#     existing: List[Tuple[str, str]] = []
+#     non_existing: List[Tuple[str, str]] = []
+#     only_files_by_ext: List[str] = []
+#     only_files_by_ext = [
+#         p.stem + file_ext for p in save_dir.glob("*") if p.suffix.lower() == file_ext
+#     ]
+#     for audio in audios_links:
+#         if audio[0] in only_files_by_ext:
+#             existing.append(audio)
+#         else:
+#             non_existing.append(audio)
+#     return (existing, non_existing)
 def detect_existing_files(
-    audios_links: List[Tuple[str, str]],
+    files: List[LepFile],
     save_dir: Path,
-    file_ext: str = ".mp3",
-) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]]]:
-    """Return lists for existing and non-existing files."""
-    existing: List[Tuple[str, str]] = []
-    non_existing: List[Tuple[str, str]] = []
+) -> None:
+    """Separate lists for existing and non-existing files."""
+    Downloader.existed = []
+    Downloader.non_existed = []
     only_files_by_ext: List[str] = []
+    possible_extensions = {".mp3", ".pdf", ".mp4"}
     only_files_by_ext = [
-        p.stem + file_ext for p in save_dir.glob("*") if p.suffix.lower() == file_ext
+        p.name for p in save_dir.glob("*") if p.suffix.lower() in possible_extensions
     ]
-    for audio in audios_links:
-        if audio[0] in only_files_by_ext:
-            existing.append(audio)
+    for file in files:
+        if file.filename in only_files_by_ext:
+            Downloader.existed.append(file)
         else:
-            non_existing.append(audio)
-    return (existing, non_existing)
+            Downloader.non_existed.append(file)
 
 
 def download_and_write_file(
@@ -238,9 +255,11 @@ class Downloader(Lep):
 
     downloaded: ClassVar[Dict[str, str]] = {}
     not_found: ClassVar[Dict[str, str]] = {}
-    existed: ClassVar[Dict[str, str]] = {}
+    # existed: ClassVar[Dict[str, str]] = {}
 
     files: ClassVar[List[LepFile]] = []
+    existed: ClassVar[List[LepFile]] = []
+    non_existed: ClassVar[List[LepFile]] = []
 
     # def __init__(self, url: str = "", session: requests.Session = None) -> None:
     #     """Initialize Downloader instance.
@@ -289,16 +308,16 @@ def download_files(
     """Download files from passed links bunch."""
     if not downloads_bunch:
         raise EmptyDownloadsBunch()
-    for item in downloads_bunch:
+    for file_obj in downloads_bunch:
         # file_stem: str = item[0]
         # links: List[str] = item[1]
         # filename = file_stem + file_ext
-        filename = item.filename
+        filename = file_obj.filename
 
         # primary_link = links[0]
-        primary_link = item.primary_url
+        primary_link = file_obj.primary_url
         if Path(save_dir / filename).exists():
-            Downloader.existed[primary_link] = filename
+            Downloader.existed.append(file_obj)
             continue  # Skip already downloaded file on disc.
         # if primary_link in successful_downloaded:
         #     duplicated_links[primary_link] = filename
@@ -313,8 +332,8 @@ def download_files(
         if result_ok:
             Downloader.downloaded[primary_link] = filename
         else:
-            secondary_url = item.secondary_url
-            tertiary_url = item.tertiary_url
+            secondary_url = file_obj.secondary_url
+            tertiary_url = file_obj.tertiary_url
             # if len(links) > 1:  # Try downloading for auxiliary links
             if secondary_url or tertiary_url:  # Try downloading for auxiliary links
                 # for aux_link in links[1:]:
