@@ -25,5 +25,7 @@ def cli() -> None:
     except DataBaseUnavailable:
         click.echo("JSON database is not available. Exit.")
     except NoEpisodesInDataBase as ex:
-        click.echo(f"[WARNING]: JSON file ({conf.JSON_DB_URL}) has no valid episode objects.")
+        click.echo(
+            f"[WARNING]: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
+        )
         click.echo("\t" + ex.args[0])
