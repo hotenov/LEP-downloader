@@ -108,7 +108,8 @@ def test_forming_safe_filename_for_downloading(
 
 
 def test_separating_existing_and_non_existing_mp3(
-    only_audio_links: List[Tuple[str, str]],
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
     tmp_path: Path,
 ) -> None:
     """It detects when file has already been downloaded."""
@@ -117,12 +118,21 @@ def test_separating_existing_and_non_existing_mp3(
     Path(tmp_path / filename_1).write_text("Here are mp3 1 bytes")
     Path(tmp_path / filename_2).write_text("Here are mp3 2 bytes")
 
-    existing, non_existing = downloader.detect_existing_files(
-        only_audio_links,
-        tmp_path,
+    # existing, non_existing = downloader.detect_existing_files(
+    #     only_audio_links,
+    #     tmp_path,
+    # )
+    Lep.db_episodes = LepEpisodeList()
+    Downloader.files = []
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
     )
-    assert len(existing) == 2
-    assert len(non_existing) == 16
+    downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
+    downloader.construct_audio_links_bunch()
+    downloader.detect_existing_files(Downloader.files, tmp_path)
+    assert len(Downloader.existed) == 2
+    assert len(Downloader.non_existed) == 16
 
 
 def test_retrieving_audios_as_none() -> None:
@@ -254,7 +264,7 @@ def test_skipping_downloaded_file_on_disc(
 ) -> None:
     """It skips (and does not override) URL if file was downloaded before."""
     Downloader.downloaded = {}  # Clear from previous tests
-    Downloader.existed = {}
+    Downloader.existed = []
     # test_downloads: List[Tuple[str, List[str]]] = []
     test_downloads: List[LepFile] = []
     # file_1 = (
