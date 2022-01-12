@@ -334,18 +334,19 @@ def download_files(
         else:
             secondary_url = file_obj.secondary_url
             tertiary_url = file_obj.tertiary_url
-            # if len(links) > 1:  # Try downloading for auxiliary links
-            if secondary_url or tertiary_url:  # Try downloading for auxiliary links
-                # for aux_link in links[1:]:
-                for aux_link in [secondary_url, tertiary_url]:
-                    aux_result_ok = download_and_write_file(
-                        aux_link, Lep().session, save_dir, filename
-                    )
-                if not aux_result_ok:
-                    Downloader.not_found[aux_link] = filename
-                    print(f"[INFO]: Can't download: {filename}")
-                else:
-                    Downloader.downloaded[aux_link] = filename
+            aux_result_ok = False
+
+            # Try downloading for auxiliary links
+            if secondary_url:
+                aux_result_ok = download_and_write_file(
+                    secondary_url, Lep().session, save_dir, filename
+                )
+            if tertiary_url and not aux_result_ok:
+                aux_result_ok = download_and_write_file(
+                    tertiary_url, Lep().session, save_dir, filename
+                )
             else:
                 Downloader.not_found[primary_link] = filename
                 print(f"[INFO]: Can't download: {filename}")
+            if aux_result_ok:
+                Downloader.downloaded[primary_link] = filename
