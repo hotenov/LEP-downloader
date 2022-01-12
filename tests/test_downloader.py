@@ -205,7 +205,7 @@ def test_downloading_mocked_mp3_files(
         content=mp3_file2_mock,
     )
 
-    Downloader.downloaded = {}
+    Downloader.downloaded = []
     downloader.download_files(test_downloads, tmp_path)
     expected_file_1 = tmp_path / "Test File #1.mp3"
     expected_file_2 = tmp_path / "Test File #2.mp3"
@@ -263,7 +263,7 @@ def test_skipping_downloaded_file_on_disc(
     tmp_path: Path,
 ) -> None:
     """It skips (and does not override) URL if file was downloaded before."""
-    Downloader.downloaded = {}  # Clear from previous tests
+    Downloader.downloaded = []  # Clear from previous tests
     Downloader.existed = []
     # test_downloads: List[Tuple[str, List[str]]] = []
     test_downloads: List[LepFile] = []
@@ -317,7 +317,7 @@ def test_try_auxiliary_download_links(
     tmp_path: Path,
 ) -> None:
     """It downloads file by auxiliary link."""
-    Downloader.downloaded = {}  # Clear from previous tests
+    Downloader.downloaded = []  # Clear from previous tests
     # test_downloads: List[Tuple[str, List[str]]] = []
     test_downloads: List[LepFile] = []
     # file_1 = (
@@ -365,8 +365,8 @@ def test_primary_link_unavailable(
     capsys: CaptureFixture[str],
 ) -> None:
     """It records unavailable file and prints about that."""
-    Downloader.downloaded = {}  # Clear from previous tests
-    Downloader.not_found = {}
+    Downloader.downloaded = []  # Clear from previous tests
+    Downloader.not_found = []
     # test_downloads: List[Tuple[str, List[str]]] = []
     test_downloads: List[LepFile] = []
     # file_1 = (
@@ -405,8 +405,8 @@ def test_both_primary_and_auxiliary_links_404(
     capsys: CaptureFixture[str],
 ) -> None:
     """It records unavailable files and prints about that."""
-    Downloader.downloaded = {}  # Clear from previous tests
-    Downloader.not_found = {}
+    Downloader.downloaded = []  # Clear from previous tests
+    Downloader.not_found = []
     # test_downloads: List[Tuple[str, List[str]]] = []
     test_downloads: List[LepFile] = []
     # file_1 = (
