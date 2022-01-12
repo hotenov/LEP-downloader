@@ -562,3 +562,64 @@ def test_processing_empty_downloads_bunch(
             Path(),
         )
     assert "Nothing to download in downloads bunch." in ex.value.message
+
+
+def test_populating_secondary_url() -> None:
+    """It populates secondary links for empty values."""
+    Downloader.files = []
+    json_test = """\
+        [
+            {
+                "episode": 3,
+                "date": "2000-01-01T00:00:00+00:00",
+                "url": "https://teacherluke.co.uk/2009/04/15/episode-3-musicthe-beatles/",
+                "post_title": "3. Music/The Beatles",
+                "post_type": "",
+                "files": {
+                    "audios": [
+                        [
+                            "https://someurl1.local", "", "https://someurl3.local"
+                        ],
+                        [
+                            "https://part2-someurl1.local", "https://part2-someurl2.local"
+                        ]
+                    ]
+                },
+                "parsed_at": "2021-10-14T07:35:24.575575Z",
+                "index": 2009041501,
+                "admin_note": ""
+            },
+            {
+                "episode": 135,
+                "date": "2013-06-17T00:00:00+00:00",
+                "url": "https://teacherluke.co.uk/2013/06/17/episode-3-musicthe-beatles/",
+                "post_title": "135. Raining Animals",
+                "post_type": "",
+                "files": {
+                    "audios": [
+                        [
+                            "https://someurl1.local135"
+                        ]
+                    ],
+                    "page_pdf": []
+                },
+                "parsed_at": "2022-01-12T13:50:24.575575Z",
+                "index": 2009041501,
+                "admin_note": "default url for PDF"
+            }
+        ]
+    """  # noqa: E501,B950
+    db_episodes = Lep.extract_only_valid_episodes(json_test)
+    downloader.gather_all_audio_files(db_episodes)
+    downloader.populate_default_url()
+    assert len(Downloader.files) == 3
+    assert (
+        Downloader.files[0].secondary_url
+        == "https://hotenov.com/d/lep/%5B2013-06-17%5D%20%23%20135.%20Raining%C2%A0Animals.mp3"  # noqa: E501,B950
+    )
+    assert (
+        Downloader.files[1].secondary_url
+        == "https://hotenov.com/d/lep/%5B2000-01-01%5D%20%23%203.%20Music/The%20Beatles%20%5BPart%2001%5D.mp3"  # noqa: E501,B950
+    )
+    assert Downloader.files[1].tertiary_url == "https://someurl3.local"
+    assert Downloader.files[2].secondary_url == "https://part2-someurl2.local"

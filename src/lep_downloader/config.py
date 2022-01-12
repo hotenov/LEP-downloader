@@ -27,6 +27,8 @@ ARCHIVE_URL = "https://hotenov.com"
 JSON_DB_URL = "https://hotenov.com/some_json.json"
 DEFAULT_JSON_NAME = "lep-db.min.json"
 
+DOWNLOADS_BASE_URL = "https://hotenov.com/d/lep/"
+
 LOCAL_ARCHIVE_HTML = "2021-08-10_lep-archive-page-content-pretty.html"
 LOCAL_JSON_DB = "mocked-db-json-equal-786-objects.json"
 

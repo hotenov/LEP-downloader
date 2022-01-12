@@ -21,6 +21,7 @@
 # SOFTWARE.
 """LEP module for downloading logic."""
 import re
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
@@ -297,6 +298,21 @@ def construct_audio_links_bunch() -> None:
         raise NoEpisodesInDataBase(
             "JSON is available, but\nthere are NO episodes in this file. Exit."
         )
+
+
+def populate_default_url() -> None:
+    """Fill in download url (if it is empty) with default value.
+
+    Operate with 'files' shared list.
+    """
+    populated_files = []
+    for file in Downloader.files:
+        if not file.secondary_url:
+            file.secondary_url = conf.DOWNLOADS_BASE_URL + urllib.parse.quote(
+                file.filename
+            )
+        populated_files.append(file)
+    Downloader.files = populated_files
 
 
 def download_files(
