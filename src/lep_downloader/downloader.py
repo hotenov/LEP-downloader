@@ -24,7 +24,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
-from typing import Dict
 from typing import List
 from typing import Tuple
 
@@ -253,8 +252,8 @@ def download_and_write_file(
 class Downloader(Lep):
     """Represent downloader object."""
 
-    downloaded: ClassVar[Dict[str, str]] = {}
-    not_found: ClassVar[Dict[str, str]] = {}
+    downloaded: ClassVar[List[LepFile]] = []
+    not_found: ClassVar[List[LepFile]] = []
     # existed: ClassVar[Dict[str, str]] = {}
 
     files: ClassVar[List[LepFile]] = []
@@ -330,7 +329,7 @@ def download_files(
             filename,
         )
         if result_ok:
-            Downloader.downloaded[primary_link] = filename
+            Downloader.downloaded.append(file_obj)
         else:
             secondary_url = file_obj.secondary_url
             tertiary_url = file_obj.tertiary_url
@@ -346,7 +345,7 @@ def download_files(
                     tertiary_url, Lep().session, save_dir, filename
                 )
             else:
-                Downloader.not_found[primary_link] = filename
+                Downloader.not_found.append(file_obj)
                 print(f"[INFO]: Can't download: {filename}")
             if aux_result_ok:
-                Downloader.downloaded[primary_link] = filename
+                Downloader.downloaded.append(file_obj)
