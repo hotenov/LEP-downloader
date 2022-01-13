@@ -94,6 +94,34 @@ class Audio(LepFile):
             self.filename = f"[{self.short_date}] # {self.name}" + self.ext
 
 
+@dataclass
+class PagePDF(LepFile):
+    """Represent PDF file of episode page."""
+
+    ext: str = ".pdf"
+
+    def __post_init__(self) -> None:
+        """Compose filename for this instance."""
+        self.filename = f"[{self.short_date}] # {self.name}" + self.ext
+
+
+def crawl_list(links: List[str]) -> Tuple[str, str, str]:
+    """Crawl list of links and return tuple of it."""
+    primary_url = secondary_url = tertiary_url = ""
+    links_number = len(links)
+    if links_number == 1:
+        primary_url = links[0]
+    else:
+        if links_number == 2:
+            primary_url = links[0]
+            secondary_url = links[1]
+        if links_number == 3:
+            primary_url = links[0]
+            secondary_url = links[1]
+            tertiary_url = links[2]
+    return primary_url, secondary_url, tertiary_url
+
+
 def add_each_audio_to_shared_list(
     ep_id: int,
     name: str,
@@ -106,21 +134,10 @@ def add_each_audio_to_shared_list(
     """
     is_multi_part = False if len(audios) < 2 else True
     start = int(is_multi_part)
-    primary_url = secondary_url = tertiary_url = ""
 
     for i, part_links in enumerate(audios, start=start):
         part_no = i
-        part_urls_number = len(part_links)
-        if part_urls_number == 1:
-            primary_url = part_links[0]
-        else:
-            if part_urls_number == 2:
-                primary_url = part_links[0]
-                secondary_url = part_links[1]
-            if part_urls_number == 3:
-                primary_url = part_links[0]
-                secondary_url = part_links[1]
-                tertiary_url = part_links[2]
+        primary_url, secondary_url, tertiary_url = crawl_list(part_links)
         audio_file = Audio(
             ep_id=ep_id,
             name=name,
@@ -131,6 +148,36 @@ def add_each_audio_to_shared_list(
             tertiary_url=tertiary_url,
         )
         Downloader.files.append(audio_file)
+
+
+def add_page_pdf_file(
+    ep_id: int,
+    name: str,
+    short_date: str,
+    page_pdf: List[str],
+) -> None:
+    """Gather page PDF for episode.
+
+    Then add it as 'PagePDF' object to shared 'files' list of LepFile objects.
+    """
+    if not page_pdf:
+        pdf_file = PagePDF(
+            ep_id=ep_id,
+            name=name,
+            short_date=short_date,
+        )
+        Downloader.files.append(pdf_file)
+    else:
+        primary_url, secondary_url, tertiary_url = crawl_list(page_pdf)
+        pdf_file = PagePDF(
+            ep_id=ep_id,
+            name=name,
+            short_date=short_date,
+            primary_url=primary_url,
+            secondary_url=secondary_url,
+            tertiary_url=tertiary_url,
+        )
+        Downloader.files.append(pdf_file)
 
 
 # def get_audios_data(audio_episodes: List[LepEpisode]) -> DataForEpisodeAudio:
@@ -148,8 +195,8 @@ def add_each_audio_to_shared_list(
 #         data_item = (short_date, title, audios, is_multi_part)
 #         audios_data.append(data_item)
 #     return audios_data
-def gather_all_audio_files(audio_episodes: List[LepEpisode]) -> None:
-    """Skim passed episode list and collect all audio files.
+def gather_all_files(audio_episodes: List[LepEpisode]) -> None:
+    """Skim passed episode list and collect all files.
 
     Add each file to shared 'files' list fo further actions.
     """
@@ -159,6 +206,9 @@ def gather_all_audio_files(audio_episodes: List[LepEpisode]) -> None:
             add_each_audio_to_shared_list(
                 ep.index, ep.post_title, ep._short_date, audios
             )
+
+        page_pdf = ep.files["page_pdf"]
+        add_page_pdf_file(ep.index, ep.post_title, ep._short_date, page_pdf)
 
 
 # def bind_name_and_file_url(audios_data: DataForEpisodeAudio) -> NamesWithAudios:
@@ -293,7 +343,7 @@ def construct_audio_links_bunch() -> None:
         audio_episodes = Lep.db_episodes.filter_by_type("AUDIO")
         # only_audio_data = get_audios_data(audio_episodes)
         # audio_links = bind_name_and_file_url(only_audio_data)
-        gather_all_audio_files(audio_episodes)
+        gather_all_files(audio_episodes)
     else:
         raise NoEpisodesInDataBase(
             "JSON is available, but\nthere are NO episodes in this file. Exit."
