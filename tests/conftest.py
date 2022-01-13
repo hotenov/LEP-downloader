@@ -20,7 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Package-wide test fixtures."""
-import copy
 import json
 import shutil
 from datetime import datetime
@@ -256,15 +255,15 @@ def parsed_episodes_mock(
 
     Archive.episodes = LepEpisodeList()
 
-    parsed_episodes: LepEpisodeList
+    # parsed_episodes: LepEpisodeList
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=single_page_matcher,
         text=single_page_mock,
     )
     parser.parse_each_episode(archive_parsing_results_mock, req_ses)
-    parsed_episodes = copy.deepcopy(Archive.episodes)
-    return parsed_episodes
+    # parsed_episodes = copy.deepcopy(Archive.episodes)
+    return Archive.episodes
 
 
 @pytest.fixture

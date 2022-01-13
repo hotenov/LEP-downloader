@@ -394,8 +394,8 @@ def test_parsing_all_episodes_from_mocked_archive(
 ) -> None:
     """It parses all episodes from mocked archive HTML."""
     # SAVING MOCKED JSON DB # #
-    sorted_eps = parsed_episodes_mock.desc_sort_by_date_and_index()
-    parser.write_parsed_episodes_to_json(sorted_eps)
+    # sorted_eps = parsed_episodes_mock.desc_sort_by_date_and_index()
+    # parser.write_parsed_episodes_to_json(sorted_eps)
     # SAVING MOCKED JSON DB # #
 
     # assert len(parsed_episodes_mock) == 786
@@ -969,3 +969,14 @@ def test_setting_episode_date_as_datetime() -> None:
     as_str = ep.date.strftime(r"%Y-%m-%dT%H:%M:%S%z")
     except_date = "2021-12-24T14:18:19+0000"
     assert as_str == except_date
+
+
+def test_parsing_html_title_for_mocked_episodes(
+    parsed_episodes_mock: LepEpisodeList,
+) -> None:
+    """It parses HTML tag <title> for each episode."""
+    assert (
+        parsed_episodes_mock[33]._title
+        == "36. London Video Interviews Pt.1 | Luke’s ENGLISH Podcast"
+    )
+    assert parsed_episodes_mock[45]._title == "NO TITLE!"
