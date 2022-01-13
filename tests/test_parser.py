@@ -394,8 +394,8 @@ def test_parsing_all_episodes_from_mocked_archive(
 ) -> None:
     """It parses all episodes from mocked archive HTML."""
     # SAVING MOCKED JSON DB # #
-    # sorted_eps = parsed_episodes_mock.desc_sort_by_date_and_index()
-    # parser.write_parsed_episodes_to_json(sorted_eps)
+    sorted_eps = parsed_episodes_mock.desc_sort_by_date_and_index()
+    parser.write_parsed_episodes_to_json(sorted_eps)
     # SAVING MOCKED JSON DB # #
 
     # assert len(parsed_episodes_mock) == 786

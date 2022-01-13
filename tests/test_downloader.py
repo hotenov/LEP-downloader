@@ -33,6 +33,7 @@ from lep_downloader import downloader
 from lep_downloader.downloader import Audio
 from lep_downloader.downloader import Downloader
 from lep_downloader.downloader import LepFile
+from lep_downloader.downloader import PagePDF
 from lep_downloader.exceptions import EmptyDownloadsBunch
 from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.lep import Lep
@@ -70,7 +71,11 @@ def test_extracting_audio_data(
     #     False,
     # )
     # audio_data = downloader.get_audios_data(only_audio_episodes)
-    downloader.gather_all_audio_files(only_audio_episodes)
+    downloader.gather_all_files(only_audio_episodes)
+    only_audio: List[LepFile] = [
+        file for file in Downloader.files if isinstance(file, Audio)
+    ]
+    Downloader.files = only_audio
     assert Downloader.files[1] == expected_audio
 
 
@@ -132,7 +137,7 @@ def test_separating_existing_and_non_existing_mp3(
     downloader.construct_audio_links_bunch()
     downloader.detect_existing_files(Downloader.files, tmp_path)
     assert len(Downloader.existed) == 2
-    assert len(Downloader.non_existed) == 16
+    assert len(Downloader.non_existed) == 30  # +14 Page PDF
 
 
 def test_retrieving_audios_as_none() -> None:
@@ -147,7 +152,8 @@ def test_retrieving_audios_as_none() -> None:
                 "post_title": "3. Music/The Beatles",
                 "post_type": "",
                 "files": {
-                    "audios": null
+                    "audios": null,
+                    "page_pdf": []
                 },
                 "parsed_at": "2021-10-14T07:35:24.575575Z",
                 "index": 2009041501,
@@ -159,9 +165,10 @@ def test_retrieving_audios_as_none() -> None:
     db_episodes[0].files["audios"] = None
     # audio_data = downloader.get_audios_data(db_episodes)
     # Check that 'empty' files (lists) are ignored.
-    downloader.gather_all_audio_files(db_episodes)
+    downloader.gather_all_files(db_episodes)
     # assert audio_data[0][2] == []
-    assert Downloader.files == []
+    assert len(Downloader.files) == 1
+    assert isinstance(Downloader.files[0], PagePDF)
 
 
 def test_downloading_mocked_mp3_files(
@@ -459,8 +466,12 @@ def test_gathering_audio_files(
     )
     downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
     downloader.construct_audio_links_bunch()
+    only_audio: List[LepFile] = [
+        file for file in Downloader.files if isinstance(file, Audio)
+    ]
+
     # got_files = Downloader.files
-    assert len(Downloader.files) == 18
+    assert len(only_audio) == 18
 
 
 def test_collecting_auxiliary_audio_links() -> None:
@@ -482,7 +493,8 @@ def test_collecting_auxiliary_audio_links() -> None:
                         [
                             "https://part2-someurl1.local", "https://part2-someurl2.local"
                         ]
-                    ]
+                    ],
+                    "page_pdf": []
                 },
                 "parsed_at": "2021-10-14T07:35:24.575575Z",
                 "index": 2009041501,
@@ -491,8 +503,8 @@ def test_collecting_auxiliary_audio_links() -> None:
         ]
     """  # noqa: E501,B950
     db_episodes = Lep.extract_only_valid_episodes(json_test)
-    downloader.gather_all_audio_files(db_episodes)
-    assert len(Downloader.files) == 2
+    downloader.gather_all_files(db_episodes)
+    assert len(Downloader.files) == 3
     assert Downloader.files[0].secondary_url == "https://someurl2.local"
     assert Downloader.files[0].tertiary_url == "https://someurl3.local"
     assert Downloader.files[1].secondary_url == "https://part2-someurl2.local"
@@ -515,12 +527,13 @@ def test_using_db_episodes_after_parsing() -> None:
                 "https://someurl2.local",
                 "https://someurl3.local",
             ]
-        ]
+        ],
+        "page_pdf": [],
     }
     Lep.db_episodes.append(ep_1)
     downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
     downloader.construct_audio_links_bunch()
-    assert len(Downloader.files) == 1
+    assert len(Downloader.files) == 2
     assert Downloader.files[0].primary_url == "https://someurl1.local"
     assert Downloader.files[0].filename == "[2022-01-11] # 888. Some title..mp3"
 
@@ -583,7 +596,8 @@ def test_populating_secondary_url() -> None:
                         [
                             "https://part2-someurl1.local", "https://part2-someurl2.local"
                         ]
-                    ]
+                    ],
+                    "page_pdf": []
                 },
                 "parsed_at": "2021-10-14T07:35:24.575575Z",
                 "index": 2009041501,
@@ -610,16 +624,67 @@ def test_populating_secondary_url() -> None:
         ]
     """  # noqa: E501,B950
     db_episodes = Lep.extract_only_valid_episodes(json_test)
-    downloader.gather_all_audio_files(db_episodes)
+    downloader.gather_all_files(db_episodes)
     downloader.populate_default_url()
-    assert len(Downloader.files) == 3
+    assert len(Downloader.files) == 5
     assert (
         Downloader.files[0].secondary_url
         == "https://hotenov.com/d/lep/%5B2013-06-17%5D%20%23%20135.%20Raining%C2%A0Animals.mp3"  # noqa: E501,B950
     )
     assert (
-        Downloader.files[1].secondary_url
+        Downloader.files[2].secondary_url
         == "https://hotenov.com/d/lep/%5B2000-01-01%5D%20%23%203.%20Music/The%20Beatles%20%5BPart%2001%5D.mp3"  # noqa: E501,B950
     )
-    assert Downloader.files[1].tertiary_url == "https://someurl3.local"
-    assert Downloader.files[2].secondary_url == "https://part2-someurl2.local"
+    assert Downloader.files[2].tertiary_url == "https://someurl3.local"
+    assert Downloader.files[3].secondary_url == "https://part2-someurl2.local"
+
+
+def test_gathering_page_pdf_urls() -> None:
+    """It gatheres pdf links if they are provided in JSON."""
+    Downloader.files = []
+    json_test = """\
+        [
+            {
+                "episode": 555,
+                "files": {
+                    "audios": [],
+                    "page_pdf": ["https://someurl555.local"]
+                },
+                "index": 2022011303
+            },
+            {
+                "episode": 554,
+                "files": {
+                    "audios": [],
+                    "page_pdf": ["https://someurl554.local1", "https://someurl554.local2"]
+                },
+                "index": 2022011302
+            },
+            {
+                "episode": 553,
+                "files": {
+                    "audios": [],
+                    "page_pdf": [
+                        "https://someurl553.local1",
+                        "https://someurl553.local2",
+                        "https://someurl553.local3"
+                    ]
+                },
+                "index": 2022011302
+            }
+        ]
+    """  # noqa: E501,B950
+    db_episodes = Lep.extract_only_valid_episodes(json_test)
+    downloader.gather_all_files(db_episodes)
+
+    assert len(Downloader.files) == 3
+
+    assert Downloader.files[0].primary_url == "https://someurl553.local1"
+    assert Downloader.files[0].secondary_url == "https://someurl553.local2"
+    assert Downloader.files[0].tertiary_url == "https://someurl553.local3"
+
+    assert Downloader.files[1].primary_url == "https://someurl554.local1"
+    assert Downloader.files[1].secondary_url == "https://someurl554.local2"
+
+    assert Downloader.files[2].primary_url == "https://someurl555.local"
+    assert Downloader.files[2].secondary_url == ""
