@@ -402,6 +402,13 @@ class EpisodeParser(LepParser):
 
         self.episode.episode = parse_episode_number(self.episode.post_title)
 
+        full_soup = BeautifulSoup(self.content, "lxml")
+        if full_soup.title is not None:
+            self.episode._title = full_soup.title.string
+        else:
+            self.episode._title = "NO TITLE!"
+        del full_soup
+
         if not self.is_url_ok:
             self.episode.url = self.final_location
             self.episode.admin_note = self.content[:50]
