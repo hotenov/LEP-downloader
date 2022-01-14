@@ -24,6 +24,7 @@ import re
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from typing import ClassVar
 from typing import List
 from typing import Tuple
@@ -35,6 +36,7 @@ from lep_downloader.exceptions import EmptyDownloadsBunch
 from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
+from lep_downloader.lep import LepEpisodeList
 
 
 DataForEpisodeAudio = List[Tuple[str, str, List[List[str]], bool]]
@@ -105,8 +107,18 @@ class PagePDF(LepFile):
         self.filename = f"[{self.short_date}] # {self.name}" + self.ext
 
 
+class LepFileList(List[Any]):
+    """Represent list of LepFile objects."""
+
+    def filter_by_type(self, *file_types: Any) -> Any:
+        """Return new filtered list by file type(s)."""
+        file_types = tuple(file_types)
+        filtered = LepFileList(file for file in self if isinstance(file, file_types))
+        return filtered
+
+
 def crawl_list(links: List[str]) -> Tuple[str, str, str]:
-    """Crawl list of links and return tuple of it."""
+    """Crawl list of links and return tuple of three links."""
     primary_url = secondary_url = tertiary_url = ""
     links_number = len(links)
     if links_number == 1:
@@ -195,20 +207,25 @@ def add_page_pdf_file(
 #         data_item = (short_date, title, audios, is_multi_part)
 #         audios_data.append(data_item)
 #     return audios_data
-def gather_all_files(audio_episodes: List[LepEpisode]) -> None:
+def gather_all_files(lep_episodes: LepEpisodeList) -> None:
     """Skim passed episode list and collect all files.
 
     Add each file to shared 'files' list fo further actions.
     """
-    for ep in reversed(audio_episodes):
-        audios = ep.files["audios"]
-        if audios:
-            add_each_audio_to_shared_list(
-                ep.index, ep.post_title, ep._short_date, audios
-            )
+    ep: LepEpisode
+    if lep_episodes:
+        for ep in reversed(lep_episodes):
+            if ep.files:
+                audios = ep.files["audios"]
+                if audios:
+                    add_each_audio_to_shared_list(
+                        ep.index, ep.post_title, ep._short_date, audios
+                    )
 
-        page_pdf = ep.files["page_pdf"]
-        add_page_pdf_file(ep.index, ep.post_title, ep._short_date, page_pdf)
+                page_pdf = ep.files["page_pdf"]
+                add_page_pdf_file(ep.index, ep.post_title, ep._short_date, page_pdf)
+    else:
+        raise NoEpisodesInDataBase("No episodes for gathering files. Exit.")
 
 
 # def bind_name_and_file_url(audios_data: DataForEpisodeAudio) -> NamesWithAudios:
@@ -250,12 +267,12 @@ def gather_all_files(audio_episodes: List[LepEpisode]) -> None:
 #             non_existing.append(audio)
 #     return (existing, non_existing)
 def detect_existing_files(
-    files: List[LepFile],
+    files: LepFileList,
     save_dir: Path,
 ) -> None:
     """Separate lists for existing and non-existing files."""
-    Downloader.existed = []
-    Downloader.non_existed = []
+    Downloader.existed = LepFileList()
+    Downloader.non_existed = LepFileList()
     only_files_by_ext: List[str] = []
     possible_extensions = {".mp3", ".pdf", ".mp4"}
     only_files_by_ext = [
@@ -303,13 +320,13 @@ def download_and_write_file(
 class Downloader(Lep):
     """Represent downloader object."""
 
-    downloaded: ClassVar[List[LepFile]] = []
-    not_found: ClassVar[List[LepFile]] = []
+    downloaded: ClassVar[LepFileList] = LepFileList()
+    not_found: ClassVar[LepFileList] = LepFileList()
     # existed: ClassVar[Dict[str, str]] = {}
 
-    files: ClassVar[List[LepFile]] = []
-    existed: ClassVar[List[LepFile]] = []
-    non_existed: ClassVar[List[LepFile]] = []
+    files: ClassVar[LepFileList] = LepFileList()
+    existed: ClassVar[LepFileList] = LepFileList()
+    non_existed: ClassVar[LepFileList] = LepFileList()
 
     # def __init__(self, url: str = "", session: requests.Session = None) -> None:
     #     """Initialize Downloader instance.
@@ -332,30 +349,12 @@ def use_or_get_db_episodes(json_url: str) -> None:
         Lep.db_episodes = Lep.get_db_episodes(json_url)
 
 
-def construct_audio_links_bunch() -> None:
-    """Constract audio links with filenames for them."""
-    # if not Lep.db_episodes:
-    #     Lep.db_episodes = Lep.get_db_episodes(json_url)
-    # take_or_get_db_episodes(json_url)
-
-    # audio_links: NamesWithAudios = []
-    if Lep.db_episodes:
-        audio_episodes = Lep.db_episodes.filter_by_type("AUDIO")
-        # only_audio_data = get_audios_data(audio_episodes)
-        # audio_links = bind_name_and_file_url(only_audio_data)
-        gather_all_files(audio_episodes)
-    else:
-        raise NoEpisodesInDataBase(
-            "JSON is available, but\nthere are NO episodes in this file. Exit."
-        )
-
-
 def populate_default_url() -> None:
     """Fill in download url (if it is empty) with default value.
 
     Operate with 'files' shared list.
     """
-    populated_files = []
+    populated_files = LepFileList()
     for file in Downloader.files:
         if not file.secondary_url:
             file.secondary_url = conf.DOWNLOADS_BASE_URL + urllib.parse.quote(
@@ -366,7 +365,7 @@ def populate_default_url() -> None:
 
 
 def download_files(
-    downloads_bunch: List[LepFile],
+    downloads_bunch: LepFileList,
     save_dir: Path,
     # file_ext: str = ".mp3",
 ) -> None:
