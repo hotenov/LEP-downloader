@@ -338,23 +338,18 @@ def only_audio_episodes(only_valid_episodes: Any) -> List[Any]:
 
 
 @pytest.fixture(scope="session")
-def only_audio_data(only_audio_episodes: List[Any]) -> List[Any]:
+def only_audio_data(only_valid_episodes: Any) -> Any:
     """Returns only extracted audio data from audio episodes."""
     from lep_downloader import downloader
     from lep_downloader.downloader import Downloader
     from lep_downloader.downloader import Audio
-    from lep_downloader.downloader import LepFile
+    from lep_downloader.downloader import LepFileList
 
-    Downloader.files = []
+    Downloader.files = LepFileList()
     # audio_data = downloader.get_audios_data(only_audio_episodes)
-    downloader.gather_all_files(only_audio_episodes)
-    only_audio: List[LepFile] = [
-        file for file in Downloader.files if isinstance(file, Audio)
-    ]
-    # Downloader.files = only_audio
-    # audio_files = Downloader.files
-    # return audio_files
-    return only_audio
+    downloader.gather_all_files(only_valid_episodes)
+    audio_files = Downloader.files.filter_by_type(Audio)
+    return audio_files
 
 
 @pytest.fixture(scope="session")

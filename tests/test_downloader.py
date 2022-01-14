@@ -33,6 +33,7 @@ from lep_downloader import downloader
 from lep_downloader.downloader import Audio
 from lep_downloader.downloader import Downloader
 from lep_downloader.downloader import LepFile
+from lep_downloader.downloader import LepFileList
 from lep_downloader.downloader import PagePDF
 from lep_downloader.exceptions import EmptyDownloadsBunch
 from lep_downloader.exceptions import NoEpisodesInDataBase
@@ -49,10 +50,10 @@ def test_selecting_only_audio_episodes(
 
 
 def test_extracting_audio_data(
-    only_audio_episodes: List[LepEpisode],
+    only_audio_episodes: LepEpisodeList,
 ) -> None:
-    """It returns list of tuples with audio data."""
-    Downloader.files = []
+    """It returns list of Audio files."""
+    Downloader.files = LepFileList()
     expected_audio = Audio(
         ep_id=2009101908,  # many posts in that day
         name="15. Extra Podcast – 12 Phrasal Verbs",
@@ -72,11 +73,9 @@ def test_extracting_audio_data(
     # )
     # audio_data = downloader.get_audios_data(only_audio_episodes)
     downloader.gather_all_files(only_audio_episodes)
-    only_audio: List[LepFile] = [
-        file for file in Downloader.files if isinstance(file, Audio)
-    ]
-    Downloader.files = only_audio
-    assert Downloader.files[1] == expected_audio
+    audio_files = Downloader.files.filter_by_type(Audio)
+    # Downloader.files = only_audio
+    assert audio_files[1] == expected_audio
 
 
 def test_forming_multipart_download_links(
@@ -128,21 +127,22 @@ def test_separating_existing_and_non_existing_mp3(
     #     tmp_path,
     # )
     Lep.db_episodes = LepEpisodeList()
-    Downloader.files = []
+    Downloader.files = LepFileList()
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
     downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
-    downloader.construct_audio_links_bunch()
-    downloader.detect_existing_files(Downloader.files, tmp_path)
+    downloader.gather_all_files(Lep.db_episodes)
+    audio_files = Downloader.files.filter_by_type(Audio)
+    downloader.detect_existing_files(audio_files, tmp_path)
     assert len(Downloader.existed) == 2
-    assert len(Downloader.non_existed) == 30  # +14 Page PDF
+    assert len(Downloader.non_existed) == 16
 
 
 def test_retrieving_audios_as_none() -> None:
     """It sets None to empty list and skip it."""
-    Downloader.files = []
+    Downloader.files = LepFileList()
     json_test = """\
         [
             {
@@ -179,7 +179,7 @@ def test_downloading_mocked_mp3_files(
 ) -> None:
     """It downloads file on disc."""
     # test_downloads: List[Tuple[str, List[str]]] = []
-    test_downloads: List[LepFile] = []
+    test_downloads: LepFileList = LepFileList()
     # file_1 = (
     #     "Test File #1",
     #     [
@@ -212,7 +212,7 @@ def test_downloading_mocked_mp3_files(
         content=mp3_file2_mock,
     )
 
-    Downloader.downloaded = []
+    Downloader.downloaded = LepFileList()
     downloader.download_files(test_downloads, tmp_path)
     expected_file_1 = tmp_path / "Test File #1.mp3"
     expected_file_2 = tmp_path / "Test File #2.mp3"
@@ -270,10 +270,10 @@ def test_skipping_downloaded_file_on_disc(
     tmp_path: Path,
 ) -> None:
     """It skips (and does not override) URL if file was downloaded before."""
-    Downloader.downloaded = []  # Clear from previous tests
-    Downloader.existed = []
+    Downloader.downloaded = LepFileList()  # Clear from previous tests
+    Downloader.existed = LepFileList()
     # test_downloads: List[Tuple[str, List[str]]] = []
-    test_downloads: List[LepFile] = []
+    test_downloads: LepFileList = LepFileList()
     # file_1 = (
     #     "Test File #1",
     #     [
@@ -324,9 +324,9 @@ def test_try_auxiliary_download_links(
     tmp_path: Path,
 ) -> None:
     """It downloads file by auxiliary link."""
-    Downloader.downloaded = []  # Clear from previous tests
+    Downloader.downloaded = LepFileList()  # Clear from previous tests
     # test_downloads: List[Tuple[str, List[str]]] = []
-    test_downloads: List[LepFile] = []
+    test_downloads: LepFileList = LepFileList()
     # file_1 = (
     #     "Test File #1",
     #     [
@@ -372,10 +372,10 @@ def test_primary_link_unavailable(
     capsys: CaptureFixture[str],
 ) -> None:
     """It records unavailable file and prints about that."""
-    Downloader.downloaded = []  # Clear from previous tests
-    Downloader.not_found = []
+    Downloader.downloaded = LepFileList()  # Clear from previous tests
+    Downloader.not_found = LepFileList()
     # test_downloads: List[Tuple[str, List[str]]] = []
-    test_downloads: List[LepFile] = []
+    test_downloads: LepFileList = LepFileList()
     # file_1 = (
     #     "Test File #1",
     #     [
@@ -412,10 +412,10 @@ def test_both_primary_and_auxiliary_links_404(
     capsys: CaptureFixture[str],
 ) -> None:
     """It records unavailable files and prints about that."""
-    Downloader.downloaded = []  # Clear from previous tests
-    Downloader.not_found = []
+    Downloader.downloaded = LepFileList()  # Clear from previous tests
+    Downloader.not_found = LepFileList()
     # test_downloads: List[Tuple[str, List[str]]] = []
-    test_downloads: List[LepFile] = []
+    test_downloads: LepFileList = LepFileList()
     # file_1 = (
     #     "Test File #1",
     #     [
@@ -459,24 +459,22 @@ def test_gathering_audio_files(
 ) -> None:
     """It gets all audio files from mocked episodes."""
     Lep.db_episodes = LepEpisodeList()
-    Downloader.files = []
+    Downloader.files = LepFileList()
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
     downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
-    downloader.construct_audio_links_bunch()
-    only_audio: List[LepFile] = [
-        file for file in Downloader.files if isinstance(file, Audio)
-    ]
-
+    # downloader.construct_audio_links_bunch()
+    downloader.gather_all_files(Lep.db_episodes)
+    audio_files = Downloader.files.filter_by_type(Audio)
     # got_files = Downloader.files
-    assert len(only_audio) == 18
+    assert len(audio_files) == 18
 
 
 def test_collecting_auxiliary_audio_links() -> None:
     """It collects secondary and tertiary links as well."""
-    Downloader.files = []
+    Downloader.files = LepFileList()
     json_test = """\
         [
             {
@@ -513,7 +511,7 @@ def test_collecting_auxiliary_audio_links() -> None:
 def test_using_db_episodes_after_parsing() -> None:
     """It uses database episodes retrieved during parsing stage."""
     Lep.db_episodes = LepEpisodeList()
-    Downloader.files = []
+    Downloader.files = LepFileList()
     ep_1 = LepEpisode()
     ep_1.index = 2022011101
     ep_1.episode = 888
@@ -532,8 +530,9 @@ def test_using_db_episodes_after_parsing() -> None:
     }
     Lep.db_episodes.append(ep_1)
     downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
-    downloader.construct_audio_links_bunch()
-    assert len(Downloader.files) == 2
+    downloader.gather_all_files(Lep.db_episodes)
+    # audio_files = Downloader.files.filter_by_type(Audio)
+    assert len(Downloader.files) == 2  # + 1 PDF file
     assert Downloader.files[0].primary_url == "https://someurl1.local"
     assert Downloader.files[0].filename == "[2022-01-11] # 888. Some title..mp3"
 
@@ -541,7 +540,7 @@ def test_using_db_episodes_after_parsing() -> None:
 def test_no_valid_episodes_in_database(requests_mock: rm_Mocker) -> None:
     """It raises exception if there are no valid episodes in JSON file."""
     Lep.db_episodes = LepEpisodeList()
-    Downloader.files = []
+    Downloader.files = LepFileList()
     json_test = """\
         [
             {
@@ -557,9 +556,8 @@ def test_no_valid_episodes_in_database(requests_mock: rm_Mocker) -> None:
     )
     downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
     with pytest.raises(NoEpisodesInDataBase) as ex:
-        downloader.construct_audio_links_bunch()
-    assert "JSON is available, but" in ex.value.args[0]
-    assert "\nthere are NO episodes in this file. Exit." in ex.value.args[0]
+        downloader.gather_all_files(Lep.db_episodes)
+    assert "No episodes for gathering files. Exit." in ex.value.args[0]
 
 
 def test_processing_empty_downloads_bunch(
@@ -568,7 +566,7 @@ def test_processing_empty_downloads_bunch(
 ) -> None:
     """It raises EmptyDownloadsBunch when nothing to download."""
     Lep.db_episodes = LepEpisodeList()
-    Downloader.files = []
+    Downloader.files = LepFileList()
     with pytest.raises(EmptyDownloadsBunch) as ex:
         downloader.download_files(
             Downloader.files,
@@ -579,7 +577,7 @@ def test_processing_empty_downloads_bunch(
 
 def test_populating_secondary_url() -> None:
     """It populates secondary links for empty values."""
-    Downloader.files = []
+    Downloader.files = LepFileList()
     json_test = """\
         [
             {
@@ -641,7 +639,7 @@ def test_populating_secondary_url() -> None:
 
 def test_gathering_page_pdf_urls() -> None:
     """It gatheres pdf links if they are provided in JSON."""
-    Downloader.files = []
+    Downloader.files = LepFileList()
     json_test = """\
         [
             {
