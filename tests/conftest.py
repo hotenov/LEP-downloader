@@ -44,9 +44,6 @@ from requests_mock.request import _RequestObjectProxy
 from requests_mock.response import _Context as rm_Context
 
 
-DataForEpisodeAudio = List[Tuple[str, str, List[List[str]], bool]]
-NamesWithAudios = List[Tuple[str, List[str]]]
-
 # yapf: disable
 URL_HTML_MAPPING = {
     "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/":
@@ -255,7 +252,6 @@ def parsed_episodes_mock(
 
     Archive.episodes = LepEpisodeList()
 
-    # parsed_episodes: LepEpisodeList
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=single_page_matcher,
@@ -321,7 +317,6 @@ def only_valid_episodes(json_db_mock: str) -> List[Any]:
     from lep_downloader.lep import Lep
     from lep_downloader.lep import LepEpisodeList
 
-    # mocked_db_episodes = Lep.extract_only_valid_episodes(json_db_mock)
     mocked_db_episodes: LepEpisodeList = Lep.extract_only_valid_episodes(json_db_mock)
     return mocked_db_episodes
 
@@ -329,10 +324,8 @@ def only_valid_episodes(json_db_mock: str) -> List[Any]:
 @pytest.fixture(scope="session")
 def only_audio_episodes(only_valid_episodes: Any) -> List[Any]:
     """Returns only audio episodes from all."""
-    # from lep_downloader import downloader
     from lep_downloader.lep import LepEpisodeList
 
-    # audio_episodes = downloader.select_all_audio_episodes(only_valid_episodes)
     audio_episodes: LepEpisodeList = only_valid_episodes.filter_by_type("AUDIO")
     return audio_episodes
 
@@ -346,7 +339,6 @@ def only_audio_data(only_valid_episodes: Any) -> Any:
     from lep_downloader.downloader import LepFileList
 
     Downloader.files = LepFileList()
-    # audio_data = downloader.get_audios_data(only_audio_episodes)
     downloader.gather_all_files(only_valid_episodes)
     audio_files = Downloader.files.filter_by_type(Audio)
     return audio_files
@@ -355,9 +347,6 @@ def only_audio_data(only_valid_episodes: Any) -> Any:
 @pytest.fixture(scope="session")
 def only_audio_links(only_audio_data: List[Any]) -> List[Tuple[str, str]]:
     """Returns only links and names for audio files."""
-    # from lep_downloader import downloader
-
-    # audio_links = downloader.bind_name_and_file_url(only_audio_data)
     audio_links = [(af.filename, af.primary_url) for af in only_audio_data]
     return audio_links
 

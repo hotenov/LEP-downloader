@@ -39,29 +39,9 @@ from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
 
 
-DataForEpisodeAudio = List[Tuple[str, str, List[List[str]], bool]]
-NamesWithAudios = List[Tuple[str, List[str]]]
-
-
 # COMPILED REGEX PATTERNS #
 
 INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
-
-
-# STATISTICS (LOG) DICTIONARIES #
-
-# successful_downloaded: Dict[str, str] = {}
-# unavailable_links: Dict[str, str] = {}
-# already_on_disc: Dict[str, str] = {}
-# duplicated_links: Dict[str, str] = {}
-
-
-# def select_all_audio_episodes(
-#     db_episodes: List[LepEpisode],
-# ) -> List[LepEpisode]:
-#     """Return filtered list with AUDIO episodes."""
-#     audio_episodes = [ep for ep in db_episodes if ep.post_type == "AUDIO"]
-#     return audio_episodes
 
 
 @dataclass
@@ -192,21 +172,6 @@ def add_page_pdf_file(
         Downloader.files.append(pdf_file)
 
 
-# def get_audios_data(audio_episodes: List[LepEpisode]) -> DataForEpisodeAudio:
-#     """Return list with audios data for next downloading."""
-#     audios_data: DataForEpisodeAudio = []
-#     is_multi_part: bool = False
-#     for ep in reversed(audio_episodes):
-#         short_date = ep._short_date
-#         title = ep.post_title
-#         audios = ep.files["audios"]
-#         if audios is not None:
-#             is_multi_part = False if len(audios) < 2 else True
-#         else:
-#             audios = []
-#         data_item = (short_date, title, audios, is_multi_part)
-#         audios_data.append(data_item)
-#     return audios_data
 def gather_all_files(lep_episodes: LepEpisodeList) -> None:
     """Skim passed episode list and collect all files.
 
@@ -228,44 +193,6 @@ def gather_all_files(lep_episodes: LepEpisodeList) -> None:
         raise NoEpisodesInDataBase("No episodes for gathering files. Exit.")
 
 
-# def bind_name_and_file_url(audios_data: DataForEpisodeAudio) -> NamesWithAudios:
-#     """Return list of tuples (filename, list(file_urls))."""
-#     single_part_name: str = ""
-#     audios_links: NamesWithAudios = []
-#     for item in audios_data:
-#         short_date, title = item[0], item[1]
-#         audios, is_multi_part = item[2], item[3]
-#         single_part_name = f"[{short_date}] # {title}"
-#         safe_part_name = INVALID_PATH_CHARS_PATTERN.sub("_", single_part_name)
-#         if is_multi_part:
-#             for i, audio_part in enumerate(audios, start=1):
-#                 part_name = safe_part_name + f" [Part {str(i).zfill(2)}]"
-#                 part_item = (part_name, audio_part)
-#                 audios_links.append(part_item)
-#         else:
-#             binding = (safe_part_name, item[2][0])
-#             audios_links.append(binding)
-#     return audios_links
-
-
-# def detect_existing_files(
-#     audios_links: List[Tuple[str, str]],
-#     save_dir: Path,
-#     file_ext: str = ".mp3",
-# ) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]]]:
-#     """Return lists for existing and non-existing files."""
-#     existing: List[Tuple[str, str]] = []
-#     non_existing: List[Tuple[str, str]] = []
-#     only_files_by_ext: List[str] = []
-#     only_files_by_ext = [
-#         p.stem + file_ext for p in save_dir.glob("*") if p.suffix.lower() == file_ext
-#     ]
-#     for audio in audios_links:
-#         if audio[0] in only_files_by_ext:
-#             existing.append(audio)
-#         else:
-#             non_existing.append(audio)
-#     return (existing, non_existing)
 def detect_existing_files(
     files: LepFileList,
     save_dir: Path,
@@ -322,7 +249,6 @@ class Downloader(Lep):
 
     downloaded: ClassVar[LepFileList] = LepFileList()
     not_found: ClassVar[LepFileList] = LepFileList()
-    # existed: ClassVar[Dict[str, str]] = {}
 
     files: ClassVar[LepFileList] = LepFileList()
     existed: ClassVar[LepFileList] = LepFileList()
@@ -367,25 +293,17 @@ def populate_default_url() -> None:
 def download_files(
     downloads_bunch: LepFileList,
     save_dir: Path,
-    # file_ext: str = ".mp3",
 ) -> None:
     """Download files from passed links bunch."""
     if not downloads_bunch:
         raise EmptyDownloadsBunch()
     for file_obj in downloads_bunch:
-        # file_stem: str = item[0]
-        # links: List[str] = item[1]
-        # filename = file_stem + file_ext
         filename = file_obj.filename
-
-        # primary_link = links[0]
         primary_link = file_obj.primary_url
+
         if Path(save_dir / filename).exists():
             Downloader.existed.append(file_obj)
             continue  # Skip already downloaded file on disc.
-        # if primary_link in successful_downloaded:
-        #     duplicated_links[primary_link] = filename
-        #     continue  # Skip already processed URL.
 
         result_ok = download_and_write_file(
             primary_link,

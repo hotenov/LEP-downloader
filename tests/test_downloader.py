@@ -46,7 +46,7 @@ def test_selecting_only_audio_episodes(
     only_audio_episodes: List[LepEpisode],
 ) -> None:
     """It returns filtered list with only audio episodes."""
-    assert len(only_audio_episodes) == 14  # Withoud duplicates
+    assert len(only_audio_episodes) == 14  # Without duplicates
 
 
 def test_extracting_audio_data(
@@ -61,20 +61,8 @@ def test_extracting_audio_data(
         filename="[2009-10-19] # 15. Extra Podcast – 12 Phrasal Verbs",
         primary_url="http://traffic.libsyn.com/teacherluke/15-extra-podcast-12-phrasal-verbs.mp3",  # noqa: E501,B950
     )
-    # expected_ep = (
-    #     "2009-10-19",
-    #     "15. Extra Podcast – 12 Phrasal Verbs",  # noqa: E501,B950  # dash as Unicode character here.
-    #     [
-    #         [
-    #             "http://traffic.libsyn.com/teacherluke/15-extra-podcast-12-phrasal-verbs.mp3"  # noqa: E501,B950
-    #         ]
-    #     ],
-    #     False,
-    # )
-    # audio_data = downloader.get_audios_data(only_audio_episodes)
     downloader.gather_all_files(only_audio_episodes)
     audio_files = Downloader.files.filter_by_type(Audio)
-    # Downloader.files = only_audio
     assert audio_files[1] == expected_audio
 
 
@@ -122,10 +110,6 @@ def test_separating_existing_and_non_existing_mp3(
     Path(tmp_path / filename_1).write_text("Here are mp3 1 bytes")
     Path(tmp_path / filename_2).write_text("Here are mp3 2 bytes")
 
-    # existing, non_existing = downloader.detect_existing_files(
-    #     only_audio_links,
-    #     tmp_path,
-    # )
     Lep.db_episodes = LepEpisodeList()
     Downloader.files = LepFileList()
     requests_mock.get(
@@ -163,7 +147,6 @@ def test_retrieving_audios_as_none() -> None:
     """  # noqa: E501,B950
     db_episodes = Lep.extract_only_valid_episodes(json_test)
     db_episodes[0].files["audios"] = None
-    # audio_data = downloader.get_audios_data(db_episodes)
     # Check that 'empty' files (lists) are ignored.
     downloader.gather_all_files(db_episodes)
     # assert audio_data[0][2] == []
@@ -178,20 +161,7 @@ def test_downloading_mocked_mp3_files(
     tmp_path: Path,
 ) -> None:
     """It downloads file on disc."""
-    # test_downloads: List[Tuple[str, List[str]]] = []
     test_downloads: LepFileList = LepFileList()
-    # file_1 = (
-    #     "Test File #1",
-    #     [
-    #         "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"  # noqa: E501,B950
-    #     ],
-    # )
-    # file_2 = (
-    #     "Test File #2",
-    #     [
-    #         "https://audioboom.com/posts/5678762-episode-169-luke-back-on-zep-part-4.mp3"  # noqa: E501,B950
-    #     ],
-    # )
     file_1 = LepFile(
         filename="Test File #1.mp3",
         primary_url="https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
@@ -220,47 +190,7 @@ def test_downloading_mocked_mp3_files(
     assert 21460 < expected_file_1.stat().st_size < 22000
     assert expected_file_2.exists()
     assert 18300 < expected_file_2.stat().st_size < 18350
-    # assert len(downloader.successful_downloaded) == 2
     assert len(Downloader.downloaded) == 2
-
-
-# def test_skipping_downloaded_url(
-#     requests_mock: rm_Mocker,
-#     mp3_file1_mock: bytes,
-#     mp3_file2_mock: bytes,
-#     tmp_path: Path,
-# ) -> None:
-#     """It skips URL if it was downloaded before."""
-#     test_downloads: List[Tuple[str, List[str]]] = []
-#     file_1 = (
-#         "Test File #1",
-#         [
-#             "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"  # noqa: E501,B950
-#         ],
-#     )
-#     file_2 = (
-#         "Test File #2",
-#         [
-#             "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"  # noqa: E501,B950
-#         ],
-#     )
-#     test_downloads.append(file_1)
-#     test_downloads.append(file_2)
-
-#     requests_mock.get(
-#         "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",  # noqa: E501,B950
-#         content=mp3_file1_mock,
-#     )
-#     requests_mock.get(
-#         "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",  # noqa: E501,B950
-#         content=mp3_file2_mock,
-#     )
-
-#     downloader.download_files(test_downloads, tmp_path)
-#     expected_file_1 = tmp_path / "Test File #1.mp3"
-#     assert expected_file_1.exists()
-#     assert len(list(tmp_path.iterdir())) == 1
-#     assert len(downloader.duplicated_links) == 1
 
 
 def test_skipping_downloaded_file_on_disc(
@@ -272,20 +202,7 @@ def test_skipping_downloaded_file_on_disc(
     """It skips (and does not override) URL if file was downloaded before."""
     Downloader.downloaded = LepFileList()  # Clear from previous tests
     Downloader.existed = LepFileList()
-    # test_downloads: List[Tuple[str, List[str]]] = []
     test_downloads: LepFileList = LepFileList()
-    # file_1 = (
-    #     "Test File #1",
-    #     [
-    #         "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3"  # noqa: E501,B950
-    #     ],
-    # )
-    # file_2 = (
-    #     "Test File #2",
-    #     [
-    #         "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3"  # noqa: E501,B950
-    #     ],
-    # )
     file_1 = LepFile(
         filename="Test File #1.mp3",
         primary_url="http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",  # noqa: E501,B950
@@ -314,7 +231,6 @@ def test_skipping_downloaded_file_on_disc(
     assert existing_file_1.read_text() == "Here are mp3 1 bytes"
     assert expected_file_2.exists()
     assert len(list(tmp_path.iterdir())) == 2
-    # assert len(downloader.already_on_disc) == 1
     assert len(Downloader.existed) == 1
 
 
@@ -325,16 +241,7 @@ def test_try_auxiliary_download_links(
 ) -> None:
     """It downloads file by auxiliary link."""
     Downloader.downloaded = LepFileList()  # Clear from previous tests
-    # test_downloads: List[Tuple[str, List[str]]] = []
     test_downloads: LepFileList = LepFileList()
-    # file_1 = (
-    #     "Test File #1",
-    #     [
-    #         "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
-    #         "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
-    #         "https://hotenov.com/d/lep/some_auxiliary_2.mp3",
-    #     ],
-    # )
     file_1 = LepFile(
         filename="Test File #1.mp3",
         primary_url="https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
@@ -362,7 +269,6 @@ def test_try_auxiliary_download_links(
     expected_file_1 = tmp_path / "Test File #1.mp3"
     assert expected_file_1.exists()
     assert len(list(tmp_path.iterdir())) == 1
-    # assert len(downloader.successful_downloaded) == 1
     assert len(Downloader.downloaded) == 1
 
 
@@ -374,14 +280,7 @@ def test_primary_link_unavailable(
     """It records unavailable file and prints about that."""
     Downloader.downloaded = LepFileList()  # Clear from previous tests
     Downloader.not_found = LepFileList()
-    # test_downloads: List[Tuple[str, List[str]]] = []
     test_downloads: LepFileList = LepFileList()
-    # file_1 = (
-    #     "Test File #1",
-    #     [
-    #         "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
-    #     ],
-    # )
     file_1 = LepFile(
         filename="Test File #1.mp3",
         primary_url="https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
@@ -396,8 +295,6 @@ def test_primary_link_unavailable(
     downloader.download_files(test_downloads, tmp_path)
     captured = capsys.readouterr()
     assert len(list(tmp_path.iterdir())) == 0
-    # assert len(downloader.successful_downloaded) == 0
-    # assert len(downloader.unavailable_links) == 1
     assert len(Downloader.downloaded) == 0
     assert len(Downloader.not_found) == 1
     assert "[ERROR]: Unknown error:" in captured.out
@@ -414,15 +311,7 @@ def test_both_primary_and_auxiliary_links_404(
     """It records unavailable files and prints about that."""
     Downloader.downloaded = LepFileList()  # Clear from previous tests
     Downloader.not_found = LepFileList()
-    # test_downloads: List[Tuple[str, List[str]]] = []
     test_downloads: LepFileList = LepFileList()
-    # file_1 = (
-    #     "Test File #1",
-    #     [
-    #         "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
-    #         "https://hotenov.com/d/lep/some_auxiliary_1.mp3",
-    #     ],
-    # )
     file_1 = LepFile(
         filename="Test File #1.mp3",
         primary_url="https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
@@ -445,8 +334,6 @@ def test_both_primary_and_auxiliary_links_404(
     downloader.download_files(test_downloads, tmp_path)
     captured = capsys.readouterr()
     assert len(list(tmp_path.iterdir())) == 0
-    # assert len(downloader.successful_downloaded) == 0
-    # assert len(downloader.unavailable_links) == 1
     assert len(Downloader.downloaded) == 0
     assert len(Downloader.not_found) == 1
     assert "[INFO]: Can't download:" in captured.out
@@ -465,10 +352,8 @@ def test_gathering_audio_files(
         text=json_db_mock,
     )
     downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
-    # downloader.construct_audio_links_bunch()
     downloader.gather_all_files(Lep.db_episodes)
     audio_files = Downloader.files.filter_by_type(Audio)
-    # got_files = Downloader.files
     assert len(audio_files) == 18
 
 
@@ -531,7 +416,6 @@ def test_using_db_episodes_after_parsing() -> None:
     Lep.db_episodes.append(ep_1)
     downloader.use_or_get_db_episodes(conf.JSON_DB_URL)
     downloader.gather_all_files(Lep.db_episodes)
-    # audio_files = Downloader.files.filter_by_type(Audio)
     assert len(Downloader.files) == 2  # + 1 PDF file
     assert Downloader.files[0].primary_url == "https://someurl1.local"
     assert Downloader.files[0].filename == "[2022-01-11] # 888. Some title..mp3"
