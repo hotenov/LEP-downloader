@@ -27,6 +27,7 @@ from typing import List
 from click.testing import CliRunner
 from click.testing import Result
 from requests_mock.mocker import Mocker as rm_Mocker
+from pytest_mock import MockFixture
 
 from lep_downloader import cli
 from lep_downloader import config as conf
@@ -694,3 +695,59 @@ def test_no_files_for_downloading(
     assert len(Downloader.downloaded) == 0
     assert len(Downloader.not_found) == 0
     assert "Nothing to download for now." in result.output
+
+
+def test_no_permission_for_folder_destination(
+    mocker: MockFixture,
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It validates destination folder before downloading files.
+
+    And exists with error (2) if folder has no 'write' permission.
+    """
+    mock = mocker.patch("pathlib.Path.write_text")
+    mock.side_effect = PermissionError
+
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+
+    result = run_cli_with_args(["download", "--last", "-q", "-d", f"{tmp_path}"])
+
+    assert (
+        "Invalid value for '--dest' / '-d': folder has no 'write' permission."
+        in result.output
+    )
+    assert result.exit_code == 2
+
+
+def test_os_error_for_folder_destination(
+    mocker: MockFixture,
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It validates destination folder before downloading files.
+
+    And exists with error (2) if OSError exception is raised.
+    """
+    mock = mocker.patch("pathlib.Path.write_text")
+    mock.side_effect = OSError(666, "Some message about exception.")
+
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+
+    result = run_cli_with_args(["download", "--last", "-q", "-d", f"{tmp_path}"])
+
+    assert (
+        "Invalid value for '--dest' / '-d': Some message about exception."
+        in result.output
+    )
+    assert result.exit_code == 2
