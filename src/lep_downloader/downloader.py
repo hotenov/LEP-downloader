@@ -232,8 +232,9 @@ def download_and_write_file(
                     is_writing_started = True
             print(f" + {filename}")
             return True
-    except OSError as err:
-        print(f"[ERROR]: Can't write file: {err}")
+    except OSError:
+        # TODO (hotenov): Add log or debug print only
+        # print(f"[ERROR]: Can't write file: {err}")
         if is_writing_started:
             file_path.unlink()  # Delete incomplete file # pragma: no cover
             # It's hard to mock / monkeypatch this case
@@ -327,8 +328,8 @@ def download_files(
                 aux_result_ok = download_and_write_file(
                     tertiary_url, Lep().session, save_dir, filename
                 )
+            if aux_result_ok:
+                Downloader.downloaded.append(file_obj)
             else:
                 Downloader.not_found.append(file_obj)
                 print(f"[INFO]: Can't download: {filename}")
-            if aux_result_ok:
-                Downloader.downloaded.append(file_obj)
