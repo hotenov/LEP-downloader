@@ -180,6 +180,29 @@ class LepEpisodeList(List[Any]):
         filtered = LepEpisodeList(ep for ep in self if ep.post_type == type)
         return filtered
 
+    def filter_by_number(self, start: int, end: int) -> Any:
+        """Return new filtered list by episode number."""
+        filtered = LepEpisodeList(
+            ep for ep in self if ep.episode >= start and ep.episode <= end
+        )
+        return filtered
+
+    default_start_date = datetime(1999, 1, 1, 0, 1, tzinfo=timezone.utc)
+    default_end_date = datetime(2999, 12, 31, 23, 55, tzinfo=timezone.utc)
+
+    def filter_by_date(
+        self,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+    ) -> Any:
+        """Return new filtered list by episode (post) date."""
+        start = start if start else self.default_start_date
+        end = end if end else self.default_end_date
+        filtered = LepEpisodeList(
+            ep for ep in self if ep.date >= start and ep.date <= end
+        )
+        return filtered
+
 
 class LepJsonEncoder(json.JSONEncoder):
     """Custom JSONEncoder for LepEpisode objects."""
