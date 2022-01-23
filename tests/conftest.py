@@ -334,8 +334,8 @@ def only_audio_episodes(only_valid_episodes: Any) -> List[Any]:
 def only_audio_data(only_valid_episodes: Any) -> Any:
     """Returns only extracted audio data from audio episodes."""
     from lep_downloader import downloader
-    from lep_downloader.downloader import Downloader
     from lep_downloader.downloader import Audio
+    from lep_downloader.downloader import Downloader
     from lep_downloader.downloader import LepFileList
 
     Downloader.files = LepFileList()
@@ -371,3 +371,19 @@ def run_cli_with_args(runner: CliRunner) -> Callable[[List[str]], Result]:
         return result
 
     return _my_pkg_result
+
+
+@pytest.fixture(autouse=True)
+def clear_shared_lists() -> None:
+    """Fixture for clearing all shared lists before running test."""
+    from lep_downloader.downloader import Downloader
+    from lep_downloader.downloader import LepFileList
+    from lep_downloader.lep import Lep
+    from lep_downloader.lep import LepEpisodeList
+
+    Lep.db_episodes = LepEpisodeList()
+    Downloader.files = LepFileList()
+    Downloader.existed = LepFileList()
+    Downloader.non_existed = LepFileList()
+    Downloader.downloaded = LepFileList()
+    Downloader.not_found = LepFileList()
