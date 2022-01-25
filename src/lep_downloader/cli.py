@@ -1,45 +1,35 @@
 """CLI main click group."""
-import importlib
+# MIT License
+#
+# Copyright (c) 2022 Artem Hotenov
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+from datetime import datetime
 from pathlib import Path
-from typing import Any
-from typing import List
 
 import click
+from click import Context
 
 from lep_downloader import __version__
-
-
-plugin_folder = Path(
-    Path(__file__).resolve().parent,
-    "commands",
-)
-package_name = __package__
-
-
-class MyCLI(click.MultiCommand):
-    """Custom click multi command.
-
-    To support  commands being loaded "lazily" from plugin folder.
-    """
-
-    def list_commands(self, ctx: click.Context) -> List[str]:
-        """Returns list of commands in plugin_folder."""
-        command_names = []
-        for filepath in list(plugin_folder.iterdir()):
-            if filepath.suffix == ".py" and filepath.name != "__init__.py":
-                command_names.append(filepath.name[:-3])
-        command_names.sort()
-        return command_names
-
-    def get_command(self, ctx: click.Context, name: str) -> Any:
-        """Evaluates code of command module."""
-        try:
-            cmd_module = importlib.import_module(
-                f"{package_name}.{plugin_folder.stem}.{name}"
-            )
-        except ModuleNotFoundError:
-            return
-        return cmd_module.cli  # type: ignore
+from lep_downloader.cli_shared import common_options
+from lep_downloader.cli_shared import MyCLI
+from lep_downloader.commands.download import cli as download_cli
 
 
 @click.command(
@@ -47,9 +37,24 @@ class MyCLI(click.MultiCommand):
     invoke_without_command=True,
 )
 @click.version_option(version=__version__)
-def cli() -> None:
+@common_options
+@click.pass_context
+def cli(
+    ctx: Context,
+    episode: str,
+    pdf_yes: bool,
+    last_yes: bool,
+    start_date: datetime,
+    end_date: datetime,
+    dest: Path,
+    db_url: str,
+    quiet: bool,
+) -> None:
     """LEP-downloader - console application.
 
     Get free episodes of Luke's English Podcast archive page.
     """
     click.echo(f"cli() in '{Path(__file__).name}' was executed...")
+
+    if ctx.invoked_subcommand is None:
+        ctx.forward(download_cli)

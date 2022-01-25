@@ -1,17 +1,32 @@
 """Download command."""
+# MIT License
+#
+# Copyright (c) 2022 Artem Hotenov
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from datetime import timezone
 from pathlib import Path
-from typing import Any
 
 import click
-from click import Context
-from click import Parameter
 
-from lep_downloader import config as conf
 from lep_downloader import downloader
+from lep_downloader.cli_shared import common_options
 from lep_downloader.downloader import Audio
 from lep_downloader.downloader import LepFileList
 from lep_downloader.downloader import PagePDF
@@ -20,142 +35,8 @@ from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisodeList
 
 
-LepInt: click.IntRange = click.IntRange(0, 9999, clamp=True)
-
-
-def validate_episode_number(
-    ctx: Context,
-    param: Parameter,
-    value: Any,
-) -> Any:
-    """Validate value of 'episode' option."""
-    # try:
-    start, sep, end = value.partition("-")
-    if start and not end and not sep:
-        return LepInt(start), LepInt(start)
-    elif start and not end:
-        return LepInt(start), LepInt(9999)
-    elif not start and end:
-        return LepInt(0), LepInt(end)
-    # elif not start and not end:
-    #     raise click.BadParameter("format must be 'N-N'")
-    return LepInt(start), LepInt(end)
-    # except ValueError:
-    #     raise click.BadParameter("format must be 'N-N'")
-
-
-def validate_date(
-    ctx: Context,
-    param: Parameter,
-    value: Any,
-) -> Any:
-    """Validate value of '-S' and '-E' (start / end date) options."""
-    if not value:
-        return None
-
-    filter_time = time(0, 1)  # Begining of a day
-    if param.name == "end_date":
-        filter_time = time(23, 55)  # End of a day
-    try:
-        parsed_date = datetime.strptime(value, "%Y-%m-%d")
-        # date_utc = datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
-        date_utc = datetime.combine(
-            parsed_date.date(),
-            filter_time,
-            tzinfo=timezone(timedelta(hours=2)),
-        )
-        # parsed_date = parsed_date.astimezone(timezone(timedelta(hours=18)))
-        # date_utc_ = date_utc.astimezone(timezone(timedelta(hours=2)))
-        return date_utc
-    except ValueError:
-        raise click.BadParameter("date format must be 'YYYY-MM-DD'")
-
-
-def validate_dir(ctx: Context, param: Parameter, value: Any) -> Any:
-    """Check is dir writable or not.
-
-    Create all parent folders to target destination.
-    """
-    try:
-        value.mkdir(parents=True, exist_ok=True)
-        probe_file = value / "tmp_dest.txt"
-        probe_file.write_text("Directory is writable", encoding="utf-8")
-        probe_file.unlink()
-        return value
-    except PermissionError:
-        raise click.BadParameter("folder has no 'write' permission.")
-    except OSError as ex:
-        raise click.BadParameter(ex.args[1])
-
-
 @click.command(name="download")
-@click.option(
-    "--episode",
-    "-ep",
-    type=click.UNPROCESSED,
-    callback=validate_episode_number,
-    default="0-9999",
-    help="Episode number (or range of episodes) for downloading.",
-)
-@click.option(
-    "--with-pdf",
-    "-pdf",
-    "pdf_yes",
-    is_flag=True,
-    help="Tells script to download PDF of episide page as well.",
-)
-@click.option(
-    "--last",
-    "last_yes",
-    is_flag=True,
-    help=(
-        "For dowloading the last episode from database only. "
-        "Episode number and date filters (ranges) will be ignored."
-    ),
-)
-@click.option(
-    "-S",
-    "start_date",
-    type=click.UNPROCESSED,
-    callback=validate_date,
-    # default="2007-01-01",
-    help="To specify a START DATE for date range filtering. Format 'YYYY-MM-DD'",
-)
-@click.option(
-    "-E",
-    "end_date",
-    type=click.UNPROCESSED,
-    callback=validate_date,
-    # default="2999-01-01",
-    help="To specify a END DATE for date range filtering. Format 'YYYY-MM-DD'",
-)
-@click.option(
-    "--dest",
-    "-d",
-    type=click.Path(file_okay=False, path_type=Path),
-    callback=validate_dir,
-    default=Path(),
-    help="Directory path (absolute or relative) to LEP files destination.",
-    metavar="<string>",
-)
-@click.option(
-    "--db-url",
-    "-db",
-    "db_url",
-    default=conf.JSON_DB_URL,
-    help="URL to JSON database file.",
-    metavar="<string>",
-)
-@click.option(
-    "--quiet",
-    "-q",
-    "quiet",
-    is_flag=True,
-    help=(
-        "Activate quiet mode. "
-        + "There is no question whether to download files or not."
-    ),
-)
+@common_options
 def cli(
     episode: str,
     pdf_yes: bool,
