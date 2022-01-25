@@ -59,7 +59,6 @@ def cli(  # noqa: C901 'too complex'
     quiet: bool,
 ) -> None:
     """Downloads LEP episodes on disk."""
-
     filtered_episodes = LepEpisodeList()
     filtered_files = LepFileList()
 
