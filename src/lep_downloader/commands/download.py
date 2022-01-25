@@ -35,9 +35,20 @@ from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisodeList
 
 
+def require_to_press_enter(quiet: bool) -> None:
+    """Prevent script closing without reading execution output."""
+    if not quiet:
+        click.confirm(
+            "Press 'Enter' key to close 'LEP-downloader'",
+            # prompt_suffix="...",
+            show_default=False,
+        )
+        click.get_current_context().exit()
+
+
 @click.command(name="download")
 @common_options
-def cli(
+def cli(  # noqa: C901 'too complex'
     episode: str,
     pdf_yes: bool,
     last_yes: bool,
@@ -48,7 +59,6 @@ def cli(
     quiet: bool,
 ) -> None:
     """Downloads LEP episodes on disk."""
-    click.echo("download_cmd() was executed...")
 
     filtered_episodes = LepEpisodeList()
     filtered_files = LepFileList()
@@ -57,9 +67,11 @@ def cli(
         downloader.use_or_get_db_episodes(db_url)
     except DataBaseUnavailable:
         click.echo("JSON database is not available now.\n" + "Try again later.")
+        require_to_press_enter(quiet)
         click.get_current_context().exit()
 
     if not Lep.db_episodes:  # no valid episode objects
+        require_to_press_enter(quiet)
         click.get_current_context().exit()
 
     if not last_yes:
@@ -97,3 +109,5 @@ def cli(
             downloader.download_files(downloader.Downloader.non_existed, dest)
     else:
         click.echo("Nothing to download for now.")
+
+    require_to_press_enter(quiet)

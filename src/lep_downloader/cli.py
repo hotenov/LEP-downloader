@@ -54,7 +54,5 @@ def cli(
 
     Get free episodes of Luke's English Podcast archive page.
     """
-    click.echo(f"cli() in '{Path(__file__).name}' was executed...")
-
     if ctx.invoked_subcommand is None:
         ctx.forward(download_cli)
