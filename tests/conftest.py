@@ -360,9 +360,10 @@ def runner() -> CliRunner:
 @pytest.fixture
 def run_cli_with_args(runner: CliRunner) -> Callable[[List[str]], Result]:
     """Fixture for getting CLI runner result for this package."""
-    from lep_downloader import cli
 
     def _my_pkg_result(cli_args: List[str]) -> Result:
+        from lep_downloader import cli
+
         result = runner.invoke(
             cli.cli,
             cli_args,

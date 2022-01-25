@@ -5,11 +5,11 @@ from typing import List
 from click.testing import CliRunner
 from click.testing import Result
 
-from lep_downloader import cli
-
 
 def test_main_succeeds(runner: CliRunner) -> None:
     """It exits with a status code of zero."""
+    from lep_downloader import cli
+
     result = runner.invoke(cli.cli)
     assert result.exit_code == 0
 

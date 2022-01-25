@@ -29,7 +29,6 @@ from click.testing import Result
 from requests_mock.mocker import Mocker as rm_Mocker
 from pytest_mock import MockFixture
 
-from lep_downloader import cli
 from lep_downloader import config as conf
 from lep_downloader.downloader import Downloader
 from lep_downloader.downloader import LepFileList
@@ -59,6 +58,8 @@ def test_download_without_options(
     runner: CliRunner,
 ) -> None:
     """It downloads all audio files for parsed episodes."""
+    from lep_downloader import cli
+
     Lep.db_episodes = LepEpisodeList()
     Downloader.files = LepFileList()
     requests_mock.get(
@@ -86,6 +87,8 @@ def test_continue_prompt_yes(
     runner: CliRunner,
 ) -> None:
     """It downloads files if user answers 'Yes'."""
+    from lep_downloader import cli
+
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
@@ -118,6 +121,8 @@ def test_continue_prompt_no(
     runner: CliRunner,
 ) -> None:
     """It exists if user answers 'No'."""
+    from lep_downloader import cli
+
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
@@ -751,3 +756,31 @@ def test_os_error_for_folder_destination(
         in result.output
     )
     assert result.exit_code == 2
+
+
+def test_passing_options_from_group_to_command(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    mp3_file1_mock: bytes,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It passes options to 'download' command from command group (script itself)."""
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+    # Note: URL for #36 not for #35 (because it is 'duplicated' episode)
+    requests_mock.get(
+        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",  # noqa: E501,B950
+        content=mp3_file1_mock,
+    )
+
+    run_cli_with_args(["-ep", "35", "-q", "-d", f"{tmp_path}"])
+
+    expected_filename_1 = "[2010-03-25] # 35. London Video Interviews – Part 1 (Video).mp3"  # noqa: E501,B950
+    expected_file_1 = tmp_path / expected_filename_1
+    assert len(list(tmp_path.iterdir())) == 1
+    assert len(Downloader.downloaded) == 1
+    assert len(Downloader.not_found) == 0
+    assert expected_file_1.exists()
