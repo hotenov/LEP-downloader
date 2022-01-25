@@ -26,8 +26,8 @@ from typing import List
 
 from click.testing import CliRunner
 from click.testing import Result
-from requests_mock.mocker import Mocker as rm_Mocker
 from pytest_mock import MockFixture
+from requests_mock.mocker import Mocker as rm_Mocker
 
 from lep_downloader import config as conf
 from lep_downloader.downloader import Downloader
@@ -47,6 +47,25 @@ def test_json_database_not_available(
         status_code=404,
     )
     result = run_cli_with_args(["download"])
+    assert "JSON database is not available now.\n" in result.output
+    assert "Try again later." in result.output
+    assert result.exit_code == 0
+
+
+def test_json_database_not_available_in_quite_mode(
+    requests_mock: rm_Mocker,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It aborts following execution when JSON is unavailable.
+
+    Even in 'quiet' mode.
+    """
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text="JSON not found",
+        status_code=404,
+    )
+    result = run_cli_with_args(["download", "--quiet"])
     assert "JSON database is not available now.\n" in result.output
     assert "Try again later." in result.output
     assert result.exit_code == 0
@@ -130,7 +149,6 @@ def test_continue_prompt_no(
 
     result = runner.invoke(
         cli.cli,
-        # ["download"],
         ["download", "-ep", "714"],
         prog_name="lep-downloader",
         input="No",
@@ -141,7 +159,6 @@ def test_continue_prompt_no(
 
     result = runner.invoke(
         cli.cli,
-        # ["download"],
         ["download", "-ep", "714"],
         prog_name="lep-downloader",
         input="\n",  # Pressed 'Enter' key (empty input)
@@ -161,6 +178,26 @@ def test_no_valid_episodes_in_database(
         text="[]",
     )
     result = run_cli_with_args(["download"])
+    assert (
+        f"[WARNING]: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
+        in result.output
+    )
+    assert result.exit_code == 0
+
+
+def test_no_valid_episodes_quiet_mode(
+    requests_mock: rm_Mocker,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It aborts following execution if no episodes in JSON database.
+
+    Even in 'quiet' mode
+    """
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text="[]",
+    )
+    result = run_cli_with_args(["download", "--quiet"])
     assert (
         f"[WARNING]: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
         in result.output
@@ -784,3 +821,36 @@ def test_passing_options_from_group_to_command(
     assert len(Downloader.downloaded) == 1
     assert len(Downloader.not_found) == 0
     assert expected_file_1.exists()
+
+
+def test_final_prompt_to_press_enter(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    mp3_file1_mock: bytes,
+    tmp_path: Path,
+    runner: CliRunner,
+) -> None:
+    """It requires to press enter at the end of script execution."""
+    from lep_downloader import cli
+
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+
+    requests_mock.get(
+        "http://traffic.libsyn.com/teacherluke/36-london-video-interviews-pt-1-audio-only.mp3",  # noqa: E501,B950
+        content=mp3_file1_mock,
+    )
+
+    result = runner.invoke(
+        cli.cli,
+        ["-ep", "35", "-d", f"{tmp_path}"],
+        prog_name="lep-downloader",
+        input="\n",  # Two inputs in this case.
+    )
+    assert "Do you want to continue? [y/N]: \n" in result.output
+    assert len(Downloader.downloaded) == 0
+    assert len(Downloader.not_found) == 0
+    assert "Press 'Enter' key to close 'LEP-downloader':" in result.output
+    assert result.exit_code == 0
