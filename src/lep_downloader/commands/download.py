@@ -27,6 +27,7 @@ import click
 
 from lep_downloader import downloader
 from lep_downloader.cli_shared import common_options
+from lep_downloader.downloader import ATrack
 from lep_downloader.downloader import Audio
 from lep_downloader.downloader import LepFileList
 from lep_downloader.downloader import PagePDF
@@ -84,8 +85,7 @@ def cli(  # noqa: C901 'too complex'
     downloader.gather_all_files(filtered_episodes)
     downloader.populate_default_url()
 
-    file_filter: LepFileList = LepFileList()
-    file_filter.append(Audio)
+    file_filter = LepFileList([Audio, ATrack])
 
     if pdf_yes:
         file_filter.append(PagePDF)
