@@ -30,6 +30,7 @@ from requests_mock.mocker import Mocker as rm_Mocker
 
 from lep_downloader import config as conf
 from lep_downloader import downloader
+from lep_downloader.downloader import ATrack
 from lep_downloader.downloader import Audio
 from lep_downloader.downloader import Downloader
 from lep_downloader.downloader import LepFile
@@ -570,3 +571,85 @@ def test_gathering_page_pdf_urls() -> None:
 
     assert Downloader.files[2].primary_url == "https://someurl555.local"
     assert Downloader.files[2].secondary_url == ""
+
+
+def test_gathering_links_for_audio_track() -> None:
+    """It collects URLs for audio track."""
+    json_test = """\
+        [
+            {
+                "episode": 3,
+                "date": "2000-01-01T00:00:00+00:00",
+                "url": "https://teacherluke.co.uk/2009/04/15/episode-3-musicthe-beatles/",
+                "post_title": "3. Music/The Beatles",
+                "post_type": "",
+                "files": {
+                    "audios": [],
+                    "atrack": [
+                        [
+                            "https://someurl1.local", "https://someurl2.local", "https://someurl3.local"
+                        ]
+                    ]
+                },
+                "parsed_at": "2021-10-14T07:35:24.575575Z",
+                "index": 2009041501,
+                "admin_note": "Check audio track."
+            }
+        ]
+    """  # noqa: E501,B950
+    db_episodes = Lep.extract_only_valid_episodes(json_test)
+    downloader.gather_all_files(db_episodes)
+    assert len(Downloader.files) == 2
+    assert Downloader.files[0].primary_url == "https://someurl1.local"
+    assert Downloader.files[0].secondary_url == "https://someurl2.local"
+    assert Downloader.files[0].tertiary_url == "https://someurl3.local"
+    assert isinstance(Downloader.files[0], ATrack)
+    assert (
+        Downloader.files[0].filename
+        == "[2000-01-01] # 3. Music/The Beatles _aTrack_.mp3"
+    )
+
+
+def test_gathering_multi_part_audio_track() -> None:
+    """It collects multi-part audio track."""
+    json_test = """\
+        [
+            {
+                "episode": 3,
+                "date": "2000-01-01T00:00:00+00:00",
+                "url": "https://teacherluke.co.uk/2009/04/15/episode-3-musicthe-beatles/",
+                "post_title": "3. Music/The Beatles",
+                "post_type": "",
+                "files": {
+                    "audios": [],
+                    "atrack": [
+                        [
+                            "https://someurl1.local", "https://someurl2.local", "https://someurl3.local"
+                        ],
+                        [
+                            "https://part2-someurl1.local", "https://part2-someurl2.local"
+                        ]
+                    ]
+                },
+                "parsed_at": "2021-10-14T07:35:24.575575Z",
+                "index": 2009041501,
+                "admin_note": "Check audio track."
+            }
+        ]
+    """  # noqa: E501,B950
+    db_episodes = Lep.extract_only_valid_episodes(json_test)
+    downloader.gather_all_files(db_episodes)
+    assert len(Downloader.files) == 3
+    assert Downloader.files[0].secondary_url == "https://someurl2.local"
+    assert Downloader.files[0].tertiary_url == "https://someurl3.local"
+    assert Downloader.files[1].secondary_url == "https://part2-someurl2.local"
+    assert isinstance(Downloader.files[0], ATrack)
+    assert isinstance(Downloader.files[1], ATrack)
+    assert (
+        Downloader.files[0].filename
+        == "[2000-01-01] # 3. Music/The Beatles [Part 01] _aTrack_.mp3"
+    )
+    assert (
+        Downloader.files[1].filename
+        == "[2000-01-01] # 3. Music/The Beatles [Part 02] _aTrack_.mp3"
+    )
