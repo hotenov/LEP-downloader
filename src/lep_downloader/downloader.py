@@ -28,6 +28,8 @@ from typing import Any
 from typing import ClassVar
 from typing import List
 from typing import Tuple
+from typing import Type
+from typing import Union
 
 import requests
 
@@ -87,6 +89,27 @@ class PagePDF(LepFile):
         self.filename = f"[{self.short_date}] # {self.name}" + self.ext
 
 
+@dataclass
+class ATrack(LepFile):
+    """Represent audio track to episode (or part of it) object."""
+
+    ext: str = ".mp3"
+    part_no: int = 0
+
+    def __post_init__(self) -> None:
+        """Compose filename for this instance."""
+        if self.part_no > 0:
+            self.filename = (
+                f"[{self.short_date}] # {self.name} [Part {str(self.part_no).zfill(2)}]"
+                + " _aTrack_"
+                + self.ext
+            )
+        else:
+            self.filename = (
+                f"[{self.short_date}] # {self.name}" + " _aTrack_" + self.ext
+            )
+
+
 class LepFileList(List[Any]):
     """Represent list of LepFile objects."""
 
@@ -119,10 +142,11 @@ def add_each_audio_to_shared_list(
     name: str,
     short_date: str,
     audios: List[List[str]],
+    file_class: Union[Type[Audio], Type[ATrack]],
 ) -> None:
     """Gather data for each episode audio.
 
-    Then add it as 'Audio' object to shared 'files' list of LepFile objects.
+    Then add it as 'Audio' or 'ATrack' object to shared list of LepFile objects.
     """
     is_multi_part = False if len(audios) < 2 else True
     start = int(is_multi_part)
@@ -130,7 +154,7 @@ def add_each_audio_to_shared_list(
     for i, part_links in enumerate(audios, start=start):
         part_no = i
         primary_url, secondary_url, tertiary_url = crawl_list(part_links)
-        audio_file = Audio(
+        audio_file = file_class(
             ep_id=ep_id,
             name=name,
             short_date=short_date,
@@ -184,7 +208,13 @@ def gather_all_files(lep_episodes: LepEpisodeList) -> None:
                 audios = ep.files.setdefault("audios", [])
                 if audios:
                     add_each_audio_to_shared_list(
-                        ep.index, ep.post_title, ep._short_date, audios
+                        ep.index, ep.post_title, ep._short_date, audios, Audio
+                    )
+
+                audio_tracks = ep.files.setdefault("atrack", [])
+                if audio_tracks:
+                    add_each_audio_to_shared_list(
+                        ep.index, ep.post_title, ep._short_date, audio_tracks, ATrack
                     )
 
                 page_pdf = ep.files.setdefault("page_pdf", [])
