@@ -181,13 +181,13 @@ def gather_all_files(lep_episodes: LepEpisodeList) -> None:
     if lep_episodes:
         for ep in reversed(lep_episodes):
             if ep.files:
-                audios = ep.files["audios"]
+                audios = ep.files.setdefault("audios", [])
                 if audios:
                     add_each_audio_to_shared_list(
                         ep.index, ep.post_title, ep._short_date, audios
                     )
 
-                page_pdf = ep.files["page_pdf"]
+                page_pdf = ep.files.setdefault("page_pdf", [])
                 add_page_pdf_file(ep.index, ep.post_title, ep._short_date, page_pdf)
     else:
         raise NoEpisodesInDataBase("No episodes for gathering files. Exit.")

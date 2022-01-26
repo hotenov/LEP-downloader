@@ -422,7 +422,6 @@ class EpisodeParser(LepParser):
             self.episode.post_type = "TEXT"
         else:
             self.episode.post_type = "AUDIO"
-        self.episode.files["page_pdf"] = []
 
     def do_post_parsing(self) -> None:
         """Add parsed episode to shared list."""
