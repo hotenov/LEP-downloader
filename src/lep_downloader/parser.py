@@ -53,16 +53,105 @@ only_a_tags_with_mp3 = SoupStrainer(
 class Archive(Lep):
     """Represent archive page object."""
 
-    # collected_links: ClassVar[Dict[str, str]] = {}
-    # deleted_links: ClassVar[Set[str]] = set()
-    # used_indexes: ClassVar[Set[int]] = set()
-    # episodes: ClassVar[LepEpisodeList] = LepEpisodeList()
-    def __init__(self) -> None:
-        """Initialize an archive with an empty containers."""
+    def __init__(
+        self,
+        url: str = conf.ARCHIVE_URL,
+    ) -> None:
+        """Initialize an archive instance."""
+        self.url = url
+        self.parser = ArchiveParser(self, self.url)
         self.collected_links: Dict[str, str] = {}
         self.deleted_links: Set[str] = set()
         self.used_indexes: Set[int] = set()
         self.episodes: LepEpisodeList = LepEpisodeList()
+
+    def fetch_updates(
+        self,
+        db_episodes: LepEpisodeList,
+        archive_urls: Optional[Dict[str, str]] = None,
+    ) -> Any:
+        """Fetch only new URLs between database and archive page."""
+        archive_urls = archive_urls if archive_urls else self.collected_links
+        # TODO (hotenov): Here method .lower() for URL it's not quite right,
+        # need to replace with regex
+        db_urls = {ep.url.lower(): ep.post_title for ep in db_episodes}
+        last_url: str = [*db_urls][0]
+        date_of_last_db_episode = convert_date_from_url(last_url)
+        updates = {
+            url: text
+            for url, text in archive_urls.items()
+            if convert_date_from_url(url) > date_of_last_db_episode
+        }
+        if len(db_urls) > len(archive_urls):
+            return None
+        else:
+            return updates
+
+    def parse_each_episode(
+        self,
+        urls: Dict[str, str],
+        session: Optional[requests.Session] = None,
+    ) -> None:
+        """Parse each episode collected from archive page.
+
+        In for cycle: reversed collected links in order to start
+            from first episode to last in parsing action.
+        """
+        # mypy warns only for Python 3.7.0 and below.
+        # https://docs.python.org/3/library/typing.html#typing.Reversible
+        for url, text in reversed(urls.items()):
+            try:
+                ep_parser = EpisodeParser(self, url, post_title=text)
+                ep_parser.parse_url()
+                self.episodes.append(ep_parser.episode)
+            except (NotEpisodeURLError):
+                # TODO (hotenov): Write to log / statistics
+                # for non-episode URL, but skip here
+                continue
+            except (LepEpisodeNotFound) as ex:
+                not_found_episode = ex.args[0]
+                self.episodes.append(not_found_episode)
+                continue
+
+    def do_parsing_actions(
+        self,
+        json_url: str,
+        json_name: str = conf.DEFAULT_JSON_NAME,
+        session: Optional[requests.Session] = None,
+    ) -> None:
+        """Main methdod to do parsing job."""
+        session = session if session else Lep.session
+        updates: Dict[str, str] = {}
+
+        # Collect (get and parse) links and their texts from web archive page.
+        self.parser.parse_url()
+
+        # Get database episodes from web JSON
+        Lep.db_episodes = Lep.get_db_episodes(json_url, session)
+        if Lep.db_episodes:
+            updates = self.fetch_updates(Lep.db_episodes, self.collected_links)
+        else:
+            raise NoEpisodesInDataBase(
+                "JSON is available, but\nthere are NO episodes in this file. Exit."
+            )
+        if updates is None:
+            print(
+                "[WARNING]: Database contains more episodes",
+                "than current archive!",
+            )
+            return None
+        if len(updates) > 0:
+            # Parse new episodes and add them to shared class list
+            # with parsed episodes (list empty until this statement)
+            self.parse_each_episode(updates, self)
+            new_episodes = self.episodes
+            new_episodes = LepEpisodeList(reversed(new_episodes))
+            all_episodes = LepEpisodeList(new_episodes + Lep.db_episodes)
+            all_episodes = all_episodes.desc_sort_by_date_and_index()
+            write_parsed_episodes_to_json(all_episodes, json_name)
+        else:
+            print("There are no new episodes. Exit.")
+            return None
 
 
 def is_tag_a_repeated(tag_a: Tag) -> bool:
@@ -154,33 +243,6 @@ def parse_post_audio(soup: BeautifulSoup) -> List[List[str]]:
         return audios
 
 
-def parse_each_episode(
-    urls: Dict[str, str],
-    archive: Archive,
-    session: Optional[requests.Session] = None,
-) -> None:
-    """Parse each episode collected from archive page.
-
-    In for cycle: reversed collected links in order to start
-        from first episode to last in parsing action.
-    """
-    # mypy warns only for Python 3.7.0 and below.
-    # https://docs.python.org/3/library/typing.html#typing.Reversible
-    for url, text in reversed(urls.items()):
-        try:
-            ep_parser = EpisodeParser(url, archive, post_title=text)
-            ep_parser.parse_url()
-            archive.episodes.append(ep_parser.episode)
-        except (NotEpisodeURLError):
-            # TODO (hotenov): Write to log / statistics
-            # for non-episode URL, but skip here
-            continue
-        except (LepEpisodeNotFound) as ex:
-            not_found_episode = ex.args[0]
-            archive.episodes.append(not_found_episode)
-            continue
-
-
 def extract_date_from_url(url: str) -> str:
     """Parse date from URL in YYYY/MM/DD format."""
     match = EP_LINK_PATTERN.match(url)
@@ -198,29 +260,6 @@ def convert_date_from_url(url: str) -> datetime:
     return datetime.strptime(url_date, r"%Y/%m/%d")
 
 
-def fetch_updates(
-    db_episodes: LepEpisodeList,
-    archive: Archive,
-    archive_urls: Optional[Dict[str, str]] = None,
-) -> Any:
-    """Fetch only new URLs between database and archive page."""
-    archive_urls = archive_urls if archive_urls else archive.collected_links
-    # TODO (hotenov): Here method .lower() for URL it's not quite right,
-    # but 'request-mock' or JSONEncoder encodes emoji with upper case (I don't know why)
-    db_urls = {ep.url.lower(): ep.post_title for ep in db_episodes}
-    last_url: str = [*db_urls][0]
-    date_of_last_db_episode = convert_date_from_url(last_url)
-    updates = {
-        url: text
-        for url, text in archive_urls.items()
-        if convert_date_from_url(url) > date_of_last_db_episode
-    }
-    if len(db_urls) > len(archive_urls):
-        return None
-    else:
-        return updates
-
-
 def write_parsed_episodes_to_json(
     lep_objects: LepEpisodeList,
     json_name: str = conf.DEFAULT_JSON_NAME,
@@ -230,68 +269,27 @@ def write_parsed_episodes_to_json(
         json.dump(lep_objects, outfile, indent=4, cls=LepJsonEncoder)
 
 
-def do_parsing_actions(
-    json_url: str,
-    archive_url: str,
-    archive: Archive,
-    json_name: str = conf.DEFAULT_JSON_NAME,
-    session: Optional[requests.Session] = None,
-) -> None:
-    """Main methdod to do parsing job."""
-    session = session if session else Lep.session
-    updates: Dict[str, str] = {}
-
-    # Collect (get and parse) links and their texts from web archive page.
-    ArchiveParser(archive_url, archive).parse_url()
-
-    # Get database episodes from web JSON
-    Lep.db_episodes = Lep.get_db_episodes(json_url, session)
-    if Lep.db_episodes:
-        updates = fetch_updates(Lep.db_episodes, archive)
-    else:
-        raise NoEpisodesInDataBase(
-            "JSON is available, but\nthere are NO episodes in this file. Exit."
-        )
-    if updates is None:
-        print(
-            "[WARNING]: Database contains more episodes",
-            "than current archive!",
-        )
-        return None
-    if len(updates) > 0:
-        # Parse new episodes and add them to shared class list
-        # with parsed episodes (list empty until this statement)
-        parse_each_episode(updates, archive)
-        new_episodes = archive.episodes
-        new_episodes = LepEpisodeList(reversed(new_episodes))
-        all_episodes = LepEpisodeList(new_episodes + Lep.db_episodes)
-        all_episodes = all_episodes.desc_sort_by_date_and_index()
-        write_parsed_episodes_to_json(all_episodes, json_name)
-    else:
-        print("There are no new episodes. Exit.")
-        return None
-
-
 class LepParser(Lep):
     """Base class for LEP archive parsers."""
 
     def __init__(
         self,
+        archive_obj: Archive,
         url: str,
-        archive: Archive,
         session: requests.Session = None,
     ) -> None:
         """Initialize LepParser object.
 
         Args:
+            archive_obj (Archive): Instance of Archive object
+                to put and use data in its containers attributes.
             url (str): URL for parsing.
-            archive (Archive): Instance of Archive object
             session (requests.Session): Requests session object
                 if None, get default global session.
         """
         super().__init__(session)
+        self.archive = archive_obj
         self.url = url
-        self.archive = archive
         self.content: str = ""
         self.soup: BeautifulSoup = None
         self.final_location: str = self.url
@@ -412,16 +410,16 @@ class EpisodeParser(LepParser):
 
     def __init__(
         self,
-        url: str,
-        archive: Archive,
+        archive_obj: Archive,
+        page_url: str,
         session: Optional[requests.Session] = None,
         post_title: str = "",
     ) -> None:
         """Initialize EpisodeParser object."""
-        super().__init__(url, archive, session)
+        super().__init__(archive_obj, page_url, session)
         self.episode = LepEpisode()
         self.episode.post_title = post_title
-        self.used_indexes = archive.used_indexes
+        self.used_indexes = archive_obj.used_indexes
 
     def do_pre_parsing(self) -> None:
         """Parse episode date, number, index."""

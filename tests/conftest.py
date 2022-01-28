@@ -227,7 +227,7 @@ def archive_parsing_results_mock(
     from lep_downloader import parser
 
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    archive_parser = parser.ArchiveParser(conf.ARCHIVE_URL, archive, req_ses)
+    archive_parser = parser.ArchiveParser(archive, conf.ARCHIVE_URL, req_ses)
     archive_parser.parse_url()
     # archive_urls = archive.collected_links.copy()
     del archive_parser
@@ -247,14 +247,12 @@ def parsed_episodes_mock(
 
     Mocked episodes among others, with parsed (not default) post date.
     """
-    from lep_downloader import parser
-
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=single_page_matcher,
         text=single_page_mock,
     )
-    parser.parse_each_episode(archive_parsing_results_mock, archive, req_ses)
+    archive.parse_each_episode(archive_parsing_results_mock, req_ses)
     # parsed_episodes = copy.deepcopy(Archive.episodes)
     return archive.episodes
 
