@@ -32,7 +32,6 @@ from typing import ClassVar
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Set
 from typing import Union
 
 import requests
@@ -328,15 +327,6 @@ class Lep:
         else:
             raise DataBaseUnavailable()
         return db_episodes
-
-
-class Archive(Lep):
-    """Represent archive page object."""
-
-    collected_links: ClassVar[Dict[str, str]] = {}
-    deleted_links: ClassVar[Set[str]] = set()
-    used_indexes: ClassVar[Set[int]] = set()
-    episodes: ClassVar[LepEpisodeList] = LepEpisodeList()
 
 
 def replace_unsafe_chars(filename: str) -> str:

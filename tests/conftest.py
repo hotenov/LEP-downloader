@@ -220,18 +220,18 @@ def archive_parsing_results_mock(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
     req_ses: requests.Session,
-) -> Dict[str, str]:
+    archive: Any,
+) -> Any:
     """Returns two lists: links and texts from mocked archive page."""
     from lep_downloader import config as conf
     from lep_downloader import parser
-    from lep_downloader.lep import Archive
 
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    archive_parser = parser.ArchiveParser(conf.ARCHIVE_URL, req_ses)
+    archive_parser = parser.ArchiveParser(conf.ARCHIVE_URL, archive, req_ses)
     archive_parser.parse_url()
-    archive_urls = Archive.collected_links.copy()
+    # archive_urls = archive.collected_links.copy()
     del archive_parser
-    return archive_urls
+    return archive.collected_links
 
 
 @pytest.fixture
@@ -241,25 +241,22 @@ def parsed_episodes_mock(
     single_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     req_ses: requests.Session,
+    archive: Any,
 ) -> Any:
     """Returns list of LepEpisode objects.
 
     Mocked episodes among others, with parsed (not default) post date.
     """
     from lep_downloader import parser
-    from lep_downloader.lep import Archive
-    from lep_downloader.lep import LepEpisodeList
-
-    Archive.episodes = LepEpisodeList()
 
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=single_page_matcher,
         text=single_page_mock,
     )
-    parser.parse_each_episode(archive_parsing_results_mock, req_ses)
+    parser.parse_each_episode(archive_parsing_results_mock, archive, req_ses)
     # parsed_episodes = copy.deepcopy(Archive.episodes)
-    return Archive.episodes
+    return archive.episodes
 
 
 @pytest.fixture
@@ -388,3 +385,17 @@ def clear_shared_lists() -> None:
     Downloader.non_existed = LepFileList()
     Downloader.downloaded = LepFileList()
     Downloader.not_found = LepFileList()
+
+
+@pytest.fixture
+def archive() -> Any:
+    """Fixture for new instance of Archive class."""
+    from lep_downloader.parser import Archive
+
+    new_archive = Archive()
+    return new_archive
+    # yield new_archive
+    # new_archive.episodes = LepEpisodeList()
+    # new_archive.used_indexes = set()
+    # new_archive.deleted_links = set()
+    # new_archive.collected_links = {}

@@ -15,7 +15,8 @@ def cli() -> None:
     click.echo("'parse' command was executed...")
 
     try:
-        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+        archive = parser.Archive()
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, archive)
     except NotEpisodeURLError as ex:
         click.echo(f"{ex.args[1]}:\n\t{ex.args[0]}")
         click.echo("Archive page has invalid HTML content. Exit.")

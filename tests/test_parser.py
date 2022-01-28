@@ -46,11 +46,11 @@ from lep_downloader.exceptions import DataBaseUnavailable
 from lep_downloader.exceptions import NoEpisodeLinksError
 from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.exceptions import NotEpisodeURLError
-from lep_downloader.lep import Archive
 from lep_downloader.lep import as_lep_episode_obj
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
+from lep_downloader.parser import Archive
 
 
 lep_date_format = "%Y-%m-%dT%H:%M:%S%z"
@@ -168,7 +168,9 @@ def test_final_location_for_bad_redirect(
     assert final_location == "https://bad.final.location/"
 
 
-def test_retrieve_all_episode_links_from_soup() -> None:
+def test_retrieve_all_episode_links_from_soup(
+    archive: Archive,
+) -> None:
     """It returns only <a> tags from soup object."""
     html_doc = """<html><head><title>The Dormouse'req_ses story</title></head>
         <article>
@@ -186,18 +188,19 @@ def test_retrieve_all_episode_links_from_soup() -> None:
             <p class="story">...</p>
     """  # noqa: E501,B950
     soup = BeautifulSoup(html_doc, "lxml")
-    Archive.collected_links = {}
-    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
+    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL, archive)
     soup_parser.soup = soup
     soup_parser.collect_links()
-    assert len(Archive.collected_links) == 2
+    assert len(archive.collected_links) == 2
     assert (
-        list(Archive.collected_links.values())[1]
+        list(archive.collected_links.values())[1]
         == "723. Bahar from Iran (WISBOLEP Runner-Up)"
     )
 
 
-def test_replacing_misspelled_link() -> None:
+def test_replacing_misspelled_link(
+    archive: Archive,
+) -> None:
     """It replaces misspelled link in archive HTML content."""
     html_doc = """<html><head><title>The Dormouse'req_ses story</title></head>
         <body>
@@ -209,8 +212,7 @@ def test_replacing_misspelled_link() -> None:
             </p>
     """  # noqa: E501,B950
 
-    Archive.collected_links = {}
-    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
+    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL, archive)
     soup_parser.content = html_doc
     content_before = copy.copy(soup_parser.content)
     soup_parser.do_pre_parsing()
@@ -222,7 +224,9 @@ def test_replacing_misspelled_link() -> None:
     assert content_before != content_after
 
 
-def test_replacing_nothing_when_no_misspelled_link() -> None:
+def test_replacing_nothing_when_no_misspelled_link(
+    archive: Archive,
+) -> None:
     """It replaces nothing when there is no misspelled link."""
     html_doc = """<html><head><title>The Dormouse'req_ses story</title></head>
         <body>
@@ -233,8 +237,7 @@ def test_replacing_nothing_when_no_misspelled_link() -> None:
                 and they lived at the bottom of a well.
             </p>
     """  # noqa: E501,B950
-    Archive.collected_links = {}
-    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
+    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL, archive)
     soup_parser.content = html_doc
     content_before = copy.copy(soup_parser.content)
     soup_parser.do_pre_parsing()
@@ -242,7 +245,9 @@ def test_replacing_nothing_when_no_misspelled_link() -> None:
     assert content_before == content_after
 
 
-def test_removing_irrelevant_links() -> None:
+def test_removing_irrelevant_links(
+    archive: Archive,
+) -> None:
     """It removes known (from config list) irrelevant links."""
     test_links: List[str] = [
         "https://teacherluke.co.uk/2020/11/23/wisbolep/",
@@ -257,18 +262,18 @@ def test_removing_irrelevant_links() -> None:
         "3. Link",
     ]
     test_dct = dict(zip(test_links, test_texts))
-    Archive.collected_links = {}
-    Archive.deleted_links = set()
-    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
-    Archive.collected_links = test_dct
+    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL, archive)
+    archive.collected_links = test_dct
     soup_parser.remove_irrelevant_links()
-    assert len(Archive.collected_links) == 3
-    assert len(Archive.deleted_links) == 1
-    assert "https://wp.me/P4IuUx-82H" in Archive.deleted_links
-    assert list(Archive.collected_links.values())[1] == "2. Link"
+    assert len(archive.collected_links) == 3
+    assert len(archive.deleted_links) == 1
+    assert "https://wp.me/P4IuUx-82H" in archive.deleted_links
+    assert list(archive.collected_links.values())[1] == "2. Link"
 
 
-def test_short_links_substitution() -> None:
+def test_short_links_substitution(
+    archive: Archive,
+) -> None:
     """It replaces short links with links from config dictionary."""
     test_links: List[str] = [
         "http://wp.me/p4IuUx-7sg",  # <- Short link (replacing)
@@ -283,24 +288,22 @@ def test_short_links_substitution() -> None:
         "3. Substitution 2",
     ]
     test_dct = dict(zip(test_links, test_texts))
-    Archive.collected_links = {}
-    Archive.deleted_links = set()
-    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
-    Archive.collected_links = test_dct
+    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL, archive)
+    archive.collected_links = test_dct
     soup_parser.substitute_short_links()
-    assert len(Archive.collected_links) == 4
-    assert len(Archive.deleted_links) == 0
-    assert "https://wp.me/P4IuUx-82H" in Archive.collected_links
+    assert len(archive.collected_links) == 4
+    assert len(archive.deleted_links) == 0
+    assert "https://wp.me/P4IuUx-82H" in archive.collected_links
     assert (
-        list(Archive.collected_links)[0]
+        list(archive.collected_links)[0]
         == "https://teacherluke.co.uk/2017/01/10/415-with-the-family-part-3-more-encounters-with-famous-people/"  # noqa: E501,B950
     )
-    assert list(Archive.collected_links.values())[0] == "1. Substitution 1"
+    assert list(archive.collected_links.values())[0] == "1. Substitution 1"
     assert (
-        list(Archive.collected_links)[3]
+        list(archive.collected_links)[3]
         == "https://teacherluke.co.uk/2011/10/11/notting-hill-carnival-video-frustration-out-takes/"  # noqa: E501,B950
     )
-    assert list(Archive.collected_links.values())[3] == "3. Substitution 2"
+    assert list(archive.collected_links.values())[3] == "3. Substitution 2"
 
 
 def test_parsing_posts_from_archive_page(
@@ -316,12 +319,15 @@ def test_parsing_posts_from_archive_page(
     # assert len(intersection) > 15
 
 
-def test_parsing_invalid_html(requests_mock: rm_Mocker) -> None:
+def test_parsing_invalid_html(
+    requests_mock: rm_Mocker,
+    archive: Archive,
+) -> None:
     """It returns None if page does not comply with the parsing rules."""
     markup: str = '<a class="entry" id="post">'
     requests_mock.get(conf.ARCHIVE_URL, text=markup)
     with pytest.raises(NotEpisodeURLError) as ex:
-        parser.ArchiveParser(conf.ARCHIVE_URL).parse_url()
+        parser.ArchiveParser(conf.ARCHIVE_URL, archive).parse_url()
     assert conf.ARCHIVE_URL in ex.value.args[0]  # Trailing slash for domain URL
     assert (
         ex.value.args[1]
@@ -329,7 +335,7 @@ def test_parsing_invalid_html(requests_mock: rm_Mocker) -> None:
     )
 
 
-def test_parsing_archive_without_episodes() -> None:
+def test_parsing_archive_without_episodes(archive: Archive) -> None:
     """It collects links only matched by episode link pattern."""
     markup = """<html><head><title>The Dormouse'req_ses story</title></head>
         <article>
@@ -340,17 +346,18 @@ def test_parsing_archive_without_episodes() -> None:
             <p class="story">...</p>
     """  # noqa: E501,B950
     soup = BeautifulSoup(markup, "lxml")
-    Archive.collected_links = {}
-    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
+    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL, archive)
     soup_parser.soup = soup
     with pytest.raises(NoEpisodeLinksError) as ex:
         soup_parser.collect_links()
-    assert len(Archive.collected_links) == 0
+    assert len(archive.collected_links) == 0
     assert ex.value.args[0] == conf.ARCHIVE_URL
     assert ex.value.args[1] == "[ERROR]: No episode links on archive page"
 
 
-def test_parsing_archive_with_known_duplicates() -> None:
+def test_parsing_archive_with_known_duplicates(
+    archive: Archive,
+) -> None:
     """It ignores several links by their texts."""
     markup = """<html><head><title>Known Duplicates</title></head>
             <a href="https://teacherluke.co.uk/2016/03/20/i-was-invited-onto-craig-wealands-weekly-blab-and-we-talked-about-comedy-video/">[VIDEO]</a>;
@@ -359,18 +366,19 @@ def test_parsing_archive_with_known_duplicates() -> None:
             <a href="https://teacherluke.co.uk/2017/08/14/website-content-lukes-criminal-past-zep-episode-185/">[Website content]</a>;
     """  # noqa: E501,B950
     soup = BeautifulSoup(markup, "lxml")
-    Archive.collected_links = {}
-    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
+    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL, archive)
     soup_parser.soup = soup
     soup_parser.collect_links()
-    assert len(Archive.collected_links) == 1
+    assert len(archive.collected_links) == 1
     assert (
-        list(Archive.collected_links.values())[0]
+        list(archive.collected_links.values())[0]
         == "522. Learning English at Summer School in the UK (A Rambling Chat with Raphael Miller)"  # noqa: E501,B950
     )
 
 
-def test_parsing_archive_with_only_duplicates() -> None:
+def test_parsing_archive_with_only_duplicates(
+    archive: Archive,
+) -> None:
     """It does not fail when there are only duplicated links on page."""
     markup = """<html><head><title>Known Duplicates</title></head>
             <a href="https://teacherluke.co.uk/2016/03/20/i-was-invited-onto-craig-wealands-weekly-blab-and-we-talked-about-comedy-video/">[VIDEO]</a>;
@@ -378,15 +386,14 @@ def test_parsing_archive_with_only_duplicates() -> None:
             <a href="https://teacherluke.co.uk/2017/08/14/website-content-lukes-criminal-past-zep-episode-185/">[Website content]</a>;
     """  # noqa: E501,B950
     soup = BeautifulSoup(markup, "lxml")
-    Archive.collected_links = {}
-    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL)
+    soup_parser = parser.ArchiveParser(conf.ARCHIVE_URL, archive)
     soup_parser.soup = soup
     soup_parser.collect_links()
-    assert len(Archive.collected_links) == 0
+    assert len(archive.collected_links) == 0
     soup_parser.remove_irrelevant_links()
-    assert len(Archive.collected_links) == 0
+    assert len(archive.collected_links) == 0
     soup_parser.substitute_short_links()
-    assert len(Archive.collected_links) == 0
+    assert len(archive.collected_links) == 0
 
 
 def test_parsing_all_episodes_from_mocked_archive(
@@ -426,30 +433,33 @@ def test_parsing_post_datetime_without_element() -> None:
     assert post_date == excepted
 
 
-def test_generating_new_post_index() -> None:
+def test_generating_new_post_index(
+    archive: Archive,
+) -> None:
     """It generates index from URL."""
-    Archive.used_indexes = set()
     test_url = "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/"
-    index = parser.generate_post_index(test_url)
+    index = parser.generate_post_index(test_url, archive.used_indexes)
     expected_index = 2009041201
     assert index == expected_index
 
 
-def test_generating_new_post_index_on_same_day() -> None:
+def test_generating_new_post_index_on_same_day(
+    archive: Archive,
+) -> None:
     """It generates index from URL if posts are on the same day."""
-    Archive.used_indexes = set()
-    Archive.used_indexes.add(2009041201)
+    archive.used_indexes.add(2009041201)
     test_url = "https://teacherluke.co.uk/2009/04/12/episode-1-introduction/"
-    index = parser.generate_post_index(test_url)
+    index = parser.generate_post_index(test_url, archive.used_indexes)
     expected_index = 2009041202
     assert index == expected_index
-    index2 = parser.generate_post_index(test_url)
+    index2 = parser.generate_post_index(test_url, archive.used_indexes)
     assert index2 == expected_index + 1
 
 
 def test_parsing_non_episode_link(
     requests_mock: rm_Mocker,
     req_ses: requests.Session,
+    archive: Archive,
 ) -> None:
     """It returns None (empty episode) for non-episode link."""
     non_episode_url = (
@@ -461,10 +471,9 @@ def test_parsing_non_episode_link(
         status_code=200,
     )
     link_title = "Some title"
-    Archive.collected_links = {}
     with pytest.raises(NotEpisodeURLError) as ex:
-        parser.EpisodeParser(non_episode_url, req_ses, link_title).parse_url()
-    assert len(Archive.collected_links) == 0
+        parser.EpisodeParser(non_episode_url, archive, req_ses, link_title).parse_url()
+    assert len(archive.collected_links) == 0
     assert ex.value.args[0] == non_episode_url
 
 
@@ -473,6 +482,7 @@ def test_skipping_non_episode_link(
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
     req_ses: requests.Session,
+    archive: Archive,
 ) -> None:
     """It skips non-episode link."""
     test_urls = [
@@ -493,11 +503,10 @@ def test_skipping_non_episode_link(
         text="No need to parse this page",
         status_code=200,
     )
-    Archive.episodes = LepEpisodeList()
     test_dct = dict(zip(test_urls, test_texts))
-    parser.parse_each_episode(test_dct, req_ses)
-    assert len(Archive.episodes) == 1
-    assert Archive.episodes[0].post_title == "Episode 1 Link"
+    parser.parse_each_episode(test_dct, archive, req_ses)
+    assert len(archive.episodes) == 1
+    assert archive.episodes[0].post_title == "Episode 1 Link"
 
 
 def test_parsing_links_to_audio_for_mocked_episodes(
@@ -644,6 +653,7 @@ def test_no_new_episodes_on_archive_vs_json_db(
     single_page_mock: str,
     json_db_mock: str,
     capsys: CaptureFixture[str],
+    archive: Archive,
 ) -> None:
     """It prints when no new episodes on archive page."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -657,7 +667,7 @@ def test_no_new_episodes_on_archive_vs_json_db(
         text=json_db_mock,
     )
 
-    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, archive)
     captured = capsys.readouterr()
     assert "There are no new episodes. Exit." in captured.out
 
@@ -668,6 +678,7 @@ def test_no_valid_episode_objects_in_json_db(
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
     capsys: CaptureFixture[str],
+    archive: Archive,
 ) -> None:
     """It prints warning when there are no valid episode objects."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -684,7 +695,7 @@ def test_no_valid_episode_objects_in_json_db(
     )
 
     with pytest.raises(NoEpisodesInDataBase) as ex:
-        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, archive)
     assert "there are NO episodes" in ex.value.args[0]
 
     captured = capsys.readouterr()
@@ -698,6 +709,7 @@ def test_json_db_not_valid(
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
     capsys: CaptureFixture[str],
+    archive: Archive,
 ) -> None:
     """It prints error for invalid JSON document."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -712,7 +724,7 @@ def test_json_db_not_valid(
     )
 
     with pytest.raises(NoEpisodesInDataBase) as ex:
-        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, archive)
     assert "there are NO episodes" in ex.value.args[0]
     captured = capsys.readouterr()
     assert "[ERROR]" in captured.out
@@ -724,6 +736,7 @@ def test_json_db_not_available(
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
+    archive: Archive,
     # capsys: CaptureFixture[str],
 ) -> None:
     """It prints error for unavailable JSON database."""
@@ -740,7 +753,7 @@ def test_json_db_not_available(
     )
 
     with pytest.raises(DataBaseUnavailable):
-        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, archive)
     # assert "" in ex.value.args[0]
     # captured = capsys.readouterr()
     # assert "JSON database is not available. Exit." in captured.out
@@ -752,6 +765,7 @@ def test_json_db_contains_only_string(
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
     capsys: CaptureFixture[str],
+    archive: Archive,
 ) -> None:
     """It prints warning for JSON as str."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -766,7 +780,7 @@ def test_json_db_contains_only_string(
     )
 
     with pytest.raises(NoEpisodesInDataBase) as ex:
-        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, archive)
     assert "there are NO episodes" in ex.value.args[0]
     captured = capsys.readouterr()
     assert "[WARNING]" in captured.out
@@ -779,6 +793,7 @@ def test_invalid_objects_in_json_not_included(
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
     capsys: CaptureFixture[str],
+    archive: Archive,
 ) -> None:
     """It skips invalid objects in JSON database."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -793,7 +808,7 @@ def test_invalid_objects_in_json_not_included(
     )
 
     with pytest.raises(NoEpisodesInDataBase) as ex:
-        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, archive)
     assert "there are NO episodes" in ex.value.args[0]
     captured = capsys.readouterr()
     assert "[WARNING]" in captured.out
@@ -807,6 +822,7 @@ def test_updating_json_database_with_new_episodes(
     single_page_mock: str,
     modified_json_less_db_mock: str,
     lep_temp_path: Path,
+    archive: Archive,
 ) -> None:
     """It retrives and saves new episodes from archive."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -820,10 +836,9 @@ def test_updating_json_database_with_new_episodes(
         text=modified_json_less_db_mock,
     )
 
-    Archive.episodes = LepEpisodeList()
     # json_file = lep_temp_path / "json_db_tmp.json"
     json_file = str(Path(lep_temp_path / "json_db_tmp.json").absolute())
-    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, json_file)
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, archive, json_file)
     with open(json_file, "rb") as f:
         py_from_json: LepEpisodeList = json.load(f, object_hook=as_lep_episode_obj)
 
@@ -845,6 +860,7 @@ def test_updating_json_database_with_extra_episodes(
     single_page_mock: str,
     modified_json_extra_db_mock: str,
     capsys: CaptureFixture[str],
+    archive: Archive,
 ) -> None:
     """It prints warning if database contains more episodes than archive."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -858,7 +874,7 @@ def test_updating_json_database_with_extra_episodes(
         text=modified_json_extra_db_mock,
     )
 
-    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+    parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, archive)
     captured = capsys.readouterr()
     expected_message = "Database contains more episodes than current archive!"
     assert "[WARNING]" in captured.out
@@ -867,13 +883,13 @@ def test_updating_json_database_with_extra_episodes(
 
 def test_parsing_invalid_html_in_main_actions(
     requests_mock: rm_Mocker,
-    capsys: CaptureFixture[str],
+    archive: Archive,
 ) -> None:
     """It raises error when ivalid DOM on archive page."""
     markup: str = '<a class="entry" id="post">'
     requests_mock.get(conf.ARCHIVE_URL, text=markup)
     with pytest.raises(NotEpisodeURLError) as ex:
-        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL)
+        parser.do_parsing_actions(conf.JSON_DB_URL, conf.ARCHIVE_URL, archive)
     assert conf.ARCHIVE_URL in ex.value.args[0]
     assert (
         ex.value.args[1]
@@ -888,7 +904,9 @@ def test_encoding_non_serializable_json_object() -> None:
         _ = json.dumps(obj, cls=lep.LepJsonEncoder)
 
 
-def test_invoking_not_implemented_methods() -> None:
+def test_invoking_not_implemented_methods(
+    archive: Archive,
+) -> None:
     """It raises exceptions if someone forget to override methods."""
 
     class NewParser(parser.LepParser):
@@ -897,11 +915,11 @@ def test_invoking_not_implemented_methods() -> None:
         pass
 
     with pytest.raises(NotImplementedError):
-        NewParser("Some URL").do_pre_parsing()
+        NewParser("Some URL", archive).do_pre_parsing()
     with pytest.raises(NotImplementedError):
-        NewParser("Some URL").collect_links()
+        NewParser("Some URL", archive).collect_links()
     with pytest.raises(NotImplementedError):
-        NewParser("Some URL").do_post_parsing()
+        NewParser("Some URL", archive).do_post_parsing()
 
 
 def test_extracting_date_from_url_negative() -> None:

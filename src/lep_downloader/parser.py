@@ -8,6 +8,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Set
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,7 +20,6 @@ from lep_downloader.exceptions import LepEpisodeNotFound
 from lep_downloader.exceptions import NoEpisodeLinksError
 from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.exceptions import NotEpisodeURLError
-from lep_downloader.lep import Archive
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
@@ -48,6 +48,21 @@ only_a_tags_with_mp3 = SoupStrainer(
     "a",
     href=re.compile(r"^(?!.*boos/(2794795|3727124))(?!.*uploads).*\.mp3$", re.I),
 )
+
+
+class Archive(Lep):
+    """Represent archive page object."""
+
+    # collected_links: ClassVar[Dict[str, str]] = {}
+    # deleted_links: ClassVar[Set[str]] = set()
+    # used_indexes: ClassVar[Set[int]] = set()
+    # episodes: ClassVar[LepEpisodeList] = LepEpisodeList()
+    def __init__(self) -> None:
+        """Initialize an archive with an empty containers."""
+        self.collected_links: Dict[str, str] = {}
+        self.deleted_links: Set[str] = set()
+        self.used_indexes: Set[int] = set()
+        self.episodes: LepEpisodeList = LepEpisodeList()
 
 
 def is_tag_a_repeated(tag_a: Tag) -> bool:
@@ -79,7 +94,7 @@ def parse_episode_number(post_title: str) -> int:
         return 0
 
 
-def generate_post_index(post_url: str) -> int:
+def generate_post_index(post_url: str, indexes: Set[int]) -> int:
     """Returns index number for post."""
     match = EP_LINK_PATTERN.match(post_url)
     if match:
@@ -91,10 +106,10 @@ def generate_post_index(post_url: str) -> int:
         new_index = int(date_numbers + "1".zfill(2))
         exists = False
         while not exists:
-            if new_index in Archive.used_indexes:
+            if new_index in indexes:
                 new_index += 1
             else:
-                Archive.used_indexes.add(new_index)
+                indexes.add(new_index)
                 exists = True
         return new_index
     else:
@@ -141,6 +156,7 @@ def parse_post_audio(soup: BeautifulSoup) -> List[List[str]]:
 
 def parse_each_episode(
     urls: Dict[str, str],
+    archive: Archive,
     session: Optional[requests.Session] = None,
 ) -> None:
     """Parse each episode collected from archive page.
@@ -152,14 +168,16 @@ def parse_each_episode(
     # https://docs.python.org/3/library/typing.html#typing.Reversible
     for url, text in reversed(urls.items()):
         try:
-            EpisodeParser(url, post_title=text).parse_url()
+            ep_parser = EpisodeParser(url, archive, post_title=text)
+            ep_parser.parse_url()
+            archive.episodes.append(ep_parser.episode)
         except (NotEpisodeURLError):
             # TODO (hotenov): Write to log / statistics
             # for non-episode URL, but skip here
             continue
         except (LepEpisodeNotFound) as ex:
             not_found_episode = ex.args[0]
-            Archive.episodes.append(not_found_episode)
+            archive.episodes.append(not_found_episode)
             continue
 
 
@@ -182,10 +200,11 @@ def convert_date_from_url(url: str) -> datetime:
 
 def fetch_updates(
     db_episodes: LepEpisodeList,
+    archive: Archive,
     archive_urls: Optional[Dict[str, str]] = None,
 ) -> Any:
     """Fetch only new URLs between database and archive page."""
-    archive_urls = archive_urls if archive_urls else Archive.collected_links
+    archive_urls = archive_urls if archive_urls else archive.collected_links
     # TODO (hotenov): Here method .lower() for URL it's not quite right,
     # but 'request-mock' or JSONEncoder encodes emoji with upper case (I don't know why)
     db_urls = {ep.url.lower(): ep.post_title for ep in db_episodes}
@@ -214,6 +233,7 @@ def write_parsed_episodes_to_json(
 def do_parsing_actions(
     json_url: str,
     archive_url: str,
+    archive: Archive,
     json_name: str = conf.DEFAULT_JSON_NAME,
     session: Optional[requests.Session] = None,
 ) -> None:
@@ -222,12 +242,12 @@ def do_parsing_actions(
     updates: Dict[str, str] = {}
 
     # Collect (get and parse) links and their texts from web archive page.
-    ArchiveParser(archive_url).parse_url()
+    ArchiveParser(archive_url, archive).parse_url()
 
     # Get database episodes from web JSON
     Lep.db_episodes = Lep.get_db_episodes(json_url, session)
     if Lep.db_episodes:
-        updates = fetch_updates(Lep.db_episodes)
+        updates = fetch_updates(Lep.db_episodes, archive)
     else:
         raise NoEpisodesInDataBase(
             "JSON is available, but\nthere are NO episodes in this file. Exit."
@@ -241,8 +261,8 @@ def do_parsing_actions(
     if len(updates) > 0:
         # Parse new episodes and add them to shared class list
         # with parsed episodes (list empty until this statement)
-        parse_each_episode(updates)
-        new_episodes = Archive.episodes
+        parse_each_episode(updates, archive)
+        new_episodes = archive.episodes
         new_episodes = LepEpisodeList(reversed(new_episodes))
         all_episodes = LepEpisodeList(new_episodes + Lep.db_episodes)
         all_episodes = all_episodes.desc_sort_by_date_and_index()
@@ -255,16 +275,23 @@ def do_parsing_actions(
 class LepParser(Lep):
     """Base class for LEP archive parsers."""
 
-    def __init__(self, url: str, session: requests.Session = None) -> None:
+    def __init__(
+        self,
+        url: str,
+        archive: Archive,
+        session: requests.Session = None,
+    ) -> None:
         """Initialize LepParser object.
 
         Args:
             url (str): URL for parsing.
+            archive (Archive): Instance of Archive object
             session (requests.Session): Requests session object
                 if None, get default global session.
         """
         super().__init__(session)
         self.url = url
+        self.archive = archive
         self.content: str = ""
         self.soup: BeautifulSoup = None
         self.final_location: str = self.url
@@ -314,6 +341,10 @@ class LepParser(Lep):
 class ArchiveParser(LepParser):
     """Parser object for archive page."""
 
+    # def __init__(self, archive: Archive) -> None:
+    #     """Initialize an ArchiveParser instance."""
+    #     self.archive = archive
+
     def do_pre_parsing(self) -> None:
         """Substitute link with '.ukm' misspelled TLD in HTML content."""
         self.content = self.content.replace(".co.ukm", ".co.uk")
@@ -336,7 +367,7 @@ class ArchiveParser(LepParser):
             for tag_a in tags_a_episodes:
                 link = tag_a["href"].strip()
                 link_string = " ".join([text for text in tag_a.stripped_strings])
-                Archive.collected_links[link] = link_string
+                self.archive.collected_links[link] = link_string
         else:
             raise NoEpisodeLinksError(
                 self.final_location,
@@ -350,14 +381,14 @@ class ArchiveParser(LepParser):
             before deletion them from dictionary.
         Then rebuild dictionary skipping irrelevant links.
         """
-        Archive.deleted_links = {
+        self.archive.deleted_links = {
             link
-            for link in Archive.collected_links.keys()
+            for link in self.archive.collected_links.keys()
             if link in conf.IRRELEVANT_LINKS
         }
-        Archive.collected_links = {
+        self.archive.collected_links = {
             link: text
-            for link, text in Archive.collected_links.items()
+            for link, text in self.archive.collected_links.items()
             if link not in conf.IRRELEVANT_LINKS
         }
 
@@ -365,9 +396,9 @@ class ArchiveParser(LepParser):
         """Paste final URL destination instead of short links."""
         for short, final in conf.SHORT_LINKS_MAPPING_DICT.items():
             # Rebuild dictionary changing only matched key
-            Archive.collected_links = {
+            self.archive.collected_links = {
                 final if k == short else k: v
-                for k, v in Archive.collected_links.items()
+                for k, v in self.archive.collected_links.items()
             }
 
     def do_post_parsing(self) -> None:
@@ -382,17 +413,19 @@ class EpisodeParser(LepParser):
     def __init__(
         self,
         url: str,
+        archive: Archive,
         session: Optional[requests.Session] = None,
         post_title: str = "",
     ) -> None:
         """Initialize EpisodeParser object."""
-        super().__init__(url, session)
+        super().__init__(url, archive, session)
         self.episode = LepEpisode()
         self.episode.post_title = post_title
+        self.used_indexes = archive.used_indexes
 
     def do_pre_parsing(self) -> None:
         """Parse episode date, number, index."""
-        self.episode.index = generate_post_index(self.final_location)
+        self.episode.index = generate_post_index(self.final_location, self.used_indexes)
         if self.episode.index == 0:
             raise NotEpisodeURLError(self.final_location)
 
@@ -425,4 +458,5 @@ class EpisodeParser(LepParser):
 
     def do_post_parsing(self) -> None:
         """Add parsed episode to shared list."""
-        Archive.episodes.append(self.episode)
+        # Archive.episodes.append(self.episode)
+        pass
