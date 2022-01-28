@@ -188,9 +188,9 @@ def test_retrieve_all_episode_links_from_soup(
             <p class="story">...</p>
     """  # noqa: E501,B950
     soup = BeautifulSoup(html_doc, "lxml")
-    soup_parser = parser.ArchiveParser(archive, conf.ARCHIVE_URL)
-    soup_parser.soup = soup
-    soup_parser.collect_links()
+    archive_parser = archive.parser
+    archive_parser.soup = soup
+    archive_parser.collect_links()
     assert len(archive.collected_links) == 2
     assert (
         list(archive.collected_links.values())[1]
@@ -481,7 +481,6 @@ def test_skipping_non_episode_link(
     requests_mock: rm_Mocker,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
-    req_ses: requests.Session,
     archive: Archive,
 ) -> None:
     """It skips non-episode link."""
@@ -504,7 +503,7 @@ def test_skipping_non_episode_link(
         status_code=200,
     )
     test_dct = dict(zip(test_urls, test_texts))
-    archive.parse_each_episode(test_dct, req_ses)
+    archive.parse_each_episode(test_dct)
     assert len(archive.episodes) == 1
     assert archive.episodes[0].post_title == "Episode 1 Link"
 
@@ -654,7 +653,6 @@ def test_no_new_episodes_on_archive_vs_json_db(
     json_db_mock: str,
     capsys: CaptureFixture[str],
     archive: Archive,
-    req_ses: requests.Session,
 ) -> None:
     """It prints when no new episodes on archive page."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -668,7 +666,7 @@ def test_no_new_episodes_on_archive_vs_json_db(
         text=json_db_mock,
     )
 
-    archive.do_parsing_actions(conf.JSON_DB_URL, session=req_ses)
+    archive.do_parsing_actions(conf.JSON_DB_URL)
     captured = capsys.readouterr()
     assert "There are no new episodes. Exit." in captured.out
 
@@ -680,7 +678,6 @@ def test_no_valid_episode_objects_in_json_db(
     single_page_mock: str,
     capsys: CaptureFixture[str],
     archive: Archive,
-    req_ses: requests.Session,
 ) -> None:
     """It prints warning when there are no valid episode objects."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -697,7 +694,7 @@ def test_no_valid_episode_objects_in_json_db(
     )
 
     with pytest.raises(NoEpisodesInDataBase) as ex:
-        archive.do_parsing_actions(conf.JSON_DB_URL, session=req_ses)
+        archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
 
     captured = capsys.readouterr()
@@ -712,7 +709,6 @@ def test_json_db_not_valid(
     single_page_mock: str,
     capsys: CaptureFixture[str],
     archive: Archive,
-    req_ses: requests.Session,
 ) -> None:
     """It prints error for invalid JSON document."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -727,7 +723,7 @@ def test_json_db_not_valid(
     )
 
     with pytest.raises(NoEpisodesInDataBase) as ex:
-        archive.do_parsing_actions(conf.JSON_DB_URL, session=req_ses)
+        archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
     captured = capsys.readouterr()
     assert "[ERROR]" in captured.out
@@ -741,7 +737,6 @@ def test_json_db_not_available(
     single_page_mock: str,
     archive: Archive,
     # capsys: CaptureFixture[str],
-    req_ses: requests.Session,
 ) -> None:
     """It prints error for unavailable JSON database."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -757,7 +752,7 @@ def test_json_db_not_available(
     )
 
     with pytest.raises(DataBaseUnavailable):
-        archive.do_parsing_actions(conf.JSON_DB_URL, session=req_ses)
+        archive.do_parsing_actions(conf.JSON_DB_URL)
     # assert "" in ex.value.args[0]
     # captured = capsys.readouterr()
     # assert "JSON database is not available. Exit." in captured.out
@@ -770,7 +765,6 @@ def test_json_db_contains_only_string(
     single_page_mock: str,
     capsys: CaptureFixture[str],
     archive: Archive,
-    req_ses: requests.Session,
 ) -> None:
     """It prints warning for JSON as str."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -785,7 +779,7 @@ def test_json_db_contains_only_string(
     )
 
     with pytest.raises(NoEpisodesInDataBase) as ex:
-        archive.do_parsing_actions(conf.JSON_DB_URL, session=req_ses)
+        archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
     captured = capsys.readouterr()
     assert "[WARNING]" in captured.out
@@ -799,7 +793,6 @@ def test_invalid_objects_in_json_not_included(
     single_page_mock: str,
     capsys: CaptureFixture[str],
     archive: Archive,
-    req_ses: requests.Session,
 ) -> None:
     """It skips invalid objects in JSON database."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -814,7 +807,7 @@ def test_invalid_objects_in_json_not_included(
     )
 
     with pytest.raises(NoEpisodesInDataBase) as ex:
-        archive.do_parsing_actions(conf.JSON_DB_URL, session=req_ses)
+        archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
     captured = capsys.readouterr()
     assert "[WARNING]" in captured.out
@@ -829,7 +822,6 @@ def test_updating_json_database_with_new_episodes(
     modified_json_less_db_mock: str,
     lep_temp_path: Path,
     archive: Archive,
-    req_ses: requests.Session,
 ) -> None:
     """It retrives and saves new episodes from archive."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -845,7 +837,7 @@ def test_updating_json_database_with_new_episodes(
 
     # json_file = lep_temp_path / "json_db_tmp.json"
     json_file = str(Path(lep_temp_path / "json_db_tmp.json").absolute())
-    archive.do_parsing_actions(conf.JSON_DB_URL, json_name=json_file, session=req_ses)
+    archive.do_parsing_actions(conf.JSON_DB_URL, json_name=json_file)
     with open(json_file, "rb") as f:
         py_from_json: LepEpisodeList = json.load(f, object_hook=as_lep_episode_obj)
 
@@ -868,7 +860,6 @@ def test_updating_json_database_with_extra_episodes(
     modified_json_extra_db_mock: str,
     capsys: CaptureFixture[str],
     archive: Archive,
-    req_ses: requests.Session,
 ) -> None:
     """It prints warning if database contains more episodes than archive."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
@@ -882,7 +873,7 @@ def test_updating_json_database_with_extra_episodes(
         text=modified_json_extra_db_mock,
     )
 
-    archive.do_parsing_actions(conf.JSON_DB_URL, session=req_ses)
+    archive.do_parsing_actions(conf.JSON_DB_URL)
     captured = capsys.readouterr()
     expected_message = "Database contains more episodes than current archive!"
     assert "[WARNING]" in captured.out
@@ -892,13 +883,12 @@ def test_updating_json_database_with_extra_episodes(
 def test_parsing_invalid_html_in_main_actions(
     requests_mock: rm_Mocker,
     archive: Archive,
-    req_ses: requests.Session,
 ) -> None:
     """It raises error when ivalid DOM on archive page."""
     markup: str = '<a class="entry" id="post">'
     requests_mock.get(conf.ARCHIVE_URL, text=markup)
     with pytest.raises(NotEpisodeURLError) as ex:
-        archive.do_parsing_actions(conf.JSON_DB_URL, session=req_ses)
+        archive.do_parsing_actions(conf.JSON_DB_URL)
     assert conf.ARCHIVE_URL in ex.value.args[0]
     assert (
         ex.value.args[1]

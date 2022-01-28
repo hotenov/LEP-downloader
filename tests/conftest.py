@@ -252,7 +252,7 @@ def parsed_episodes_mock(
         additional_matcher=single_page_matcher,
         text=single_page_mock,
     )
-    archive.parse_each_episode(archive_parsing_results_mock, req_ses)
+    archive.parse_each_episode(archive_parsing_results_mock)
     # parsed_episodes = copy.deepcopy(Archive.episodes)
     return archive.episodes
 
@@ -386,11 +386,11 @@ def clear_shared_lists() -> None:
 
 
 @pytest.fixture
-def archive() -> Any:
+def archive(req_ses: requests.Session) -> Any:
     """Fixture for new instance of Archive class."""
     from lep_downloader.parser import Archive
 
-    new_archive = Archive()
+    new_archive = Archive(session=req_ses)
     return new_archive
     # yield new_archive
     # new_archive.episodes = LepEpisodeList()

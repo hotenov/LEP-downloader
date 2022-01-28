@@ -338,7 +338,7 @@ def download_files(
 
         result_ok = download_and_write_file(
             primary_link,
-            Lep().session,
+            Lep().cls_session,
             save_dir,
             filename,
         )
@@ -352,11 +352,11 @@ def download_files(
             # Try downloading for auxiliary links
             if secondary_url:
                 aux_result_ok = download_and_write_file(
-                    secondary_url, Lep().session, save_dir, filename
+                    secondary_url, Lep().cls_session, save_dir, filename
                 )
             if tertiary_url and not aux_result_ok:
                 aux_result_ok = download_and_write_file(
-                    tertiary_url, Lep().session, save_dir, filename
+                    tertiary_url, Lep().cls_session, save_dir, filename
                 )
             if aux_result_ok:
                 Downloader.downloaded.append(file_obj)

@@ -243,7 +243,7 @@ def as_lep_episode_obj(dct: Dict[str, Any]) -> Any:
 class Lep:
     """Represent base class for general attributes."""
 
-    session: ClassVar[requests.Session] = requests.Session()
+    cls_session: ClassVar[requests.Session] = requests.Session()
     json_body: ClassVar[str] = ""
     db_episodes: ClassVar[LepEpisodeList] = LepEpisodeList()
 
@@ -253,7 +253,8 @@ class Lep:
         Args:
             session (requests.Session): Global session for descendants.
         """
-        Lep.session = session if session else PROD_SES
+        self.session = session if session else PROD_SES
+        Lep.cls_session = self.session
 
     @classmethod
     def get_web_document(
@@ -262,7 +263,7 @@ class Lep:
         session: Optional[requests.Session] = None,
     ) -> Any:
         """Return text content of web document (HTML, JSON, etc.)."""
-        session = session if session else cls.session
+        session = session if session else cls.cls_session
         final_location = page_url
         is_url_ok = False
         with session:
@@ -320,6 +321,7 @@ class Lep:
         session: Optional[requests.Session] = None,
     ) -> LepEpisodeList:
         """Get valid episode list by passed URL."""
+        session = session if session else cls.cls_session
         db_episodes = LepEpisodeList()
         cls.json_body, _, status_db_ok = Lep.get_web_document(json_url, session)
         if status_db_ok:

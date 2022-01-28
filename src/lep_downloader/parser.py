@@ -56,8 +56,10 @@ class Archive(Lep):
     def __init__(
         self,
         url: str = conf.ARCHIVE_URL,
+        session: requests.Session = None,
     ) -> None:
         """Initialize an archive instance."""
+        super().__init__(session)
         self.url = url
         self.parser = ArchiveParser(self, self.url)
         self.collected_links: Dict[str, str] = {}
@@ -90,7 +92,6 @@ class Archive(Lep):
     def parse_each_episode(
         self,
         urls: Dict[str, str],
-        session: Optional[requests.Session] = None,
     ) -> None:
         """Parse each episode collected from archive page.
 
@@ -117,17 +118,15 @@ class Archive(Lep):
         self,
         json_url: str,
         json_name: str = conf.DEFAULT_JSON_NAME,
-        session: Optional[requests.Session] = None,
     ) -> None:
         """Main methdod to do parsing job."""
-        session = session if session else Lep.session
         updates: Dict[str, str] = {}
 
         # Collect (get and parse) links and their texts from web archive page.
         self.parser.parse_url()
 
         # Get database episodes from web JSON
-        Lep.db_episodes = Lep.get_db_episodes(json_url, session)
+        Lep.db_episodes = Lep.get_db_episodes(json_url, self.session)
         if Lep.db_episodes:
             updates = self.fetch_updates(Lep.db_episodes, self.collected_links)
         else:
@@ -143,7 +142,7 @@ class Archive(Lep):
         if len(updates) > 0:
             # Parse new episodes and add them to shared class list
             # with parsed episodes (list empty until this statement)
-            self.parse_each_episode(updates, self)
+            self.parse_each_episode(updates)
             new_episodes = self.episodes
             new_episodes = LepEpisodeList(reversed(new_episodes))
             all_episodes = LepEpisodeList(new_episodes + Lep.db_episodes)
@@ -338,10 +337,6 @@ class LepParser(Lep):
 
 class ArchiveParser(LepParser):
     """Parser object for archive page."""
-
-    # def __init__(self, archive: Archive) -> None:
-    #     """Initialize an ArchiveParser instance."""
-    #     self.archive = archive
 
     def do_pre_parsing(self) -> None:
         """Substitute link with '.ukm' misspelled TLD in HTML content."""
