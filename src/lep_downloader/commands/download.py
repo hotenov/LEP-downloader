@@ -92,9 +92,7 @@ def cli(  # noqa: C901 'too complex'
 
     filtered_files = lep_dl.files.filter_by_type(*file_filter)
 
-    lep_dl.existed, lep_dl.non_existed = downloader.detect_existing_files(
-        filtered_files, dest
-    )
+    lep_dl.detach_existed_files(dest, filtered_files)
 
     total_number = len(lep_dl.non_existed)
 

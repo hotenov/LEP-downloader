@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from typing import List
+from typing import Optional
 from typing import Tuple
 from typing import Type
 from typing import Union
@@ -225,8 +226,8 @@ def gather_all_files(lep_episodes: LepEpisodeList) -> LepFileList:
 
 
 def detect_existing_files(
-    files: LepFileList,
     save_dir: Path,
+    files: LepFileList,
 ) -> Tuple[LepFileList, LepFileList]:
     """Separate lists for existing and non-existing files."""
     existed = LepFileList()
@@ -308,6 +309,15 @@ class LepDL(Lep):
         """
         if not self.db_episodes:
             self.db_episodes = Lep.get_db_episodes(self.json_url)
+
+    def detach_existed_files(
+        self,
+        save_dir: Path,
+        files: Optional[LepFileList] = None,
+    ) -> None:
+        """Detach 'existed' files from non 'non_existed'."""
+        files = files if files else self.files
+        self.existed, self.non_existed = detect_existing_files(save_dir, files)
 
     def populate_default_url(self) -> None:
         """Fill in download url (if it is empty) with default value.

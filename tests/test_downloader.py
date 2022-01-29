@@ -116,9 +116,7 @@ def test_separating_existing_and_non_existing_mp3(
     lep_dl.use_or_get_db_episodes()
     lep_dl.files = downloader.gather_all_files(lep_dl.db_episodes)
     audio_files = lep_dl.files.filter_by_type(Audio)
-    lep_dl.existed, lep_dl.non_existed = downloader.detect_existing_files(
-        audio_files, tmp_path
-    )
+    lep_dl.detach_existed_files(tmp_path, audio_files)
     assert len(lep_dl.existed) == 2
     assert len(lep_dl.non_existed) == 16
 
@@ -224,9 +222,7 @@ def test_skipping_downloaded_file_on_disc(
     )
 
     lep_dl.files = test_downloads
-    lep_dl.existed, lep_dl.non_existed = downloader.detect_existing_files(
-        lep_dl.files, tmp_path
-    )
+    lep_dl.detach_existed_files(tmp_path)
     existing_file_1 = tmp_path / "Test File #1.mp3"
     existing_file_1.write_text("Here are mp3 1 bytes")
     lep_dl.download_files(tmp_path)
@@ -269,9 +265,7 @@ def test_try_auxiliary_download_links(
     )
 
     lep_dl.files = test_downloads
-    lep_dl.existed, lep_dl.non_existed = downloader.detect_existing_files(
-        lep_dl.files, tmp_path
-    )
+    lep_dl.detach_existed_files(tmp_path)
     lep_dl.download_files(tmp_path)
     expected_file_1 = tmp_path / "Test File #1.mp3"
     assert expected_file_1.exists()
@@ -299,9 +293,7 @@ def test_primary_link_unavailable(
     )
 
     lep_dl.files = test_downloads
-    lep_dl.existed, lep_dl.non_existed = downloader.detect_existing_files(
-        lep_dl.files, tmp_path
-    )
+    lep_dl.detach_existed_files(tmp_path)
     lep_dl.download_files(tmp_path)
     captured = capsys.readouterr()
     assert len(list(tmp_path.iterdir())) == 0
@@ -341,9 +333,7 @@ def test_both_primary_and_auxiliary_links_404(
     )
 
     lep_dl.files = test_downloads
-    lep_dl.existed, lep_dl.non_existed = downloader.detect_existing_files(
-        lep_dl.files, tmp_path
-    )
+    lep_dl.detach_existed_files(tmp_path, lep_dl.files)
     lep_dl.download_files(tmp_path)
     captured = capsys.readouterr()
     assert len(list(tmp_path.iterdir())) == 0
