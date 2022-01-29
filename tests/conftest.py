@@ -23,6 +23,7 @@
 import json
 import shutil
 from datetime import datetime
+from datetime import timezone
 from pathlib import Path
 from typing import Any
 from typing import Callable
@@ -42,9 +43,6 @@ from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
 from requests_mock.response import _Context as rm_Context
 
-
-DataForEpisodeAudio = List[Tuple[str, str, List[List[str]], bool]]
-NamesWithAudios = List[Tuple[str, List[str]]]
 
 # yapf: disable
 URL_HTML_MAPPING = {
@@ -90,6 +88,10 @@ URL_HTML_MAPPING = {
 def req_ses() -> requests.Session:
     """Returns global (for all tests) requests session."""
     s = requests.Session()
+    test_headers = {
+        "User-Agent": "MOCKzilla/0.666",
+    }
+    s.headers.update(test_headers)
     return s
 
 
@@ -193,9 +195,9 @@ def modified_json_less_db_mock(db_episodes: List[object]) -> str:
     from lep_downloader import lep
 
     # Delete three episodes
-    del db_episodes[0]
-    del db_episodes[1]
-    del db_episodes[6]
+    del db_episodes[0]  # Remove '733'
+    del db_episodes[0]  # Remove '714'
+    del db_episodes[4]  # Remove 'LEP on ZEP'
     modified_json = json.dumps(db_episodes, cls=lep.LepJsonEncoder)
     del db_episodes
     return modified_json
@@ -217,58 +219,49 @@ def modified_json_extra_db_mock(db_episodes: List[object]) -> str:
 def archive_parsing_results_mock(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
-) -> Tuple[List[str], List[str]]:
+    req_ses: requests.Session,
+    archive: Any,
+) -> Any:
     """Returns two lists: links and texts from mocked archive page."""
     from lep_downloader import config as conf
     from lep_downloader import parser
 
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    parsing_result: Tuple[List[str], ...]
-    parsing_result = parser.get_archive_parsing_results(conf.ARCHIVE_URL)
-    all_links: List[str] = parsing_result[0]
-    all_texts: List[str] = parsing_result[2]
-    return all_links, all_texts
+    archive_parser = parser.ArchiveParser(archive, conf.ARCHIVE_URL, req_ses)
+    archive_parser.parse_url()
+    del archive_parser
+    return archive.collected_links
 
 
 @pytest.fixture
 def parsed_episodes_mock(
     requests_mock: rm_Mocker,
-    archive_parsing_results_mock: Tuple[List[str], List[str]],
+    archive_parsing_results_mock: Dict[str, str],
     single_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
-    req_ses: requests.Session,
-) -> List[Any]:
+    archive: Any,
+) -> Any:
     """Returns list of LepEpisode objects.
 
-    Mocked episodes among others with correct post date.
+    Mocked episodes among others, with parsed (not default) post date.
     """
-    from lep_downloader import parser
-
-    all_links, all_texts = archive_parsing_results_mock
     requests_mock.get(
         req_mock.ANY,
         additional_matcher=single_page_matcher,
         text=single_page_mock,
     )
-    parsed_episodes = parser.get_parsed_episodes(all_links, req_ses, all_texts)
-    return parsed_episodes
+    archive.parse_each_episode(archive_parsing_results_mock)
+    # parsed_episodes = copy.deepcopy(Archive.episodes)
+    return archive.episodes
 
 
 @pytest.fixture
 def mocked_episodes(
     parsed_episodes_mock: List[Any],
 ) -> List[Any]:
-    """Only episodes which have HTML mock page."""
-    lep_date_format = "%Y-%m-%dT%H:%M:%S%z"
-    min_date = datetime.strptime(
-        "2009-03-03T03:03:03+02:00",
-        lep_date_format,
-    )
-    mocked_episodes = [
-        ep
-        for ep in parsed_episodes_mock
-        if datetime.strptime(ep.__dict__["date"], lep_date_format) > min_date
-    ]
+    """Fixture with episodes which have HTML mock page only."""
+    min_date = datetime(2009, 3, 3, 3, 3, 3, tzinfo=timezone.utc)
+    mocked_episodes = [ep for ep in parsed_episodes_mock if ep.date > min_date]
     return mocked_episodes
 
 
@@ -314,36 +307,40 @@ def mp3_file2_mock(mp3_mocks_path: Path) -> bytes:
 @pytest.fixture(scope="session")
 def only_valid_episodes(json_db_mock: str) -> List[Any]:
     """Returns list of valid LepEpisode objects from JSON mocked database."""
-    from lep_downloader import data_getter
+    from lep_downloader.lep import Lep
+    from lep_downloader.lep import LepEpisodeList
 
-    mocked_db_episodes = data_getter.get_list_of_valid_episodes(json_db_mock)
+    mocked_db_episodes: LepEpisodeList = Lep.extract_only_valid_episodes(json_db_mock)
     return mocked_db_episodes
 
 
 @pytest.fixture(scope="session")
-def only_audio_episodes(only_valid_episodes: List[Any]) -> List[Any]:
+def only_audio_episodes(only_valid_episodes: Any) -> List[Any]:
     """Returns only audio episodes from all."""
-    from lep_downloader import downloader
+    from lep_downloader.lep import LepEpisodeList
 
-    audio_episodes = downloader.select_all_audio_episodes(only_valid_episodes)
+    audio_episodes: LepEpisodeList = only_valid_episodes.filter_by_type("AUDIO")
     return audio_episodes
 
 
-@pytest.fixture(scope="session")
-def only_audio_data(only_audio_episodes: List[Any]) -> DataForEpisodeAudio:
+@pytest.fixture
+def only_audio_data(
+    only_valid_episodes: Any,
+    lep_dl: Any,
+) -> Any:
     """Returns only extracted audio data from audio episodes."""
     from lep_downloader import downloader
+    from lep_downloader.downloader import Audio
 
-    audio_data = downloader.get_audios_data(only_audio_episodes)
-    return audio_data
+    lep_dl.files = downloader.gather_all_files(only_valid_episodes)
+    audio_files = lep_dl.files.filter_by_type(Audio)
+    return audio_files
 
 
-@pytest.fixture(scope="session")
-def only_audio_links(only_audio_data: DataForEpisodeAudio) -> NamesWithAudios:
+@pytest.fixture
+def only_audio_links(only_audio_data: List[Any]) -> List[Tuple[str, str]]:
     """Returns only links and names for audio files."""
-    from lep_downloader import downloader
-
-    audio_links = downloader.bind_name_and_file_url(only_audio_data)
+    audio_links = [(af.filename, af.primary_url) for af in only_audio_data]
     return audio_links
 
 
@@ -356,9 +353,10 @@ def runner() -> CliRunner:
 @pytest.fixture
 def run_cli_with_args(runner: CliRunner) -> Callable[[List[str]], Result]:
     """Fixture for getting CLI runner result for this package."""
-    from lep_downloader import cli
 
     def _my_pkg_result(cli_args: List[str]) -> Result:
+        from lep_downloader import cli
+
         result = runner.invoke(
             cli.cli,
             cli_args,
@@ -367,3 +365,21 @@ def run_cli_with_args(runner: CliRunner) -> Callable[[List[str]], Result]:
         return result
 
     return _my_pkg_result
+
+
+@pytest.fixture
+def lep_dl(req_ses: requests.Session) -> Any:
+    """Fixture for new instance of LepDL class."""
+    from lep_downloader.downloader import LepDL
+
+    new_lep_dl = LepDL(session=req_ses)
+    return new_lep_dl
+
+
+@pytest.fixture
+def archive(req_ses: requests.Session) -> Any:
+    """Fixture for new instance of Archive class."""
+    from lep_downloader.parser import Archive
+
+    new_archive = Archive(session=req_ses)
+    return new_archive

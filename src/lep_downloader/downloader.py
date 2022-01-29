@@ -21,20 +21,22 @@
 # SOFTWARE.
 """LEP module for downloading logic."""
 import re
+import urllib.parse
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict
+from typing import Any
 from typing import List
+from typing import Optional
 from typing import Tuple
+from typing import Type
+from typing import Union
 
 import requests
 
 from lep_downloader import config as conf
-from lep_downloader.data_getter import s
+from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
-
-
-DataForEpisodeAudio = List[Tuple[str, str, List[List[str]], bool]]
-NamesWithAudios = List[Tuple[str, List[str]]]
+from lep_downloader.lep import LepEpisodeList
 
 
 # COMPILED REGEX PATTERNS #
@@ -42,77 +44,205 @@ NamesWithAudios = List[Tuple[str, List[str]]]
 INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
 
 
-# STATISTICS (LOG) DICTIONARIES #
+@dataclass
+class LepFile:
+    """Represent base class for LEP file object."""
 
-successful_downloaded: Dict[str, str] = {}
-unavailable_links: Dict[str, str] = {}
-already_on_disc: Dict[str, str] = {}
-duplicated_links: Dict[str, str] = {}
-
-
-def select_all_audio_episodes(
-    db_episodes: List[LepEpisode],
-) -> List[LepEpisode]:
-    """Return filtered list with AUDIO episodes."""
-    audio_episodes = [ep for ep in db_episodes if ep.post_type == "AUDIO"]
-    return audio_episodes
+    ep_id: int = 0
+    name: str = ""
+    ext: str = ""
+    short_date: str = ""
+    filename: str = ""
+    primary_url: str = ""
+    secondary_url: str = ""
+    tertiary_url: str = ""
 
 
-def get_audios_data(audio_episodes: List[LepEpisode]) -> DataForEpisodeAudio:
-    """Return list with audios data for next downloading."""
-    audios_data: DataForEpisodeAudio = []
-    is_multi_part: bool = False
-    for ep in reversed(audio_episodes):
-        short_date = ep.date[:10]
-        title = ep.post_title
-        audios = ep.audios
-        if audios is not None:
-            is_multi_part = False if len(audios) < 2 else True
+@dataclass
+class Audio(LepFile):
+    """Represent episode (or part of it) audio object."""
+
+    ext: str = ".mp3"
+    part_no: int = 0
+
+    def __post_init__(self) -> None:
+        """Compose filename for this instance."""
+        if self.part_no > 0:
+            self.filename = (
+                f"[{self.short_date}] # {self.name} [Part {str(self.part_no).zfill(2)}]"
+                + self.ext
+            )
         else:
-            audios = []
-        data_item = (short_date, title, audios, is_multi_part)
-        audios_data.append(data_item)
-    return audios_data
+            self.filename = f"[{self.short_date}] # {self.name}" + self.ext
 
 
-def bind_name_and_file_url(audios_data: DataForEpisodeAudio) -> NamesWithAudios:
-    """Return list of tuples (filename, list(file_urls))."""
-    single_part_name: str = ""
-    audios_links: NamesWithAudios = []
-    for item in audios_data:
-        short_date, title = item[0], item[1]
-        audios, is_multi_part = item[2], item[3]
-        single_part_name = f"[{short_date}] # {title}"
-        safe_part_name = INVALID_PATH_CHARS_PATTERN.sub("_", single_part_name)
-        if is_multi_part:
-            for i, audio_part in enumerate(audios, start=1):
-                part_name = safe_part_name + f" [Part {str(i).zfill(2)}]"
-                part_item = (part_name, audio_part)
-                audios_links.append(part_item)
+@dataclass
+class PagePDF(LepFile):
+    """Represent PDF file of episode page."""
+
+    ext: str = ".pdf"
+
+    def __post_init__(self) -> None:
+        """Compose filename for this instance."""
+        self.filename = f"[{self.short_date}] # {self.name}" + self.ext
+
+
+@dataclass
+class ATrack(LepFile):
+    """Represent audio track to episode (or part of it) object."""
+
+    ext: str = ".mp3"
+    part_no: int = 0
+
+    def __post_init__(self) -> None:
+        """Compose filename for this instance."""
+        if self.part_no > 0:
+            self.filename = (
+                f"[{self.short_date}] # {self.name} [Part {str(self.part_no).zfill(2)}]"
+                + " _aTrack_"
+                + self.ext
+            )
         else:
-            binding = (safe_part_name, item[2][0])
-            audios_links.append(binding)
-    return audios_links
+            self.filename = (
+                f"[{self.short_date}] # {self.name}" + " _aTrack_" + self.ext
+            )
+
+
+class LepFileList(List[Any]):
+    """Represent list of LepFile objects."""
+
+    def filter_by_type(self, *file_types: Any) -> Any:
+        """Return new filtered list by file type(s)."""
+        file_types = tuple(file_types)
+        filtered = LepFileList(file for file in self if isinstance(file, file_types))
+        return filtered
+
+
+def crawl_list(links: List[str]) -> Tuple[str, str, str]:
+    """Crawl list of links and return tuple of three links."""
+    primary_url = secondary_url = tertiary_url = ""
+    links_number = len(links)
+    if links_number == 1:
+        primary_url = links[0]
+    else:
+        if links_number == 2:
+            primary_url = links[0]
+            secondary_url = links[1]
+        if links_number == 3:
+            primary_url = links[0]
+            secondary_url = links[1]
+            tertiary_url = links[2]
+    return primary_url, secondary_url, tertiary_url
+
+
+def add_each_audio_to_shared_list(
+    ep_id: int,
+    name: str,
+    short_date: str,
+    audios: List[List[str]],
+    file_class: Union[Type[Audio], Type[ATrack]],
+) -> None:
+    """Gather data for each episode audio.
+
+    Then add it as 'Audio' or 'ATrack' object to shared list of LepFile objects.
+    """
+    is_multi_part = False if len(audios) < 2 else True
+    start = int(is_multi_part)
+
+    for i, part_links in enumerate(audios, start=start):
+        part_no = i
+        primary_url, secondary_url, tertiary_url = crawl_list(part_links)
+        audio_file = file_class(
+            ep_id=ep_id,
+            name=name,
+            short_date=short_date,
+            part_no=part_no,
+            primary_url=primary_url,
+            secondary_url=secondary_url,
+            tertiary_url=tertiary_url,
+        )
+        global files_box
+        files_box.append(audio_file)
+
+
+def add_page_pdf_file(
+    ep_id: int,
+    name: str,
+    short_date: str,
+    page_pdf: List[str],
+) -> None:
+    """Gather page PDF for episode.
+
+    Then add it as 'PagePDF' object to shared 'files' list of LepFile objects.
+    """
+    global files_box
+    if not page_pdf:
+        pdf_file = PagePDF(
+            ep_id=ep_id,
+            name=name,
+            short_date=short_date,
+        )
+        files_box.append(pdf_file)
+    else:
+        primary_url, secondary_url, tertiary_url = crawl_list(page_pdf)
+        pdf_file = PagePDF(
+            ep_id=ep_id,
+            name=name,
+            short_date=short_date,
+            primary_url=primary_url,
+            secondary_url=secondary_url,
+            tertiary_url=tertiary_url,
+        )
+        files_box.append(pdf_file)
+
+
+files_box = LepFileList()
+
+
+def gather_all_files(lep_episodes: LepEpisodeList) -> LepFileList:
+    """Skim passed episode list and collect all files.
+
+    Return module's 'files_box' list.
+    """
+    global files_box
+    files_box = LepFileList()
+    ep: LepEpisode
+
+    for ep in reversed(lep_episodes):
+        if ep.files:
+            audios = ep.files.setdefault("audios", [])
+            if audios:
+                add_each_audio_to_shared_list(
+                    ep.index, ep.post_title, ep._short_date, audios, Audio
+                )
+            audio_tracks = ep.files.setdefault("atrack", [])
+            if audio_tracks:
+                add_each_audio_to_shared_list(
+                    ep.index, ep.post_title, ep._short_date, audio_tracks, ATrack
+                )
+            page_pdf = ep.files.setdefault("page_pdf", [])
+            add_page_pdf_file(ep.index, ep.post_title, ep._short_date, page_pdf)
+    return files_box
 
 
 def detect_existing_files(
-    audios_links: NamesWithAudios,
     save_dir: Path,
-    file_ext: str = ".mp3",
-) -> Tuple[NamesWithAudios, NamesWithAudios]:
-    """Return lists for existing and non-existing files."""
-    existing: NamesWithAudios = []
-    non_existing: NamesWithAudios = []
+    files: LepFileList,
+) -> Tuple[LepFileList, LepFileList]:
+    """Separate lists for existing and non-existing files."""
+    existed = LepFileList()
+    non_existed = LepFileList()
     only_files_by_ext: List[str] = []
+    possible_extensions = {".mp3", ".pdf", ".mp4"}
     only_files_by_ext = [
-        p.stem for p in save_dir.glob("*") if p.suffix.lower() == file_ext
+        p.name for p in save_dir.glob("*") if p.suffix.lower() in possible_extensions
     ]
-    for audio in audios_links:
-        if audio[0] in only_files_by_ext:
-            existing.append(audio)
+    for file in files:
+        if file.filename in only_files_by_ext:
+            existed.append(file)
         else:
-            non_existing.append(audio)
-    return (existing, non_existing)
+            non_existed.append(file)
+    return existed, non_existed
 
 
 def download_and_write_file(
@@ -135,8 +265,9 @@ def download_and_write_file(
                     is_writing_started = True
             print(f" + {filename}")
             return True
-    except OSError as err:
-        print(f"[ERROR]: Can't write file: {err}")
+    except OSError:
+        # TODO (hotenov): Add log or debug print only
+        # print(f"[ERROR]: Can't write file: {err}")
         if is_writing_started:
             file_path.unlink()  # Delete incomplete file # pragma: no cover
             # It's hard to mock / monkeypatch this case
@@ -147,39 +278,98 @@ def download_and_write_file(
         return False
 
 
-def download_files(
-    downloads_bunch: NamesWithAudios,
-    save_dir: Path,
-    file_ext: str = ".mp3",
-) -> None:
-    """Download files from passed links bunch."""
-    for item in downloads_bunch:
-        file_stem: str = item[0]
-        links: List[str] = item[1]
-        filename = file_stem + file_ext
+class LepDL(Lep):
+    """Represent downloader object."""
 
-        primary_link = links[0]
-        if Path(save_dir / filename).exists():
-            already_on_disc[primary_link] = filename
-            continue  # Skip already downloaded file on disc.
-        if primary_link in successful_downloaded:
-            duplicated_links[primary_link] = filename
-            continue  # Skip already processed URL.
+    def __init__(
+        self,
+        json_url: str = conf.JSON_DB_URL,
+        session: requests.Session = None,
+    ) -> None:
+        """Initialize LepDL object.
 
-        result_ok = download_and_write_file(primary_link, s, save_dir, filename)
-        if result_ok:
-            successful_downloaded[primary_link] = filename
-        else:
-            if len(links) > 1:  # Try downloading for auxiliary links
-                for aux_link in links[1:]:
-                    aux_result_ok = download_and_write_file(
-                        aux_link, s, save_dir, filename
-                    )
-                if not aux_result_ok:
-                    unavailable_links[aux_link] = filename
-                    print(f"[INFO]: Can't download: {filename}")
-                else:
-                    successful_downloaded[aux_link] = filename
+        Args:
+            json_url (str): URL to JSON datavase
+            session (requests.Session): Requests session object
+                if None, get default global session.
+        """
+        super().__init__(session)
+        self.json_url = json_url
+        self.db_episodes: LepEpisodeList = LepEpisodeList()
+        self.files: LepFileList = LepFileList()
+        self.downloaded: LepFileList = LepFileList()
+        self.not_found: LepFileList = LepFileList()
+        self.existed: LepFileList = LepFileList()
+        self.non_existed: LepFileList = LepFileList()
+
+    def use_or_get_db_episodes(self) -> None:
+        """Take database episodes after parsing stage.
+
+        Or get them from web JSON file.
+        """
+        if not self.db_episodes:
+            self.db_episodes = Lep.get_db_episodes(self.json_url)
+
+    def detach_existed_files(
+        self,
+        save_dir: Path,
+        files: Optional[LepFileList] = None,
+    ) -> None:
+        """Detach 'existed' files from non 'non_existed'."""
+        files = files if files else self.files
+        self.existed, self.non_existed = detect_existing_files(save_dir, files)
+
+    def populate_default_url(self) -> None:
+        """Fill in download url (if it is empty) with default value.
+
+        Operate with 'files' shared list.
+        """
+        populated_files = LepFileList()
+        for file in self.files:
+            if not file.secondary_url:
+                file.secondary_url = conf.DOWNLOADS_BASE_URL + urllib.parse.quote(
+                    file.filename
+                )
+            populated_files.append(file)
+        self.files = populated_files
+
+    def download_files(
+        self,
+        save_dir: Path,
+    ) -> None:
+        """Download files from passed links bunch."""
+        for file_obj in self.non_existed:
+            filename = file_obj.filename
+            primary_link = file_obj.primary_url
+
+            if Path(save_dir / filename).exists():
+                self.existed.append(file_obj)
+                continue  # Skip already downloaded file on disc.
+
+            result_ok = download_and_write_file(
+                primary_link,
+                Lep().cls_session,
+                save_dir,
+                filename,
+            )
+            if result_ok:
+                self.downloaded.append(file_obj)
             else:
-                unavailable_links[primary_link] = filename
-                print(f"[INFO]: Can't download: {filename}")
+                secondary_url = file_obj.secondary_url
+                tertiary_url = file_obj.tertiary_url
+                aux_result_ok = False
+
+                # Try downloading for auxiliary links
+                if secondary_url:
+                    aux_result_ok = download_and_write_file(
+                        secondary_url, self.session, save_dir, filename
+                    )
+                if tertiary_url and not aux_result_ok:
+                    aux_result_ok = download_and_write_file(
+                        tertiary_url, self.session, save_dir, filename
+                    )
+                if aux_result_ok:
+                    self.downloaded.append(file_obj)
+                else:
+                    self.not_found.append(file_obj)
+                    print(f"[INFO]: Can't download: {filename}")

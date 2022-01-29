@@ -25,6 +25,9 @@
 ARCHIVE_URL = "https://hotenov.com"
 
 JSON_DB_URL = "https://hotenov.com/some_json.json"
+DEFAULT_JSON_NAME = "lep-db.min.json"
+
+DOWNLOADS_BASE_URL = "https://hotenov.com/d/lep/"
 
 LOCAL_ARCHIVE_HTML = "2021-08-10_lep-archive-page-content-pretty.html"
 LOCAL_JSON_DB = "mocked-db-json-equal-786-objects.json"
@@ -52,8 +55,19 @@ SHORT_LINKS_MAPPING_DICT = {
 }
 # yapf: enable
 
-IRRELEVANT_LINKS = ("https://wp.me/P4IuUx-82H",)
+IRRELEVANT_LINKS = {"https://wp.me/P4IuUx-82H"}
 
 EPISODE_LINK_RE = r"https?://((?P<short>wp\.me/p4IuUx-[\w-]+)|(teacherluke\.(co\.uk|wordpress\.com)/(?P<date>\d{4}/\d{2}/\d{2})/))"  # noqa: E501,B950
 
 INVALID_PATH_CHARS_RE = r"[<>:\"/\\\\|?*]"
+
+# Headers for Production session #
+ses_headers = {
+    "Connection": "keep-alive",
+    "sec-ch-ua": '" Not A;Brand";v="99", "Chromium";v="96", "Microsoft Edge";v="96"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
+    "Upgrade-Insecure-Requests": "1",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36 Edg/96.0.1054.62",  # noqa: E501,B950
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/signed-exchange;v=b3;q=0.9",  # noqa: E501,B950
+}
