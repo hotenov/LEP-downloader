@@ -16,6 +16,7 @@ from bs4 import SoupStrainer
 from bs4.element import Tag
 
 from lep_downloader import config as conf
+from lep_downloader.downloader import LepDL
 from lep_downloader.exceptions import LepEpisodeNotFound
 from lep_downloader.exceptions import NoEpisodeLinksError
 from lep_downloader.exceptions import NoEpisodesInDataBase
@@ -126,9 +127,10 @@ class Archive(Lep):
         self.parser.parse_url()
 
         # Get database episodes from web JSON
-        Lep.db_episodes = Lep.get_db_episodes(json_url, self.session)
-        if Lep.db_episodes:
-            updates = self.fetch_updates(Lep.db_episodes, self.collected_links)
+        lep_dl = LepDL(json_url, self.session)
+        lep_dl.use_or_get_db_episodes()
+        if lep_dl.db_episodes:
+            updates = self.fetch_updates(lep_dl.db_episodes, self.collected_links)
         else:
             raise NoEpisodesInDataBase(
                 "JSON is available, but\nthere are NO episodes in this file. Exit."
@@ -145,7 +147,7 @@ class Archive(Lep):
             self.parse_each_episode(updates)
             new_episodes = self.episodes
             new_episodes = LepEpisodeList(reversed(new_episodes))
-            all_episodes = LepEpisodeList(new_episodes + Lep.db_episodes)
+            all_episodes = LepEpisodeList(new_episodes + lep_dl.db_episodes)
             all_episodes = all_episodes.desc_sort_by_date_and_index()
             write_parsed_episodes_to_json(all_episodes, json_name)
         else:
@@ -451,5 +453,4 @@ class EpisodeParser(LepParser):
 
     def do_post_parsing(self) -> None:
         """Add parsed episode to shared list."""
-        # Archive.episodes.append(self.episode)
         pass

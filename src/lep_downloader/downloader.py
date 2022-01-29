@@ -25,7 +25,6 @@ import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from typing import ClassVar
 from typing import List
 from typing import Tuple
 from typing import Type
@@ -34,8 +33,6 @@ from typing import Union
 import requests
 
 from lep_downloader import config as conf
-from lep_downloader.exceptions import EmptyDownloadsBunch
-from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
@@ -163,7 +160,8 @@ def add_each_audio_to_shared_list(
             secondary_url=secondary_url,
             tertiary_url=tertiary_url,
         )
-        Downloader.files.append(audio_file)
+        global files_box
+        files_box.append(audio_file)
 
 
 def add_page_pdf_file(
@@ -176,13 +174,14 @@ def add_page_pdf_file(
 
     Then add it as 'PagePDF' object to shared 'files' list of LepFile objects.
     """
+    global files_box
     if not page_pdf:
         pdf_file = PagePDF(
             ep_id=ep_id,
             name=name,
             short_date=short_date,
         )
-        Downloader.files.append(pdf_file)
+        files_box.append(pdf_file)
     else:
         primary_url, secondary_url, tertiary_url = crawl_list(page_pdf)
         pdf_file = PagePDF(
@@ -193,43 +192,45 @@ def add_page_pdf_file(
             secondary_url=secondary_url,
             tertiary_url=tertiary_url,
         )
-        Downloader.files.append(pdf_file)
+        files_box.append(pdf_file)
 
 
-def gather_all_files(lep_episodes: LepEpisodeList) -> None:
+files_box = LepFileList()
+
+
+def gather_all_files(lep_episodes: LepEpisodeList) -> LepFileList:
     """Skim passed episode list and collect all files.
 
-    Add each file to shared 'files' list fo further actions.
+    Return module's 'files_box' list.
     """
+    global files_box
+    files_box = LepFileList()
     ep: LepEpisode
-    if lep_episodes:
-        for ep in reversed(lep_episodes):
-            if ep.files:
-                audios = ep.files.setdefault("audios", [])
-                if audios:
-                    add_each_audio_to_shared_list(
-                        ep.index, ep.post_title, ep._short_date, audios, Audio
-                    )
 
-                audio_tracks = ep.files.setdefault("atrack", [])
-                if audio_tracks:
-                    add_each_audio_to_shared_list(
-                        ep.index, ep.post_title, ep._short_date, audio_tracks, ATrack
-                    )
-
-                page_pdf = ep.files.setdefault("page_pdf", [])
-                add_page_pdf_file(ep.index, ep.post_title, ep._short_date, page_pdf)
-    else:
-        raise NoEpisodesInDataBase("No episodes for gathering files. Exit.")
+    for ep in reversed(lep_episodes):
+        if ep.files:
+            audios = ep.files.setdefault("audios", [])
+            if audios:
+                add_each_audio_to_shared_list(
+                    ep.index, ep.post_title, ep._short_date, audios, Audio
+                )
+            audio_tracks = ep.files.setdefault("atrack", [])
+            if audio_tracks:
+                add_each_audio_to_shared_list(
+                    ep.index, ep.post_title, ep._short_date, audio_tracks, ATrack
+                )
+            page_pdf = ep.files.setdefault("page_pdf", [])
+            add_page_pdf_file(ep.index, ep.post_title, ep._short_date, page_pdf)
+    return files_box
 
 
 def detect_existing_files(
     files: LepFileList,
     save_dir: Path,
-) -> None:
+) -> Tuple[LepFileList, LepFileList]:
     """Separate lists for existing and non-existing files."""
-    Downloader.existed = LepFileList()
-    Downloader.non_existed = LepFileList()
+    existed = LepFileList()
+    non_existed = LepFileList()
     only_files_by_ext: List[str] = []
     possible_extensions = {".mp3", ".pdf", ".mp4"}
     only_files_by_ext = [
@@ -237,9 +238,10 @@ def detect_existing_files(
     ]
     for file in files:
         if file.filename in only_files_by_ext:
-            Downloader.existed.append(file)
+            existed.append(file)
         else:
-            Downloader.non_existed.append(file)
+            non_existed.append(file)
+    return existed, non_existed
 
 
 def download_and_write_file(
@@ -275,91 +277,89 @@ def download_and_write_file(
         return False
 
 
-class Downloader(Lep):
+class LepDL(Lep):
     """Represent downloader object."""
 
-    downloaded: ClassVar[LepFileList] = LepFileList()
-    not_found: ClassVar[LepFileList] = LepFileList()
+    def __init__(
+        self,
+        json_url: str = conf.JSON_DB_URL,
+        session: requests.Session = None,
+    ) -> None:
+        """Initialize LepDL object.
 
-    files: ClassVar[LepFileList] = LepFileList()
-    existed: ClassVar[LepFileList] = LepFileList()
-    non_existed: ClassVar[LepFileList] = LepFileList()
+        Args:
+            json_url (str): URL to JSON datavase
+            session (requests.Session): Requests session object
+                if None, get default global session.
+        """
+        super().__init__(session)
+        self.json_url = json_url
+        self.db_episodes: LepEpisodeList = LepEpisodeList()
+        self.files: LepFileList = LepFileList()
+        self.downloaded: LepFileList = LepFileList()
+        self.not_found: LepFileList = LepFileList()
+        self.existed: LepFileList = LepFileList()
+        self.non_existed: LepFileList = LepFileList()
 
-    # def __init__(self, url: str = "", session: requests.Session = None) -> None:
-    #     """Initialize Downloader instance.
+    def use_or_get_db_episodes(self) -> None:
+        """Take database episodes after parsing stage.
 
-    #     Args:
-    #         url (str): URL for parsing.
-    #         session (requests.Session): Requests session object
-    #             if None, get default global session.
-    #     """
-    #     self.url = url
-    #     self.session = session if session else Lep.session
+        Or get them from web JSON file.
+        """
+        if not self.db_episodes:
+            self.db_episodes = Lep.get_db_episodes(self.json_url)
 
+    def populate_default_url(self) -> None:
+        """Fill in download url (if it is empty) with default value.
 
-def use_or_get_db_episodes(json_url: str) -> None:
-    """Take database episodes after parsing stage.
+        Operate with 'files' shared list.
+        """
+        populated_files = LepFileList()
+        for file in self.files:
+            if not file.secondary_url:
+                file.secondary_url = conf.DOWNLOADS_BASE_URL + urllib.parse.quote(
+                    file.filename
+                )
+            populated_files.append(file)
+        self.files = populated_files
 
-    Or get them from web JSON file.
-    """
-    if not Lep.db_episodes:
-        Lep.db_episodes = Lep.get_db_episodes(json_url)
+    def download_files(
+        self,
+        save_dir: Path,
+    ) -> None:
+        """Download files from passed links bunch."""
+        for file_obj in self.non_existed:
+            filename = file_obj.filename
+            primary_link = file_obj.primary_url
 
+            if Path(save_dir / filename).exists():
+                self.existed.append(file_obj)
+                continue  # Skip already downloaded file on disc.
 
-def populate_default_url() -> None:
-    """Fill in download url (if it is empty) with default value.
-
-    Operate with 'files' shared list.
-    """
-    populated_files = LepFileList()
-    for file in Downloader.files:
-        if not file.secondary_url:
-            file.secondary_url = conf.DOWNLOADS_BASE_URL + urllib.parse.quote(
-                file.filename
+            result_ok = download_and_write_file(
+                primary_link,
+                Lep().cls_session,
+                save_dir,
+                filename,
             )
-        populated_files.append(file)
-    Downloader.files = populated_files
-
-
-def download_files(
-    downloads_bunch: LepFileList,
-    save_dir: Path,
-) -> None:
-    """Download files from passed links bunch."""
-    if not downloads_bunch:
-        raise EmptyDownloadsBunch()
-    for file_obj in downloads_bunch:
-        filename = file_obj.filename
-        primary_link = file_obj.primary_url
-
-        if Path(save_dir / filename).exists():
-            Downloader.existed.append(file_obj)
-            continue  # Skip already downloaded file on disc.
-
-        result_ok = download_and_write_file(
-            primary_link,
-            Lep().cls_session,
-            save_dir,
-            filename,
-        )
-        if result_ok:
-            Downloader.downloaded.append(file_obj)
-        else:
-            secondary_url = file_obj.secondary_url
-            tertiary_url = file_obj.tertiary_url
-            aux_result_ok = False
-
-            # Try downloading for auxiliary links
-            if secondary_url:
-                aux_result_ok = download_and_write_file(
-                    secondary_url, Lep().cls_session, save_dir, filename
-                )
-            if tertiary_url and not aux_result_ok:
-                aux_result_ok = download_and_write_file(
-                    tertiary_url, Lep().cls_session, save_dir, filename
-                )
-            if aux_result_ok:
-                Downloader.downloaded.append(file_obj)
+            if result_ok:
+                self.downloaded.append(file_obj)
             else:
-                Downloader.not_found.append(file_obj)
-                print(f"[INFO]: Can't download: {filename}")
+                secondary_url = file_obj.secondary_url
+                tertiary_url = file_obj.tertiary_url
+                aux_result_ok = False
+
+                # Try downloading for auxiliary links
+                if secondary_url:
+                    aux_result_ok = download_and_write_file(
+                        secondary_url, self.session, save_dir, filename
+                    )
+                if tertiary_url and not aux_result_ok:
+                    aux_result_ok = download_and_write_file(
+                        tertiary_url, self.session, save_dir, filename
+                    )
+                if aux_result_ok:
+                    self.downloaded.append(file_obj)
+                else:
+                    self.not_found.append(file_obj)
+                    print(f"[INFO]: Can't download: {filename}")

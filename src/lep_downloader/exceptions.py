@@ -93,19 +93,3 @@ class NoEpisodesInDataBase(LepException):
     def __init__(self, message: str = "") -> None:
         """Initialize  NoEpisodesInDataBase exception."""
         self.message = message
-
-
-class EmptyDownloadsBunch(LepException):
-    """Raised when nothing to download after gathering files.
-
-    Attributes:
-        message (str): Explanation of the error.
-            Default is 'Nothing to download in downloads bunch.'
-    """
-
-    def __init__(
-        self,
-        message: str = "Nothing to download in downloads bunch.",
-    ) -> None:
-        """Initialize  EmptyDownloadsBunch exception."""
-        self.message = message

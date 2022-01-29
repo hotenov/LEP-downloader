@@ -245,7 +245,6 @@ class Lep:
 
     cls_session: ClassVar[requests.Session] = requests.Session()
     json_body: ClassVar[str] = ""
-    db_episodes: ClassVar[LepEpisodeList] = LepEpisodeList()
 
     def __init__(self, session: Optional[requests.Session] = None) -> None:
         """Default instance of LepTemplate.

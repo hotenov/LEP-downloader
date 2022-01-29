@@ -32,7 +32,6 @@ from lep_downloader.downloader import Audio
 from lep_downloader.downloader import LepFileList
 from lep_downloader.downloader import PagePDF
 from lep_downloader.exceptions import DataBaseUnavailable
-from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisodeList
 
 
@@ -60,52 +59,55 @@ def cli(  # noqa: C901 'too complex'
     quiet: bool,
 ) -> None:
     """Downloads LEP episodes on disk."""
+    lep_dl = downloader.LepDL(db_url)
     filtered_episodes = LepEpisodeList()
     filtered_files = LepFileList()
 
     try:
-        downloader.use_or_get_db_episodes(db_url)
+        lep_dl.use_or_get_db_episodes()
     except DataBaseUnavailable:
         click.echo("JSON database is not available now.\n" + "Try again later.")
         require_to_press_enter(quiet)
         click.get_current_context().exit()
 
-    if not Lep.db_episodes:  # no valid episode objects
+    if not lep_dl.db_episodes:  # no valid episode objects
         require_to_press_enter(quiet)
         click.get_current_context().exit()
 
     if not last_yes:
         if start_date or end_date:
-            filtered_episodes = Lep.db_episodes.filter_by_date(start_date, end_date)
+            filtered_episodes = lep_dl.db_episodes.filter_by_date(start_date, end_date)
         else:
-            filtered_episodes = Lep.db_episodes.filter_by_number(*episode)
+            filtered_episodes = lep_dl.db_episodes.filter_by_number(*episode)
     else:
-        filtered_episodes.append(Lep.db_episodes[0])
+        filtered_episodes.append(lep_dl.db_episodes[0])
 
-    downloader.gather_all_files(filtered_episodes)
-    downloader.populate_default_url()
+    lep_dl.files = downloader.gather_all_files(filtered_episodes)
+    lep_dl.populate_default_url()
 
     file_filter = LepFileList([Audio, ATrack])
 
     if pdf_yes:
         file_filter.append(PagePDF)
 
-    filtered_files = downloader.Downloader.files.filter_by_type(*file_filter)
+    filtered_files = lep_dl.files.filter_by_type(*file_filter)
 
-    downloader.detect_existing_files(filtered_files, dest)
+    lep_dl.existed, lep_dl.non_existed = downloader.detect_existing_files(
+        filtered_files, dest
+    )
 
-    total_number = len(downloader.Downloader.non_existed)
+    total_number = len(lep_dl.non_existed)
 
     if total_number > 0:
         if not quiet:
             click.echo(f"{total_number} non-existing file(s) will be downloaded.")
             # click.echo("Would download file(s). Proceed (y/n)?: ")
             if click.confirm("Do you want to continue?"):
-                downloader.download_files(downloader.Downloader.non_existed, dest)
+                lep_dl.download_files(dest)
             else:
                 click.echo("Your answer is 'NO'. Exit.")
         else:
-            downloader.download_files(downloader.Downloader.non_existed, dest)
+            lep_dl.download_files(dest)
     else:
         click.echo("Nothing to download for now.")
 

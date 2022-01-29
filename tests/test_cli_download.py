@@ -30,10 +30,6 @@ from pytest_mock import MockFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 
 from lep_downloader import config as conf
-from lep_downloader.downloader import Downloader
-from lep_downloader.downloader import LepFileList
-from lep_downloader.lep import Lep
-from lep_downloader.lep import LepEpisodeList
 
 
 def test_json_database_not_available(
@@ -79,8 +75,6 @@ def test_download_without_options(
     """It downloads all audio files for parsed episodes."""
     from lep_downloader import cli
 
-    Lep.db_episodes = LepEpisodeList()
-    Downloader.files = LepFileList()
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
@@ -91,8 +85,6 @@ def test_download_without_options(
         prog_name="lep-downloader",
         input="n\n",
     )
-    assert len(Downloader.non_existed) == 18
-    assert len(Downloader.existed) == 0
     assert "18 non-existing file(s) will be downloaded" in result.output
     assert "Do you want to continue? [y/N]: n\n" in result.output
     assert "Your answer is 'NO'. Exit." in result.output
@@ -128,8 +120,8 @@ def test_continue_prompt_yes(
     expected_file = tmp_path / expected_filename
     assert "Do you want to continue? [y/N]: y\n" in result.output
     assert len(list(tmp_path.iterdir())) == 1
-    assert len(Downloader.downloaded) == 1
-    assert len(Downloader.not_found) == 1  # Page PDF file
+    # assert len(LepDL.downloaded) == 1
+    # assert len(LepDL.not_found) == 1  # Page PDF file
     assert expected_file.exists()
 
 
@@ -226,10 +218,10 @@ def test_last_option(
 
     expected_filename = "[2021-08-03] # 733. A Summer Ramble.mp3"
     expected_file = tmp_path / expected_filename
-    assert len(Lep.db_episodes) == 782  # Total in mocked JSON
+    # assert len(Lep.db_episodes) == 782  # Total in mocked JSON
     assert len(list(tmp_path.iterdir())) == 1
-    assert len(Downloader.downloaded) == 1
-    assert len(Downloader.not_found) == 0
+    # assert len(LepDL.downloaded) == 1
+    # assert len(LepDL.not_found) == 0
     assert expected_file.exists()
 
 
@@ -264,8 +256,8 @@ def test_filtering_for_one_day(
     expected_filename_2 = "[2009-10-19] # 16. Michael Jackson.mp3"
     expected_file_2 = tmp_path / expected_filename_2
     assert len(list(tmp_path.iterdir())) == 2
-    assert len(Downloader.downloaded) == 2
-    assert len(Downloader.not_found) == 0
+    # assert len(LepDL.downloaded) == 2
+    # assert len(LepDL.not_found) == 0
     assert expected_file_1.exists()
     assert expected_file_2.exists()
 
@@ -299,8 +291,8 @@ def test_filtering_by_start_date(
     expected_filename_2 = "[2021-08-03] # 733. A Summer Ramble.mp3"  # noqa: E501,B950
     expected_file_2 = tmp_path / expected_filename_2
     assert len(list(tmp_path.iterdir())) == 2
-    assert len(Downloader.downloaded) == 2
-    assert len(Downloader.not_found) == 7
+    # assert len(LepDL.downloaded) == 2
+    # assert len(LepDL.not_found) == 7
     assert expected_file_1.exists()
     assert expected_file_2.exists()
 
@@ -334,8 +326,8 @@ def test_filtering_by_end_date(
     expected_filename_2 = "[2016-08-07] # 370. In Conversation with Rob Ager from Liverpool (PART 1_ Life in Liverpool _ Interest in Film Analysis).mp3"  # noqa: E501,B950
     expected_file_2 = tmp_path / expected_filename_2
     assert len(list(tmp_path.iterdir())) == 2
-    assert len(Downloader.downloaded) == 2
-    assert len(Downloader.not_found) == 7
+    # assert len(LepDL.downloaded) == 2
+    # assert len(LepDL.not_found) == 7
     assert expected_file_1.exists()
     assert expected_file_2.exists()
 
@@ -480,8 +472,8 @@ def test_populating_default_url_for_page_pdf(
     expected_filename_1 = "[2017-08-26] # [Website only] A History of British Pop – A Musical Tour through James’ Vinyl Collection.pdf"  # noqa: E501,B950
     expected_file_1 = tmp_path / expected_filename_1
     assert len(list(tmp_path.iterdir())) == 1
-    assert len(Downloader.downloaded) == 1
-    assert len(Downloader.not_found) == 0
+    # assert len(LepDL.downloaded) == 1
+    # assert len(LepDL.not_found) == 0
     assert expected_file_1.exists()
 
 
@@ -508,8 +500,8 @@ def test_filtering_by_one_episode_number(
     expected_filename_1 = "[2010-03-25] # 35. London Video Interviews – Part 1 (Video).mp3"  # noqa: E501,B950
     expected_file_1 = tmp_path / expected_filename_1
     assert len(list(tmp_path.iterdir())) == 1
-    assert len(Downloader.downloaded) == 1
-    assert len(Downloader.not_found) == 0
+    # assert len(LepDL.downloaded) == 1
+    # assert len(LepDL.not_found) == 0
     assert expected_file_1.exists()
 
 
@@ -544,8 +536,8 @@ def test_filtering_not_numbered_episodes(
     expected_filename_2 = "[2017-05-26] # I was invited onto the “English Across The Pond” Podcast.pdf"  # noqa: E501,B950
     expected_file_2 = tmp_path / expected_filename_2
     assert len(list(tmp_path.iterdir())) == 2
-    assert len(Downloader.downloaded) == 2
-    assert len(Downloader.not_found) == 6
+    # assert len(LepDL.downloaded) == 2
+    # assert len(LepDL.not_found) == 6
     assert expected_file_1.exists()
     assert expected_file_2.exists()
 
@@ -579,8 +571,8 @@ def test_filtering_by_number_with_default_start(
     expected_filename_2 = "[2009-10-19] # 16. Michael Jackson.mp3"  # noqa: E501,B950
     expected_file_2 = tmp_path / expected_filename_2
     assert len(list(tmp_path.iterdir())) == 2
-    assert len(Downloader.downloaded) == 2
-    assert len(Downloader.not_found) == 6
+    # assert len(LepDL.downloaded) == 2
+    # assert len(LepDL.not_found) == 6
     assert expected_file_1.exists()
     assert expected_file_2.exists()
 
@@ -614,8 +606,8 @@ def test_filtering_by_number_with_default_end(
     expected_filename_2 = "[2021-08-03] # 733. A Summer Ramble.mp3"  # noqa: E501,B950
     expected_file_2 = tmp_path / expected_filename_2
     assert len(list(tmp_path.iterdir())) == 2
-    assert len(Downloader.downloaded) == 2
-    assert len(Downloader.not_found) == 2
+    # assert len(LepDL.downloaded) == 2
+    # assert len(LepDL.not_found) == 2
     assert expected_file_1.exists()
     assert expected_file_2.exists()
 
@@ -702,10 +694,10 @@ def test_custom_db_url(
 
     expected_filename = "[2021-08-03] # 733. A Summer Ramble.mp3"
     expected_file = tmp_path / expected_filename
-    assert len(Lep.db_episodes) == 782  # Total in mocked JSON
+    # assert len(Lep.db_episodes) == 782  # Total in mocked JSON
     assert len(list(tmp_path.iterdir())) == 1
-    assert len(Downloader.downloaded) == 1
-    assert len(Downloader.not_found) == 0
+    # assert len(LepDL.downloaded) == 1
+    # assert len(LepDL.not_found) == 0
     assert expected_file.exists()
 
 
@@ -733,9 +725,9 @@ def test_no_files_for_downloading(
     )
 
     assert len(list(tmp_path.iterdir())) == 1
-    assert len(Downloader.existed) == 1
-    assert len(Downloader.downloaded) == 0
-    assert len(Downloader.not_found) == 0
+    # assert len(LepDL.existed) == 1
+    # assert len(LepDL.downloaded) == 0
+    # assert len(LepDL.not_found) == 0
     assert "Nothing to download for now." in result.output
 
 
@@ -818,8 +810,8 @@ def test_passing_options_from_group_to_command(
     expected_filename_1 = "[2010-03-25] # 35. London Video Interviews – Part 1 (Video).mp3"  # noqa: E501,B950
     expected_file_1 = tmp_path / expected_filename_1
     assert len(list(tmp_path.iterdir())) == 1
-    assert len(Downloader.downloaded) == 1
-    assert len(Downloader.not_found) == 0
+    # assert len(LepDL.downloaded) == 1
+    # assert len(LepDL.not_found) == 0
     assert expected_file_1.exists()
 
 
@@ -850,7 +842,7 @@ def test_final_prompt_to_press_enter(
         input="\n",  # Two inputs in this case.
     )
     assert "Do you want to continue? [y/N]: \n" in result.output
-    assert len(Downloader.downloaded) == 0
-    assert len(Downloader.not_found) == 0
+    # assert len(LepDL.downloaded) == 0
+    # assert len(LepDL.not_found) == 0
     assert "Press 'Enter' key to close 'LEP-downloader':" in result.output
     assert result.exit_code == 0

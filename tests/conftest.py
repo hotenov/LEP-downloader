@@ -229,7 +229,6 @@ def archive_parsing_results_mock(
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     archive_parser = parser.ArchiveParser(archive, conf.ARCHIVE_URL, req_ses)
     archive_parser.parse_url()
-    # archive_urls = archive.collected_links.copy()
     del archive_parser
     return archive.collected_links
 
@@ -240,7 +239,6 @@ def parsed_episodes_mock(
     archive_parsing_results_mock: Dict[str, str],
     single_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
-    req_ses: requests.Session,
     archive: Any,
 ) -> Any:
     """Returns list of LepEpisode objects.
@@ -325,21 +323,21 @@ def only_audio_episodes(only_valid_episodes: Any) -> List[Any]:
     return audio_episodes
 
 
-@pytest.fixture(scope="session")
-def only_audio_data(only_valid_episodes: Any) -> Any:
+@pytest.fixture
+def only_audio_data(
+    only_valid_episodes: Any,
+    lep_dl: Any,
+) -> Any:
     """Returns only extracted audio data from audio episodes."""
     from lep_downloader import downloader
     from lep_downloader.downloader import Audio
-    from lep_downloader.downloader import Downloader
-    from lep_downloader.downloader import LepFileList
 
-    Downloader.files = LepFileList()
-    downloader.gather_all_files(only_valid_episodes)
-    audio_files = Downloader.files.filter_by_type(Audio)
+    lep_dl.files = downloader.gather_all_files(only_valid_episodes)
+    audio_files = lep_dl.files.filter_by_type(Audio)
     return audio_files
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def only_audio_links(only_audio_data: List[Any]) -> List[Tuple[str, str]]:
     """Returns only links and names for audio files."""
     audio_links = [(af.filename, af.primary_url) for af in only_audio_data]
@@ -369,20 +367,13 @@ def run_cli_with_args(runner: CliRunner) -> Callable[[List[str]], Result]:
     return _my_pkg_result
 
 
-@pytest.fixture(autouse=True)
-def clear_shared_lists() -> None:
-    """Fixture for clearing all shared lists before running test."""
-    from lep_downloader.downloader import Downloader
-    from lep_downloader.downloader import LepFileList
-    from lep_downloader.lep import Lep
-    from lep_downloader.lep import LepEpisodeList
+@pytest.fixture
+def lep_dl(req_ses: requests.Session) -> Any:
+    """Fixture for new instance of LepDL class."""
+    from lep_downloader.downloader import LepDL
 
-    Lep.db_episodes = LepEpisodeList()
-    Downloader.files = LepFileList()
-    Downloader.existed = LepFileList()
-    Downloader.non_existed = LepFileList()
-    Downloader.downloaded = LepFileList()
-    Downloader.not_found = LepFileList()
+    new_lep_dl = LepDL(session=req_ses)
+    return new_lep_dl
 
 
 @pytest.fixture
@@ -392,8 +383,3 @@ def archive(req_ses: requests.Session) -> Any:
 
     new_archive = Archive(session=req_ses)
     return new_archive
-    # yield new_archive
-    # new_archive.episodes = LepEpisodeList()
-    # new_archive.used_indexes = set()
-    # new_archive.deleted_links = set()
-    # new_archive.collected_links = {}
