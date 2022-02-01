@@ -41,6 +41,8 @@ BEGINING_DIGITS_PATTERN = re.compile(begining_digits_re)
 audio_link_re = r"download\b|audio\s|click\s"
 AUDIO_LINK_PATTERN = re.compile(audio_link_re, re.IGNORECASE)
 
+URL_ENCODED_CHARS_PATTERN = re.compile(r"%[0-9A-Z]{2}")
+
 
 # SoupStrainer's CALLBACKS #
 
@@ -76,9 +78,7 @@ class Archive(Lep):
     ) -> Any:
         """Fetch only new URLs between database and archive page."""
         archive_urls = archive_urls if archive_urls else self.collected_links
-        # TODO (hotenov): Here method .lower() for URL it's not quite right,
-        # need to replace with regex
-        db_urls = {ep.url.lower(): ep.post_title for ep in db_episodes}
+        db_urls = extract_urls_from_episode_list(db_episodes)
         last_url: str = [*db_urls][0]
         date_of_last_db_episode = convert_date_from_url(last_url)
         updates = {
@@ -486,3 +486,19 @@ class EpisodeParser(LepParser):
     def do_post_parsing(self) -> None:
         """Post parsing actions for EpisodeParser."""
         pass
+
+
+def url_encoded_chars_to_lower_case(url: str) -> str:
+    """Change %-escaped chars in string to lower case."""
+    lower_url = URL_ENCODED_CHARS_PATTERN.sub(
+        lambda matchobj: matchobj.group(0).lower(), url
+    )
+    return lower_url
+
+
+def extract_urls_from_episode_list(episodes: LepEpisodeList) -> Dict[str, str]:
+    """Extract page URL and its title for each episode object  in list."""
+    urls_titles = {
+        url_encoded_chars_to_lower_case(ep.url): ep.post_title for ep in episodes
+    }
+    return urls_titles
