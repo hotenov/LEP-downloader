@@ -20,7 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """LEP module for downloading logic."""
-import re
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,11 +36,6 @@ from lep_downloader import config as conf
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
-
-
-# COMPILED REGEX PATTERNS #
-
-INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
 
 
 @dataclass
