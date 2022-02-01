@@ -1,8 +1,11 @@
 """Parse command."""
+from pathlib import Path
+
 import click
 
 from lep_downloader import config as conf
 from lep_downloader import parser
+from lep_downloader.cli_shared import validate_dir
 from lep_downloader.exceptions import DataBaseUnavailable
 from lep_downloader.exceptions import NoEpisodeLinksError
 from lep_downloader.exceptions import NoEpisodesInDataBase
@@ -10,9 +13,34 @@ from lep_downloader.exceptions import NotEpisodeURLError
 
 
 @click.command(name="parse")
-def cli() -> None:
+@click.option(
+    "--with-html",
+    "-html",
+    "html_yes",
+    is_flag=True,
+    help="Tells script to save episode page to local HTML file.",
+)
+@click.option(
+    "--html-dir",
+    "-hd",
+    "html_dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    callback=validate_dir,
+    default=Path(conf.PATH_TO_HTML_FILES),
+    help=(
+        "Directory path (absolute or relative) for storing HTML files. "
+        "It makes sense only if option '--with-html' is provided."
+    ),
+    metavar="<string>",
+)
+def cli(
+    html_yes: bool,
+    html_dir: Path,
+) -> None:
     """Parses LEP archive web page."""
-    click.echo("'parse' command was executed...")
+    if html_yes:
+        conf.WITH_HTML = True
+        conf.PATH_TO_HTML_FILES = str(html_dir.absolute())
 
     try:
         archive = parser.Archive()

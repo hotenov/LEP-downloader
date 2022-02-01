@@ -36,6 +36,8 @@ import requests
 import requests_mock as req_mock
 from bs4 import BeautifulSoup
 from pytest import CaptureFixture
+from pytest import MonkeyPatch
+from pytest_mock import MockFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
 
@@ -997,3 +999,67 @@ def test_parsing_html_title_for_mocked_episodes(
         == "36. London Video Interviews Pt.1 | Luke’s ENGLISH Podcast"
     )
     assert parsed_episodes_mock[45]._title == "NO TITLE!"
+
+
+def test_write_text_to_html_by_absolute_path(
+    tmp_path: Path,
+) -> None:
+    """It saves text to HTML file by passed absolute path."""
+    text = """<html>
+        <body>Some text</body>
+    </html>
+    """
+    name = "Unsafe / name : \\ here"
+    parser.write_text_to_html(text, name, str(tmp_path))
+    expected_filename = "Unsafe _ name _ _ here.html"
+    expected_file = tmp_path / expected_filename
+    assert expected_file.exists()
+    assert expected_file.read_text() == text
+
+
+def test_write_text_to_html_by_relative_path(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """It saves text to HTML file by default (relative) path."""
+    text = """<html>
+        <body>Some text</body>
+    </html>
+    """
+    name = "Unsafe / name : \\ here"
+    monkeypatch.chdir(tmp_path)
+    expected_subfolder = Path(conf.PATH_TO_HTML_FILES)
+    # Create relative path
+    # For this test only. Folder will be created during path validation
+    Path(tmp_path / expected_subfolder).mkdir(parents=True, exist_ok=True)
+    parser.write_text_to_html(text, name)
+    expected_filename = "Unsafe _ name _ _ here.html"
+    expected_file = tmp_path / expected_subfolder / expected_filename
+    assert expected_file.exists()
+    assert expected_file.read_text() == text
+
+
+def test_skip_writing_html_when_any_error(
+    mocker: MockFixture,
+    tmp_path: Path,
+) -> None:
+    """It ignores errors during writing HTM files."""
+    text = """Some text"""
+    name = "Unsafe / name : \\ here"
+
+    expected_filename = "Unsafe _ name _ _ here.html"
+    expected_file = tmp_path / expected_filename
+
+    mock = mocker.patch("pathlib.Path.write_text")
+
+    mock.side_effect = PermissionError
+    # with pytest.raises(PermissionError):
+    #     parser.write_text_to_html(text, name, tmp_path)
+    parser.write_text_to_html(text, name, str(tmp_path))
+    assert not expected_file.exists()
+
+    mock.side_effect = OSError
+    # with pytest.raises(PermissionError):
+    #     parser.write_text_to_html(text, name, tmp_path)
+    parser.write_text_to_html(text, name, str(tmp_path))
+    assert not expected_file.exists()

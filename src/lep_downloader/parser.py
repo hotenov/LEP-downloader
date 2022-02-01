@@ -16,6 +16,7 @@ from bs4 import SoupStrainer
 from bs4.element import Tag
 
 from lep_downloader import config as conf
+from lep_downloader import lep
 from lep_downloader.downloader import LepDL
 from lep_downloader.exceptions import LepEpisodeNotFound
 from lep_downloader.exceptions import NoEpisodeLinksError
@@ -106,6 +107,16 @@ class Archive(Lep):
                 ep_parser = EpisodeParser(self, url, post_title=text)
                 ep_parser.parse_url()
                 self.episodes.append(ep_parser.episode)
+                # TODO (hotenov): Try to resolve coverage ignoring
+                if conf.WITH_HTML:  # pragma: no cover
+                    short_date = ep_parser.episode._short_date
+                    post_title = ep_parser.episode.post_title
+                    file_stem = f"[{short_date}] # {post_title}"
+                    write_text_to_html(
+                        ep_parser.content,
+                        file_stem,
+                        conf.PATH_TO_HTML_FILES,
+                    )
             except (NotEpisodeURLError):
                 # TODO (hotenov): Write to log / statistics
                 # for non-episode URL, but skip here
@@ -268,6 +279,27 @@ def write_parsed_episodes_to_json(
     """Write list of LepEpisode objects to file."""
     with open(Path(json_name), "w") as outfile:
         json.dump(lep_objects, outfile, indent=4, cls=LepJsonEncoder)
+
+
+def write_text_to_html(
+    text: str,
+    file_stem: str,
+    path: Optional[str] = None,
+    ext: str = ".html",
+) -> None:
+    """Write text (content) to HTML file."""
+    path = path if path else conf.PATH_TO_HTML_FILES
+    filename = file_stem + ext
+    filename = lep.replace_unsafe_chars(filename)
+    file_path = Path(path) / filename
+    try:
+        file_path.write_text(text, encoding="utf-8")
+    except PermissionError:
+        # Ignore any exception here, but
+        # TODO (hotenov): Add record to log.
+        pass
+    except OSError:
+        pass
 
 
 class LepParser(Lep):
@@ -452,5 +484,5 @@ class EpisodeParser(LepParser):
             self.episode.post_type = "AUDIO"
 
     def do_post_parsing(self) -> None:
-        """Add parsed episode to shared list."""
+        """Post parsing actions for EpisodeParser."""
         pass

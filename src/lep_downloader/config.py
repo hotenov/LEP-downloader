@@ -71,3 +71,7 @@ ses_headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36 Edg/96.0.1054.62",  # noqa: E501,B950
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/signed-exchange;v=b3;q=0.9",  # noqa: E501,B950
 }
+
+# Default options
+WITH_HTML = False
+PATH_TO_HTML_FILES = "data_dump"

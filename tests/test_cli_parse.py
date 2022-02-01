@@ -20,12 +20,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Test cases for the parse command module."""
+from pathlib import Path
 from typing import Callable
 from typing import List
 from typing import Optional
 
 import requests_mock as req_mock
 from click.testing import Result
+from pytest import MonkeyPatch
 from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
 
@@ -197,7 +199,7 @@ def test_parse_json_db_with_no_new_episode(
 ) -> None:
     """It prints message and exits.
 
-    If database contains more episodes than archive page.
+    If database contains the same number of episodes as on archive page.
     """
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
     requests_mock.get(
@@ -215,3 +217,154 @@ def test_parse_json_db_with_no_new_episode(
     expected_message = "There are no new episodes. Exit."
     assert expected_message in result.output
     assert result.exit_code == 0
+
+
+def test_saving_html_to_default_path(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    modified_json_less_db_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It saves HTML files into default folder.
+
+    Default folder is subfolder 'data_dump' of script location path.
+    """
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=modified_json_less_db_mock,
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    expected_subfolder = tmp_path / conf.PATH_TO_HTML_FILES
+
+    run_cli_with_args(["parse", "--with-html"])
+
+    file_1 = "[2021-04-11] # 714. Robin from Hamburg (WISBOLEP Runner-Up).html"
+    file_2 = "[2021-08-03] # 733. A Summer Ramble.html"
+    expected_file_1 = expected_subfolder / file_1
+    expected_file_2 = expected_subfolder / file_2
+    assert len(list(expected_subfolder.iterdir())) == 2
+    assert expected_file_1.exists()
+    assert expected_file_2.exists()
+
+
+def test_saving_html_to_custom_relative_path(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    modified_json_less_db_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It saves HTML files into custom relative folder."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=modified_json_less_db_mock,
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    run_cli_with_args(["parse", "-html", "--html-dir", "sub/sub2"])
+
+    expected_subfolder = tmp_path / "sub/sub2"
+
+    file_1 = "[2021-04-11] # 714. Robin from Hamburg (WISBOLEP Runner-Up).html"
+    file_2 = "[2021-08-03] # 733. A Summer Ramble.html"
+    expected_file_1 = expected_subfolder / file_1
+    expected_file_2 = expected_subfolder / file_2
+    assert len(list(expected_subfolder.iterdir())) == 2
+    assert expected_file_1.exists()
+    assert expected_file_2.exists()
+
+
+def test_saving_html_to_custom_absolute_path(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    modified_json_less_db_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It saves HTML files into custom absolute folder."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=modified_json_less_db_mock,
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    run_cli_with_args(["parse", "-html", "-hd", f"{tmp_path}"])
+
+    expected_folder = tmp_path
+
+    file_1 = "[2021-04-11] # 714. Robin from Hamburg (WISBOLEP Runner-Up).html"
+    file_2 = "[2021-08-03] # 733. A Summer Ramble.html"
+    expected_file_1 = expected_folder / file_1
+    expected_file_2 = expected_folder / file_2
+    assert len(list(expected_folder.iterdir())) == 3  # +1 JSON file
+    assert expected_file_1.exists()
+    assert expected_file_2.exists()
+
+
+def test_not_saving_html_without_flag_option(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    modified_json_less_db_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It doesn't save any HTML files into folder withot '-html' option."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=modified_json_less_db_mock,
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    run_cli_with_args(["parse", "-hd", f"{tmp_path}"])
+
+    expected_folder = tmp_path
+
+    file_1 = "[2021-04-11] # 714. Robin from Hamburg (WISBOLEP Runner-Up).html"
+    file_2 = "[2021-08-03] # 733. A Summer Ramble.html"
+    expected_file_1 = expected_folder / file_1
+    expected_file_2 = expected_folder / file_2
+    assert len(list(expected_folder.iterdir())) == 1  # JSON file only
+    assert not expected_file_1.exists()
+    assert not expected_file_2.exists()
