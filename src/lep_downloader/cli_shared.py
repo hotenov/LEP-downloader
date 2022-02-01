@@ -22,9 +22,6 @@
 # SOFTWARE.
 import importlib
 from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from datetime import timezone
 from functools import update_wrapper
 from pathlib import Path
 from typing import Any
@@ -176,17 +173,9 @@ def validate_date(
     if not value:
         return None
 
-    filter_time = time(0, 1)  # Begining of a day
-    if param.name == "end_date":
-        filter_time = time(23, 55)  # End (almost) of a day
     try:
         parsed_date = datetime.strptime(value, "%Y-%m-%d")
-        date_utc = datetime.combine(
-            parsed_date.date(),
-            filter_time,
-            tzinfo=timezone(timedelta(hours=2)),
-        )
-        return date_utc
+        return parsed_date
     except ValueError:
         raise click.BadParameter("date format must be 'YYYY-MM-DD'")
 

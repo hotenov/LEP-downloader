@@ -332,6 +332,43 @@ def test_filtering_by_end_date(
     assert expected_file_2.exists()
 
 
+def test_filtering_with_confused_dates(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    mp3_file1_mock: bytes,
+    mp3_file2_mock: bytes,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It swaps dates if they were confused."""
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+    requests_mock.get(
+        "http://traffic.libsyn.com/teacherluke/15-extra-podcast-12-phrasal-verbs.mp3",  # noqa: E501,B950
+        content=mp3_file1_mock,
+    )
+    requests_mock.get(
+        "http://traffic.libsyn.com/teacherluke/16-michael-jackson.mp3",  # noqa: E501,B950
+        content=mp3_file2_mock,
+    )
+
+    run_cli_with_args(
+        ["download", "-S", "2009-10-20", "-E", "2009-10-19", "-q", "-d", f"{tmp_path}"]
+    )
+
+    expected_filename_1 = "[2009-10-19] # 15. Extra Podcast – 12 Phrasal Verbs.mp3"
+    expected_file_1 = tmp_path / expected_filename_1
+    expected_filename_2 = "[2009-10-19] # 16. Michael Jackson.mp3"
+    expected_file_2 = tmp_path / expected_filename_2
+    assert len(list(tmp_path.iterdir())) == 2
+    # assert len(LepDL.downloaded) == 2
+    # assert len(LepDL.not_found) == 0
+    assert expected_file_1.exists()
+    assert expected_file_2.exists()
+
+
 def test_invalid_start_date_inputs(
     requests_mock: rm_Mocker,
     json_db_mock: str,
@@ -600,6 +637,41 @@ def test_filtering_by_number_with_default_end(
     )
 
     run_cli_with_args(["download", "-ep", "703-", "-q", "-d", f"{tmp_path}"])
+
+    expected_filename_1 = "[2021-02-03] # 703. Walaa from Syria – WISBOLEP Competition Winner.mp3"  # noqa: E501,B950
+    expected_file_1 = tmp_path / expected_filename_1
+    expected_filename_2 = "[2021-08-03] # 733. A Summer Ramble.mp3"  # noqa: E501,B950
+    expected_file_2 = tmp_path / expected_filename_2
+    assert len(list(tmp_path.iterdir())) == 2
+    # assert len(LepDL.downloaded) == 2
+    # assert len(LepDL.not_found) == 2
+    assert expected_file_1.exists()
+    assert expected_file_2.exists()
+
+
+def test_filtering_by_number_with_confused_start_end(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    mp3_file1_mock: bytes,
+    mp3_file2_mock: bytes,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It swaps provided confused numbers to correct interval."""
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+    requests_mock.get(
+        "https://traffic.libsyn.com/secure/teacherluke/703._Walaa_from_Syria_-_WISBOLEP_Competition_Winner_.mp3",  # noqa: E501,B950
+        content=mp3_file1_mock,
+    )
+    requests_mock.get(
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
+        content=mp3_file2_mock,
+    )
+
+    run_cli_with_args(["download", "-ep", "800-703", "-q", "-d", f"{tmp_path}"])
 
     expected_filename_1 = "[2021-02-03] # 703. Walaa from Syria – WISBOLEP Competition Winner.mp3"  # noqa: E501,B950
     expected_file_1 = tmp_path / expected_filename_1

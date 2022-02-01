@@ -23,6 +23,7 @@
 import json
 import re
 from datetime import datetime
+from datetime import time
 from datetime import timedelta
 from datetime import timezone
 from functools import total_ordering
@@ -181,6 +182,8 @@ class LepEpisodeList(List[Any]):
 
     def filter_by_number(self, start: int, end: int) -> Any:
         """Return new filtered list by episode number."""
+        if start > end:
+            start, end = end, start
         filtered = LepEpisodeList(
             ep for ep in self if ep.episode >= start and ep.episode <= end
         )
@@ -197,8 +200,21 @@ class LepEpisodeList(List[Any]):
         """Return new filtered list by episode (post) date."""
         start = start if start else self.default_start_date
         end = end if end else self.default_end_date
+        if start.date() > end.date():
+            start, end = end, start
+        start_aware = datetime.combine(
+            start.date(),
+            time(0, 1),  # Begining of a day
+            tzinfo=timezone(timedelta(hours=2)),
+        )
+        end_aware = datetime.combine(
+            end.date(),
+            time(23, 55),  # End (almost) of a day
+            tzinfo=timezone(timedelta(hours=2)),
+        )
+
         filtered = LepEpisodeList(
-            ep for ep in self if ep.date >= start and ep.date <= end
+            ep for ep in self if ep.date >= start_aware and ep.date <= end_aware
         )
         return filtered
 
