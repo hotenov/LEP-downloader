@@ -49,10 +49,20 @@ from lep_downloader.exceptions import NotEpisodeURLError
     ),
     metavar="<string>",
 )
+@click.option(
+    "--dest",
+    "-d",
+    type=click.Path(file_okay=False, path_type=Path),
+    callback=validate_dir,
+    default=Path(),
+    help="Directory path (absolute or relative) to JSON result file destination.",
+    metavar="<string>",
+)
 def cli(
     mode: str,
     html_yes: bool,
     html_dir: Path,
+    dest: Path,
 ) -> None:
     """Parses LEP archive web page."""
     if html_yes:
@@ -61,7 +71,7 @@ def cli(
 
     try:
         archive = parser.Archive(mode=mode)
-        archive.do_parsing_actions(conf.JSON_DB_URL)
+        archive.do_parsing_actions(conf.JSON_DB_URL, str(dest))
     except NotEpisodeURLError as ex:
         click.echo(f"{ex.args[1]}:\n\t{ex.args[0]}")
         click.echo("Archive page has invalid HTML content. Exit.")

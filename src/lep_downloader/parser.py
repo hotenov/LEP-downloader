@@ -136,7 +136,7 @@ class Archive(Lep):
     def do_parsing_actions(
         self,
         json_url: str,
-        json_name: str = conf.DEFAULT_JSON_NAME,
+        json_name: str = "",
     ) -> None:
         """Main methdod to do parsing job."""
         updates: Dict[str, str] = {}
@@ -291,10 +291,14 @@ def convert_date_from_url(url: str) -> datetime:
 
 def write_parsed_episodes_to_json(
     lep_objects: LepEpisodeList,
-    json_name: str = conf.DEFAULT_JSON_NAME,
+    json_path: str = "",
 ) -> None:
     """Write list of LepEpisode objects to file."""
-    with open(Path(json_name), "w") as outfile:
+    if Path(json_path).is_dir():
+        filepath = Path(json_path) / conf.DEFAULT_JSON_NAME
+    else:
+        filepath = Path(json_path)
+    with open(filepath, "w") as outfile:
         json.dump(lep_objects, outfile, indent=4, cls=LepJsonEncoder)
 
 

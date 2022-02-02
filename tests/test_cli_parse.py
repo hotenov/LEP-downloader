@@ -29,6 +29,7 @@ from typing import Optional
 import requests_mock as req_mock
 from click.testing import Result
 from pytest import MonkeyPatch
+from pytest_mock import MockFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
 
@@ -443,3 +444,84 @@ def test_parsing_archive_in_raw_mode(
     db_episodes = json.loads(json_db_mock, object_hook=as_lep_episode_obj)
     assert len(list(expected_folder.iterdir())) == 1
     assert len(raw_episodes) == len(db_episodes) == 782
+
+
+def test_cannot_write_parsing_result_json_before_execution(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+    mocker: MockFixture,
+) -> None:
+    """It parses anything if current folder has no permission."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+
+    monkeypatch.chdir(tmp_path)
+
+    # mock = mocker.patch("json.dump")
+    mock = mocker.patch("pathlib.Path.write_text")
+    mock.side_effect = PermissionError()
+
+    result = run_cli_with_args(["parse", "--mode=raw"])
+
+    expected_folder = tmp_path
+    assert "Error: Invalid value for '--dest' / '-d':" in result.output
+    assert "folder has no 'write' permission" in result.output
+    assert len(list(expected_folder.iterdir())) == 0
+
+
+def test_saving_parsing_json_to_custom_relative_path(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    modified_json_less_db_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It saves JSON result file into custom relative folder."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=modified_json_less_db_mock,
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    run_cli_with_args(["parse", "-m", "fetch", "--dest", "sub/sub2"])
+
+    expected_subfolder = tmp_path / "sub/sub2"
+
+    expected_file = expected_subfolder / conf.DEFAULT_JSON_NAME
+    assert len(list(expected_subfolder.iterdir())) == 1
+    assert expected_file.exists()
+    with open(expected_file, "rb") as f:
+        py_from_json = json.load(f, object_hook=as_lep_episode_obj)
+    assert len(py_from_json) == 803
+
+
+def test_incorrect_passing_option_value_to_mode_short_option(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It parses anything if current folder has no permission."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+
+    monkeypatch.chdir(tmp_path)
+
+    result = run_cli_with_args(["parse", "-m=raw"])  # Only works with space.
+
+    expected_folder = tmp_path
+    assert "Error: Invalid value for '--mode' / '-m':" in result.output
+    assert "'=raw' is not one of 'raw', 'fetch', 'pull'" in result.output
+    assert len(list(expected_folder.iterdir())) == 0
