@@ -41,9 +41,6 @@ BEGINING_DIGITS_PATTERN = re.compile(begining_digits_re)
 audio_link_re = r"download\b|audio\s|click\s"
 AUDIO_LINK_PATTERN = re.compile(audio_link_re, re.IGNORECASE)
 
-URL_ENCODED_CHARS_PATTERN = re.compile(r"%[0-9A-Z]{2}")
-
-
 # SoupStrainer's CALLBACKS #
 
 only_article_content = SoupStrainer("article")
@@ -61,6 +58,7 @@ class Archive(Lep):
         self,
         url: str = conf.ARCHIVE_URL,
         session: requests.Session = None,
+        mode: str = "fetch",
     ) -> None:
         """Initialize an archive instance."""
         super().__init__(session)
@@ -70,26 +68,35 @@ class Archive(Lep):
         self.deleted_links: Set[str] = set()
         self.used_indexes: Set[int] = set()
         self.episodes: LepEpisodeList = LepEpisodeList()
+        self.mode = mode
 
     def fetch_updates(
         self,
-        db_episodes: LepEpisodeList,
+        db_urls: Dict[str, str],
         archive_urls: Optional[Dict[str, str]] = None,
+        mode: str = "fetch",
     ) -> Any:
         """Fetch only new URLs between database and archive page."""
         archive_urls = archive_urls if archive_urls else self.collected_links
-        db_urls = extract_urls_from_episode_list(db_episodes)
-        last_url: str = [*db_urls][0]
-        date_of_last_db_episode = convert_date_from_url(last_url)
-        updates = {
-            url: text
-            for url, text in archive_urls.items()
-            if convert_date_from_url(url) > date_of_last_db_episode
-        }
-        if len(db_urls) > len(archive_urls):
-            return None
-        else:
+        if mode == "pull":
+            # Take any archive url which is not in database urls
+            updates = {
+                url: text for url, text in archive_urls.items() if url not in db_urls
+            }
             return updates
+        else:
+            # Take only new episodes ('above' the last in database)
+            last_url: str = [*db_urls][0]
+            date_of_last_db_episode = convert_date_from_url(last_url)
+            updates = {
+                url: text
+                for url, text in archive_urls.items()
+                if convert_date_from_url(url) > date_of_last_db_episode
+            }
+            if len(db_urls) > len(archive_urls):
+                return None
+            else:
+                return updates
 
     def parse_each_episode(
         self,
@@ -133,37 +140,47 @@ class Archive(Lep):
     ) -> None:
         """Main methdod to do parsing job."""
         updates: Dict[str, str] = {}
+        all_episodes = LepEpisodeList()
 
         # Collect (get and parse) links and their texts from web archive page.
         self.parser.parse_url()
 
-        # Get database episodes from web JSON
-        lep_dl = LepDL(json_url, self.session)
-        lep_dl.use_or_get_db_episodes()
-        if lep_dl.db_episodes:
-            updates = self.fetch_updates(lep_dl.db_episodes, self.collected_links)
+        if self.mode == "raw":
+            self.parse_each_episode(self.collected_links)
+            all_episodes = LepEpisodeList(reversed(self.episodes))
         else:
-            raise NoEpisodesInDataBase(
-                "JSON is available, but\nthere are NO episodes in this file. Exit."
-            )
-        if updates is None:
-            print(
-                "[WARNING]: Database contains more episodes",
-                "than current archive!",
-            )
-            return None
-        if len(updates) > 0:
-            # Parse new episodes and add them to shared class list
-            # with parsed episodes (list empty until this statement)
-            self.parse_each_episode(updates)
-            new_episodes = self.episodes
-            new_episodes = LepEpisodeList(reversed(new_episodes))
-            all_episodes = LepEpisodeList(new_episodes + lep_dl.db_episodes)
-            all_episodes = all_episodes.desc_sort_by_date_and_index()
-            write_parsed_episodes_to_json(all_episodes, json_name)
-        else:
-            print("There are no new episodes. Exit.")
-            return None
+            # Get database episodes from web JSON
+            lep_dl = LepDL(json_url, self.session)
+            lep_dl.use_or_get_db_episodes()
+
+            if lep_dl.db_episodes:
+                updates = self.fetch_updates(
+                    lep_dl.db_urls, self.collected_links, self.mode
+                )
+            else:
+                raise NoEpisodesInDataBase(
+                    "JSON is available, but\n"
+                    "there are NO episodes in this file. Exit."
+                )
+            if updates is None:  # For fetch mode this is not good.
+                print(
+                    "[WARNING]: Database contains more episodes",
+                    "than current archive!",
+                )
+                return None
+            if len(updates) > 0:
+                # Parse new episodes and add them to shared class list
+                # with parsed episodes (list empty until this statement)
+                self.parse_each_episode(updates)
+                new_episodes = self.episodes
+                new_episodes = LepEpisodeList(reversed(new_episodes))
+                all_episodes = LepEpisodeList(new_episodes + lep_dl.db_episodes)
+                all_episodes = all_episodes.desc_sort_by_date_and_index()
+            else:
+                print("There are no new episodes. Exit.")
+                return None
+
+        write_parsed_episodes_to_json(all_episodes, json_name)
 
 
 def is_tag_a_repeated(tag_a: Tag) -> bool:
@@ -486,19 +503,3 @@ class EpisodeParser(LepParser):
     def do_post_parsing(self) -> None:
         """Post parsing actions for EpisodeParser."""
         pass
-
-
-def url_encoded_chars_to_lower_case(url: str) -> str:
-    """Change %-escaped chars in string to lower case."""
-    lower_url = URL_ENCODED_CHARS_PATTERN.sub(
-        lambda matchobj: matchobj.group(0).lower(), url
-    )
-    return lower_url
-
-
-def extract_urls_from_episode_list(episodes: LepEpisodeList) -> Dict[str, str]:
-    """Extract page URL and its title for each episode object  in list."""
-    urls_titles = {
-        url_encoded_chars_to_lower_case(ep.url): ep.post_title for ep in episodes
-    }
-    return urls_titles

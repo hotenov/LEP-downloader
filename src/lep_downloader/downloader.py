@@ -20,10 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """LEP module for downloading logic."""
+import re
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -36,6 +38,10 @@ from lep_downloader import config as conf
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
+
+
+# COMPILED REGEX PATTERNS #
+URL_ENCODED_CHARS_PATTERN = re.compile(r"%[0-9A-Z]{2}")
 
 
 @dataclass
@@ -290,6 +296,7 @@ class LepDL(Lep):
         super().__init__(session)
         self.json_url = json_url
         self.db_episodes: LepEpisodeList = LepEpisodeList()
+        self.db_urls: Dict[str, str] = {}
         self.files: LepFileList = LepFileList()
         self.downloaded: LepFileList = LepFileList()
         self.not_found: LepFileList = LepFileList()
@@ -303,6 +310,7 @@ class LepDL(Lep):
         """
         if not self.db_episodes:
             self.db_episodes = Lep.get_db_episodes(self.json_url)
+            self.db_urls = extract_urls_from_episode_list(self.db_episodes)
 
     def detach_existed_files(
         self,
@@ -367,3 +375,19 @@ class LepDL(Lep):
                 else:
                     self.not_found.append(file_obj)
                     print(f"[INFO]: Can't download: {filename}")
+
+
+def url_encoded_chars_to_lower_case(url: str) -> str:
+    """Change %-escaped chars in string to lower case."""
+    lower_url = URL_ENCODED_CHARS_PATTERN.sub(
+        lambda matchobj: matchobj.group(0).lower(), url
+    )
+    return lower_url
+
+
+def extract_urls_from_episode_list(episodes: LepEpisodeList) -> Dict[str, str]:
+    """Extract page URL and its title for each episode object  in list."""
+    urls_titles = {
+        url_encoded_chars_to_lower_case(ep.url): ep.post_title for ep in episodes
+    }
+    return urls_titles

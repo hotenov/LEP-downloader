@@ -14,6 +14,22 @@ from lep_downloader.exceptions import NotEpisodeURLError
 
 @click.command(name="parse")
 @click.option(
+    "--mode",
+    "-m",
+    "mode",
+    type=click.Choice(["raw", "fetch", "pull"], case_sensitive=False),
+    default="fetch",
+    help=(
+        "Parsing mode:\n"
+        "RAW - Parse archive episodes only (ignoring database); "
+        "FETCH - Parse and add new episodes "
+        "(following 'after' last episode in database); "
+        "PULL - Parse all episodes not present in database "
+        "and merge them with previous ones in database. "
+        "Default is FETCH."
+    ),
+)
+@click.option(
     "--with-html",
     "-html",
     "html_yes",
@@ -34,6 +50,7 @@ from lep_downloader.exceptions import NotEpisodeURLError
     metavar="<string>",
 )
 def cli(
+    mode: str,
     html_yes: bool,
     html_dir: Path,
 ) -> None:
@@ -43,7 +60,7 @@ def cli(
         conf.PATH_TO_HTML_FILES = str(html_dir.absolute())
 
     try:
-        archive = parser.Archive()
+        archive = parser.Archive(mode=mode)
         archive.do_parsing_actions(conf.JSON_DB_URL)
     except NotEpisodeURLError as ex:
         click.echo(f"{ex.args[1]}:\n\t{ex.args[0]}")

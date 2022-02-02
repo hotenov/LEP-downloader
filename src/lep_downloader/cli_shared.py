@@ -181,10 +181,15 @@ def validate_date(
 
 
 def validate_dir(ctx: Context, param: Parameter, value: Any) -> Any:
-    """Check is dir writable or not.
+    """Check if dir is writable or not.
 
-    Create all parent folders to target destination.
+    Create all parent folders to target destination during path validation.
     """
+    # Do NOT check permission for 'parse' command
+    # if option '--with-html' was not provided
+    if "html_yes" in ctx.params:
+        if not ctx.params["html_yes"] and param.name == "html_dir":
+            return value
     try:
         value.mkdir(parents=True, exist_ok=True)
         probe_file = value / "tmp_dest.txt"

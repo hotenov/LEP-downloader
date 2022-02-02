@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """Test cases for the parse command module."""
+import json
 from pathlib import Path
 from typing import Callable
 from typing import List
@@ -32,6 +33,7 @@ from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
 
 from lep_downloader import config as conf
+from lep_downloader.lep import as_lep_episode_obj
 
 
 def test_parse_incorrect_archive_url(
@@ -259,6 +261,49 @@ def test_saving_html_to_default_path(
     assert expected_file_2.exists()
 
 
+def test_saving_html_in_pull_mode(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    modified_json_less_db_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It pulls all episodes which are not in database.
+
+    Default folder is subfolder 'data_dump' of script location path.
+    """
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=modified_json_less_db_mock,
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    expected_subfolder = tmp_path / "data_dump"
+
+    run_cli_with_args(["parse", "--with-html", "--mode", "pull"])
+
+    file_1 = "[2017-03-11] # LEP on ZEP – My recent interview on Zdenek’s English Podcast.html"  # noqa: E501,B950
+    file_2 = "[2021-04-11] # 714. Robin from Hamburg (WISBOLEP Runner-Up).html"
+    file_3 = "[2021-08-03] # 733. A Summer Ramble.html"
+    expected_file_1 = expected_subfolder / file_1
+    expected_file_2 = expected_subfolder / file_2
+    expected_file_3 = expected_subfolder / file_3
+    assert len(list(expected_subfolder.iterdir())) == 3
+    assert expected_file_1.exists()
+    assert expected_file_2.exists()
+    assert expected_file_3.exists()
+
+
 def test_saving_html_to_custom_relative_path(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
@@ -368,3 +413,33 @@ def test_not_saving_html_without_flag_option(
     assert len(list(expected_folder.iterdir())) == 1  # JSON file only
     assert not expected_file_1.exists()
     assert not expected_file_2.exists()
+
+
+def test_parsing_archive_in_raw_mode(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    json_db_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It doesn't save any HTML files into folder withot '-html' option."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    run_cli_with_args(["parse", "--mode=raw"])
+
+    expected_folder = tmp_path
+    parsed_json = (expected_folder / conf.DEFAULT_JSON_NAME).read_text()
+    raw_episodes = json.loads(parsed_json, object_hook=as_lep_episode_obj)
+    db_episodes = json.loads(json_db_mock, object_hook=as_lep_episode_obj)
+    assert len(list(expected_folder.iterdir())) == 1
+    assert len(raw_episodes) == len(db_episodes) == 782
