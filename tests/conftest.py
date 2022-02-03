@@ -351,17 +351,21 @@ def runner() -> CliRunner:
 
 
 @pytest.fixture
-def run_cli_with_args(runner: CliRunner) -> Callable[[List[str]], Result]:
-    """Fixture for getting CLI runner result for this package."""
+def run_cli_with_args(runner: CliRunner) -> Any:
+    """Fixture for getting unified CLI runner invocation for this package."""
 
-    def _my_pkg_result(cli_args: List[str]) -> Result:
+    def _my_pkg_result(
+        cli_args: Optional[List[str]] = None,
+        cmd: Optional[Any] = None,
+        *,
+        prog_name: str = "lep-downloader",
+        **kwargs: Any,
+    ) -> Result:
         from lep_downloader import cli
 
-        result = runner.invoke(
-            cli.cli,
-            cli_args,
-            prog_name="lep-downloader",
-        )
+        cmd = cmd if cmd else cli.cli
+        kwargs["prog_name"] = prog_name
+        result = runner.invoke(cmd, cli_args, **kwargs)
         return result
 
     return _my_pkg_result

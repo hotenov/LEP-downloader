@@ -21,11 +21,8 @@
 # SOFTWARE.
 """Test cases for the download command module."""
 from pathlib import Path
-from typing import Callable
-from typing import List
+from typing import Any
 
-from click.testing import CliRunner
-from click.testing import Result
 from pytest_mock import MockFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 
@@ -34,7 +31,7 @@ from lep_downloader import config as conf
 
 def test_json_database_not_available(
     requests_mock: rm_Mocker,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It prints message and exits when JSON is unavailable."""
     requests_mock.get(
@@ -50,7 +47,7 @@ def test_json_database_not_available(
 
 def test_json_database_not_available_in_quite_mode(
     requests_mock: rm_Mocker,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It aborts following execution when JSON is unavailable.
 
@@ -70,21 +67,15 @@ def test_json_database_not_available_in_quite_mode(
 def test_download_without_options(
     requests_mock: rm_Mocker,
     json_db_mock: str,
-    runner: CliRunner,
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all audio files for parsed episodes."""
-    from lep_downloader import cli
-
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
-    result = runner.invoke(
-        cli.cli,
-        ["download"],
-        prog_name="lep-downloader",
-        input="n\n",
-    )
+    result = run_cli_with_args(["download"], input="n\n")
+
     assert "18 non-existing file(s) will be downloaded" in result.output
     assert "Do you want to continue? [y/N]: n\n" in result.output
     assert "Your answer is 'NO'. Exit." in result.output
@@ -95,11 +86,9 @@ def test_continue_prompt_yes(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    runner: CliRunner,
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads files if user answers 'Yes'."""
-    from lep_downloader import cli
-
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
@@ -109,10 +98,8 @@ def test_continue_prompt_yes(
         content=mp3_file1_mock,
     )
 
-    result = runner.invoke(
-        cli.cli,
+    result = run_cli_with_args(
         ["download", "-ep", "703", "-pdf", "-d", f"{tmp_path}"],
-        prog_name="lep-downloader",
         input="y\n",
     )
 
@@ -129,30 +116,21 @@ def test_continue_prompt_no(
     requests_mock: rm_Mocker,
     json_db_mock: str,
     tmp_path: Path,
-    runner: CliRunner,
+    run_cli_with_args: Any,
 ) -> None:
     """It exists if user answers 'No'."""
-    from lep_downloader import cli
-
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
 
-    result = runner.invoke(
-        cli.cli,
-        ["download", "-ep", "714"],
-        prog_name="lep-downloader",
-        input="No",
-    )
+    result = run_cli_with_args(["download", "-ep", "714"], input="No")
     assert "Do you want to continue? [y/N]: No\n" in result.output
     assert "Your answer is 'NO'. Exit." in result.output
     assert len(list(tmp_path.iterdir())) == 0
 
-    result = runner.invoke(
-        cli.cli,
+    result = run_cli_with_args(
         ["download", "-ep", "714"],
-        prog_name="lep-downloader",
         input="\n",  # Pressed 'Enter' key (empty input)
     )
 
@@ -162,7 +140,7 @@ def test_continue_prompt_no(
 
 def test_no_valid_episodes_in_database(
     requests_mock: rm_Mocker,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It prints message and exits if no episodes in JSON database."""
     requests_mock.get(
@@ -179,7 +157,7 @@ def test_no_valid_episodes_in_database(
 
 def test_no_valid_episodes_quiet_mode(
     requests_mock: rm_Mocker,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It aborts following execution if no episodes in JSON database.
 
@@ -202,7 +180,7 @@ def test_last_option(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads the last episode when '--last' option is provided."""
     requests_mock.get(
@@ -231,7 +209,7 @@ def test_filtering_for_one_day(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes for certain day."""
     requests_mock.get(
@@ -268,7 +246,7 @@ def test_filtering_by_start_date(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes from start date to last."""
     requests_mock.get(
@@ -303,7 +281,7 @@ def test_filtering_by_end_date(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes from first to end date."""
     requests_mock.get(
@@ -338,7 +316,7 @@ def test_filtering_with_confused_dates(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It swaps dates if they were confused."""
     requests_mock.get(
@@ -372,7 +350,7 @@ def test_filtering_with_confused_dates(
 def test_invalid_start_date_inputs(
     requests_mock: rm_Mocker,
     json_db_mock: str,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It validates and exits with error (2) when invalid start date is provided."""
     requests_mock.get(
@@ -425,7 +403,7 @@ def test_invalid_start_date_inputs(
 def test_invalid_end_date_inputs(
     requests_mock: rm_Mocker,
     json_db_mock: str,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It validates and exits with error (2) when invalid end date is provided."""
     requests_mock.get(
@@ -480,7 +458,7 @@ def test_populating_default_url_for_page_pdf(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It populates URL and downloads page PDF."""
     requests_mock.get(
@@ -519,7 +497,7 @@ def test_filtering_by_one_episode_number(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads one episode by its number."""
     requests_mock.get(
@@ -548,7 +526,7 @@ def test_filtering_not_numbered_episodes(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes with number = 0."""
     requests_mock.get(
@@ -585,7 +563,7 @@ def test_filtering_by_number_with_default_start(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes from 0 to provided number."""
     requests_mock.get(
@@ -620,7 +598,7 @@ def test_filtering_by_number_with_default_end(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes from provided number to last."""
     requests_mock.get(
@@ -655,7 +633,7 @@ def test_filtering_by_number_with_confused_start_end(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It swaps provided confused numbers to correct interval."""
     requests_mock.get(
@@ -687,7 +665,7 @@ def test_filtering_by_number_with_confused_start_end(
 def test_invalid_number_inputs(
     requests_mock: rm_Mocker,
     json_db_mock: str,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It validates and exits with error (2) when invalid episode number is provided."""
     requests_mock.get(
@@ -740,7 +718,7 @@ def test_custom_db_url(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It uses provided JSON URL instead of default."""
     requests_mock.get(
@@ -778,7 +756,7 @@ def test_no_files_for_downloading(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It prints and exits when nothing to download."""
     requests_mock.get(
@@ -808,7 +786,7 @@ def test_no_permission_for_folder_destination(
     requests_mock: rm_Mocker,
     json_db_mock: str,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It validates destination folder before downloading files.
 
@@ -836,7 +814,7 @@ def test_os_error_for_folder_destination(
     requests_mock: rm_Mocker,
     json_db_mock: str,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It validates destination folder before downloading files.
 
@@ -864,7 +842,7 @@ def test_passing_options_from_group_to_command(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It passes options to 'download' command from command group (script itself)."""
     requests_mock.get(
@@ -892,11 +870,9 @@ def test_final_prompt_to_press_enter(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    runner: CliRunner,
+    run_cli_with_args: Any,
 ) -> None:
     """It requires to press enter at the end of script execution."""
-    from lep_downloader import cli
-
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
@@ -907,10 +883,8 @@ def test_final_prompt_to_press_enter(
         content=mp3_file1_mock,
     )
 
-    result = runner.invoke(
-        cli.cli,
+    result = run_cli_with_args(
         ["-ep", "35", "-d", f"{tmp_path}"],
-        prog_name="lep-downloader",
         input="\n",  # Two inputs in this case.
     )
     assert "Do you want to continue? [y/N]: \n" in result.output
