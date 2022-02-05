@@ -24,6 +24,7 @@ requests = "^2.26.0"
 beautifulsoup4 = "^4.9.3"
 lxml = "^4.6.3"
 single-source = "^0.2.0"
+loguru = "^0.6.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
