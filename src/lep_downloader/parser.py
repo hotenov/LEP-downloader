@@ -124,13 +124,25 @@ class Archive(Lep):
                         file_stem,
                         conf.PATH_TO_HTML_FILES,
                     )
-            except (NotEpisodeURLError):
-                # TODO (hotenov): Write to log / statistics
-                # for non-episode URL, but skip here
+            except NotEpisodeURLError as ex:
+                # Log non-episode URL to file (only), but skip for user
+                Lep.msg(
+                    "Non-episode URL: {url} | Location: {final} | err: {err}",
+                    url=url,
+                    final=ex.args[0],
+                    err=ex.args[1],
+                    msg_lvl="WARNING",
+                )
                 continue
-            except (LepEpisodeNotFound) as ex:
+            except LepEpisodeNotFound as ex:
                 not_found_episode = ex.args[0]
                 self.episodes.append(not_found_episode)
+                Lep.msg(
+                    "Episode 404: {url} | Location: {final}",
+                    url=url,
+                    final=not_found_episode.url,
+                    msg_lvl="WARNING",
+                )
                 continue
 
     def do_parsing_actions(
@@ -475,7 +487,7 @@ class EpisodeParser(LepParser):
         """Parse episode date, number, index."""
         self.episode.index = generate_post_index(self.final_location, self.used_indexes)
         if self.episode.index == 0:
-            raise NotEpisodeURLError(self.final_location)
+            raise NotEpisodeURLError(self.final_location, "Can't parse episode number")
 
         self.episode.url = self.final_location
         current_date_utc = datetime.now(timezone.utc)

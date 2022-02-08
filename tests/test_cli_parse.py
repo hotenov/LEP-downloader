@@ -638,25 +638,50 @@ def test_invalid_objects_in_json_not_included(
     assert "no valid episode objects" in result.output
 
 
-def test_no_new_episodes_on_archive_vs_json_db(
+def test_write_log_error_when_non_episode_url(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
-    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
-    single_page_mock: str,
-    json_db_mock: str,
+    modified_json_less_db_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
     run_cli_with_args: Callable[[List[str]], Result],
 ) -> None:
-    """It prints when no new episodes on archive page."""
+    """It saves HTML files into custom absolute folder."""
     requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    origin_url = "https://teacherluke.co.uk/2021/04/11/714-robin-from-hamburg-%f0%9f%87%a9%f0%9f%87%aa-wisbolep-runner-up/"  # noqa: E501,B950
+    final_url = "https://teacherluke.co.uk/premium/archive-comment-section/"
     requests_mock.get(
-        req_mock.ANY,
-        additional_matcher=single_page_matcher,
-        text=single_page_mock,
+        origin_url,
+        text="Rederecting to non episode URL",
+        status_code=301,
+        headers={"Location": final_url},
     )
     requests_mock.get(
-        conf.JSON_DB_URL,
-        text=json_db_mock,
+        final_url,
+        text="Non-episode page",
     )
 
-    result = run_cli_with_args(["parse"])
-    assert "There are no new episodes. Exit." in result.output
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=modified_json_less_db_mock,
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    run_cli_with_args(["--debug", "parse", "-html", "-hd", f"{tmp_path}"])
+
+    expected_folder = tmp_path
+
+    log = Path(tmp_path / "_lep_debug_.log").read_text()
+
+    assert len(list(expected_folder.iterdir())) == 2  # JSON file + debug log
+    record = (
+        "Non-episode URL: "
+        + origin_url
+        + " | Location: "
+        + final_url
+        + " | err: "
+        + "Can't parse episode number"
+    )
+    assert "WARNING" in log
+    assert record in log
