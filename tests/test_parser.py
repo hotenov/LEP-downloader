@@ -35,7 +35,6 @@ import pytest
 import requests
 import requests_mock as req_mock
 from bs4 import BeautifulSoup
-from pytest import CaptureFixture
 from pytest import MonkeyPatch
 from pytest_mock import MockFixture
 from requests_mock.mocker import Mocker as rm_Mocker
@@ -647,38 +646,11 @@ def test_writing_lep_episodes_to_json(lep_temp_path: Path) -> None:
     )
 
 
-def test_no_new_episodes_on_archive_vs_json_db(
-    requests_mock: rm_Mocker,
-    archive_page_mock: str,
-    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
-    single_page_mock: str,
-    json_db_mock: str,
-    capsys: CaptureFixture[str],
-    archive: Archive,
-) -> None:
-    """It prints when no new episodes on archive page."""
-    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    requests_mock.get(
-        req_mock.ANY,
-        additional_matcher=single_page_matcher,
-        text=single_page_mock,
-    )
-    requests_mock.get(
-        conf.JSON_DB_URL,
-        text=json_db_mock,
-    )
-
-    archive.do_parsing_actions(conf.JSON_DB_URL)
-    captured = capsys.readouterr()
-    assert "There are no new episodes. Exit." in captured.out
-
-
 def test_no_valid_episode_objects_in_json_db(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
-    capsys: CaptureFixture[str],
     archive: Archive,
 ) -> None:
     """It prints warning when there are no valid episode objects."""
@@ -699,17 +671,12 @@ def test_no_valid_episode_objects_in_json_db(
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
 
-    captured = capsys.readouterr()
-    assert "[WARNING]" in captured.out
-    assert "no valid episode objects" in captured.out
-
 
 def test_json_db_not_valid(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
-    capsys: CaptureFixture[str],
     archive: Archive,
 ) -> None:
     """It prints error for invalid JSON document."""
@@ -727,9 +694,6 @@ def test_json_db_not_valid(
     with pytest.raises(NoEpisodesInDataBase) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
-    captured = capsys.readouterr()
-    assert "[ERROR]" in captured.out
-    assert "Data is not a valid JSON document." in captured.out
 
 
 def test_json_db_not_available(
@@ -765,7 +729,6 @@ def test_json_db_contains_only_string(
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
-    capsys: CaptureFixture[str],
     archive: Archive,
 ) -> None:
     """It prints warning for JSON as str."""
@@ -783,9 +746,6 @@ def test_json_db_contains_only_string(
     with pytest.raises(NoEpisodesInDataBase) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
-    captured = capsys.readouterr()
-    assert "[WARNING]" in captured.out
-    assert "no valid episode objects" in captured.out
 
 
 def test_invalid_objects_in_json_not_included(
@@ -793,7 +753,6 @@ def test_invalid_objects_in_json_not_included(
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
-    capsys: CaptureFixture[str],
     archive: Archive,
 ) -> None:
     """It skips invalid objects in JSON database."""
@@ -811,9 +770,6 @@ def test_invalid_objects_in_json_not_included(
     with pytest.raises(NoEpisodesInDataBase) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
-    captured = capsys.readouterr()
-    assert "[WARNING]" in captured.out
-    assert "no valid episode objects" in captured.out
 
 
 def test_updating_json_database_with_new_episodes(
@@ -852,34 +808,6 @@ def test_updating_json_database_with_new_episodes(
     # 24 + 782 - 3 = 803
     assert len(py_from_json) == 803
     # assert len(py_from_json) == 786
-
-
-def test_updating_json_database_with_extra_episodes(
-    requests_mock: rm_Mocker,
-    archive_page_mock: str,
-    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
-    single_page_mock: str,
-    modified_json_extra_db_mock: str,
-    capsys: CaptureFixture[str],
-    archive: Archive,
-) -> None:
-    """It prints warning if database contains more episodes than archive."""
-    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    requests_mock.get(
-        req_mock.ANY,
-        additional_matcher=single_page_matcher,
-        text=single_page_mock,
-    )
-    requests_mock.get(
-        conf.JSON_DB_URL,
-        text=modified_json_extra_db_mock,
-    )
-
-    archive.do_parsing_actions(conf.JSON_DB_URL)
-    captured = capsys.readouterr()
-    expected_message = "Database contains more episodes than current archive!"
-    assert "[WARNING]" in captured.out
-    assert expected_message in captured.out
 
 
 def test_parsing_invalid_html_in_main_actions(

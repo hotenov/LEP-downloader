@@ -155,7 +155,7 @@ def test_no_valid_episodes_in_database(
     )
     result = run_cli_with_args(["download"])
     assert (
-        f"[WARNING]: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
+        f"WARNING: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
         in result.output
     )
     assert result.exit_code == 0
@@ -175,7 +175,7 @@ def test_no_valid_episodes_quiet_mode(
     )
     result = run_cli_with_args(["download", "--quiet"])
     assert (
-        f"[WARNING]: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
+        f"WARNING: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
         in result.output
     )
     assert result.exit_code == 0

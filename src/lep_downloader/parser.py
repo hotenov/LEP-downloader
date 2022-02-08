@@ -163,9 +163,9 @@ class Archive(Lep):
                     "there are NO episodes in this file. Exit."
                 )
             if updates is None:  # For fetch mode this is not good.
-                print(
-                    "[WARNING]: Database contains more episodes",
-                    "than current archive!",
+                Lep.msg(
+                    "<y>WARNING: Database contains more episodes"
+                    + " than current archive!</y>"
                 )
                 return None
             if len(updates) > 0:
@@ -177,7 +177,7 @@ class Archive(Lep):
                 all_episodes = LepEpisodeList(new_episodes + lep_dl.db_episodes)
                 all_episodes = all_episodes.desc_sort_by_date_and_index()
             else:
-                print("There are no new episodes. Exit.")
+                Lep.msg("<c>There are no new episodes. Exit.</c>")
                 return None
 
         write_parsed_episodes_to_json(all_episodes, json_name)

@@ -285,7 +285,8 @@ def as_lep_episode_obj(dct: Dict[str, Any]) -> Any:
         lep_ep = LepEpisode(**dct)
         lep_ep._short_date = lep_ep.date.strftime(r"%Y-%m-%d")
     except TypeError:
-        print(f"[WARNING]: Invalid object in JSON!\n\t{dct}")
+        # Message only to log file
+        Lep.msg("Invalid object in JSON: {dct}", dct=dct, msg_lvl="WARNING")
         return None
     else:
         return lep_ep
@@ -350,15 +351,19 @@ class Lep:
         try:
             db_episodes = json.loads(json_body, object_hook=as_lep_episode_obj)
         except json.JSONDecodeError:
-            print(f"[ERROR]: Data is not a valid JSON document.\n\tURL: {json_url}")
+            Lep.msg(
+                "<r>ERROR: Data is not a valid JSON document.</r>\n\tURL: {json_url}",
+                json_url=json_url,
+            )
             return LepEpisodeList()
         else:
             is_db_str: bool = isinstance(db_episodes, str)
             # Remove None elements
             db_episodes = LepEpisodeList(obj for obj in db_episodes if obj)
             if not db_episodes or is_db_str:
-                print(
-                    f"[WARNING]: JSON file ({json_url}) has no valid episode objects."  # noqa: E501,B950
+                Lep.msg(
+                    "<y>WARNING: JSON file ({json_url}) has no valid episode objects.</y>",  # noqa: E501,B950
+                    json_url=json_url,
                 )
                 return LepEpisodeList()
             else:
@@ -391,7 +396,11 @@ class Lep:
         wait_input: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Print message (console and log file)."""
+        """Output message to console or log file.
+
+        If DEBUG = True duplicates all console messaged to log file (level PRINT).
+            Also add records (messages) for other log levels.
+        """
         global lep_log
         if msg_lvl == "PRINT" and not conf.DEBUG:
             if wait_input:

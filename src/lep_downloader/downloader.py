@@ -263,18 +263,16 @@ def download_and_write_file(
                 ):
                     out_file.write(chunk)
                     is_writing_started = True
-            print(f" + {filename}")
+            Lep.msg("<g> + </g>{filename}", filename=filename)
             return True
     except OSError:
-        # TODO (hotenov): Add log or debug print only
-        # print(f"[ERROR]: Can't write file: {err}")
         if is_writing_started:
+            # It's hard to mock / monkeypatch this case. Tested manually
             file_path.unlink()  # Delete incomplete file # pragma: no cover
-            # It's hard to mock / monkeypatch this case
-            # Tested manually
+        Lep.msg("Can't write file: {filename}", filename=filename, msg_lvl="ERROR")
         return False
     except Exception as err:
-        print(f"[ERROR]: Unknown error: {err}")
+        Lep.msg("URL: {url} | Unhandled: {err}", err=err, url=url, msg_lvl="CRITICAL")
         return False
 
 
@@ -374,7 +372,7 @@ class LepDL(Lep):
                     self.downloaded.append(file_obj)
                 else:
                     self.not_found.append(file_obj)
-                    print(f"[INFO]: Can't download: {filename}")
+                    Lep.msg("<r> - </r>{filename}", filename=filename)
 
 
 def url_encoded_chars_to_lower_case(url: str) -> str:

@@ -295,14 +295,15 @@ def test_primary_link_unavailable(
     lep_dl.files = test_downloads
     lep_dl.detach_existed_files(tmp_path)
     lep_dl.download_files(tmp_path)
-    captured = capsys.readouterr()
+    # captured = capsys.readouterr()  # ONLY IN LOG NOW
     assert len(list(tmp_path.iterdir())) == 0
     assert len(lep_dl.downloaded) == 0
     assert len(lep_dl.not_found) == 1
-    assert "[ERROR]: Unknown error:" in captured.out
-    assert "Something wrong!" in captured.out
-    assert "[INFO]: Can't download:" in captured.out
-    assert "Test File #1.mp3" in captured.out
+    # assert "[ERROR]: Unknown error:" in captured.out
+    # assert "Something wrong!" in captured.out
+    # assert "[INFO]: Can't download:" in captured.out
+    # assert " - [2021-08-03] # 733. A Summer Ramble.mp3" in captured.out
+    # assert "Test File #1.mp3" in captured.out
 
 
 def test_both_primary_and_auxiliary_links_404(
@@ -335,12 +336,12 @@ def test_both_primary_and_auxiliary_links_404(
     lep_dl.files = test_downloads
     lep_dl.detach_existed_files(tmp_path, lep_dl.files)
     lep_dl.download_files(tmp_path)
-    captured = capsys.readouterr()
+    # captured = capsys.readouterr()  # ONLY IN LOG NOW
     assert len(list(tmp_path.iterdir())) == 0
     assert len(lep_dl.downloaded) == 0
     assert len(lep_dl.not_found) == 1
-    assert "[INFO]: Can't download:" in captured.out
-    assert "Test File #1.mp3" in captured.out
+    # assert "[INFO]: Can't download:" in captured.out
+    # assert "Test File #1.mp3" in captured.out
 
 
 def test_gathering_audio_files(

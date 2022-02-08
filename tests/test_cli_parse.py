@@ -153,7 +153,7 @@ def test_parse_json_db_invalid_document(
     )
 
     result = run_cli_with_args(["parse"])
-    assert "[ERROR]" in result.output
+    assert "ERROR:" in result.output
     assert "Data is not a valid JSON document" in result.output
     assert f"URL: {conf.JSON_DB_URL}" in result.output
     assert "\tJSON is available, but" in result.output
@@ -187,7 +187,7 @@ def test_parse_json_db_with_extra_episode(
     result = run_cli_with_args(["parse"])
 
     expected_message = "Database contains more episodes than current archive!"
-    assert "[WARNING]" in result.output
+    assert "WARNING:" in result.output
     assert expected_message in result.output
     assert result.exit_code == 0
 
@@ -525,3 +525,138 @@ def test_incorrect_passing_option_value_to_mode_short_option(
     assert "Error: Invalid value for '--mode' / '-m':" in result.output
     assert "'=raw' is not one of 'raw', 'fetch', 'pull'" in result.output
     assert len(list(expected_folder.iterdir())) == 0
+
+
+def test_json_db_not_valid(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    # capsys: CaptureFixture[str],
+    # archive: Archive,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It prints error for invalid JSON document."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text="",
+    )
+
+    result = run_cli_with_args(["parse"])
+    # with pytest.raises(NoEpisodesInDataBase) as ex:
+    #     archive.do_parsing_actions(conf.JSON_DB_URL)
+    # assert "there are NO episodes" in ex.value.args[0]
+    # captured = capsys.readouterr()
+    assert "ERROR:" in result.output
+    assert "Data is not a valid JSON document." in result.output
+
+
+def test_no_valid_episode_objects_in_json_db(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    # capsys: CaptureFixture[str],
+    # archive: Archive,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It prints warning when there are no valid episode objects."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text="[]",
+    )
+
+    # with pytest.raises(NoEpisodesInDataBase) as ex:
+    #     archive.do_parsing_actions(conf.JSON_DB_URL)
+    # assert "there are NO episodes" in ex.value.args[0]
+
+    # captured = capsys.readouterr()
+    result = run_cli_with_args(["parse"])
+    assert "WARNING:" in result.output
+    assert "no valid episode objects" in result.output
+
+
+def test_json_db_contains_only_string(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It prints warning for JSON as str."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text='"episode"',
+    )
+
+    result = run_cli_with_args(["parse"])
+    assert "WARNING:" in result.output
+    assert "no valid episode objects" in result.output
+
+
+def test_invalid_objects_in_json_not_included(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It skips invalid objects in JSON database."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text='[{"episode": 1, "fake_key": "Skip me"}]',
+    )
+
+    result = run_cli_with_args(["parse"])
+    assert "WARNING:" in result.output
+    assert "no valid episode objects" in result.output
+
+
+def test_no_new_episodes_on_archive_vs_json_db(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    json_db_mock: str,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It prints when no new episodes on archive page."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+
+    result = run_cli_with_args(["parse"])
+    assert "There are no new episodes. Exit." in result.output
