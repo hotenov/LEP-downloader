@@ -22,12 +22,15 @@
 """LEP module for general logic and classes."""
 import json
 import re
+import sys
 from datetime import datetime
 from datetime import time
 from datetime import timedelta
 from datetime import timezone
+from functools import partial
 from functools import total_ordering
 from operator import attrgetter
+from pathlib import Path
 from typing import Any
 from typing import ClassVar
 from typing import Dict
@@ -36,6 +39,7 @@ from typing import Optional
 from typing import Union
 
 import requests
+from loguru import logger
 
 from lep_downloader import config as conf
 from lep_downloader.exceptions import DataBaseUnavailable
@@ -48,6 +52,37 @@ INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
 # PRODUCTION SESSION #
 PROD_SES = requests.Session()
 PROD_SES.headers.update(conf.ses_headers)
+
+
+# SETUP LOGGER #
+logger = logger.opt(colors=True)
+logger.opt = partial(logger.opt, colors=True)  # type: ignore
+new_level_print = logger.level("PRINT", no=22)
+
+lep_log: Any
+
+
+def formatter(record: Any) -> str:
+    """Return formatter string for console sink."""
+    end: str = record["extra"].get("end", "\n")
+    return "{message}" + end
+
+
+def init_lep_log() -> None:
+    """Create custom log after modules initialization."""
+    global lep_log
+    lep_log = logger
+    lep_log.remove()
+    file_log = Path(conf.DEBUG_FILENAME)
+
+    if conf.DEBUG:
+        lep_log.add(file_log, filter=lambda record: "to_file" in record["extra"])
+
+    lep_log.add(
+        sys.stdout,
+        format=formatter,
+        filter=lambda record: "to_console" in record["extra"],
+    )
 
 
 @total_ordering
@@ -344,6 +379,41 @@ class Lep:
         else:
             raise DataBaseUnavailable()
         return db_episodes
+
+    @classmethod
+    def msg(
+        cls,
+        msg: str,
+        *,
+        skip_file: bool = False,
+        one_line: bool = True,
+        msg_lvl: str = "PRINT",
+        wait_input: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """Print message (console and log file)."""
+        global lep_log
+        if msg_lvl == "PRINT" and not conf.DEBUG:
+            if wait_input:
+                lep_log.bind(to_console=True, end="").info(msg, **kwargs)
+            else:
+                lep_log.bind(to_console=True).info(msg, **kwargs)
+        else:
+            msg_oneline = msg
+            if one_line:
+                msg_oneline = msg.replace("\n", "⏎")
+
+            if msg_lvl == "PRINT" and skip_file:
+                lep_log.bind(to_console=True).info(msg, **kwargs)
+            elif msg_lvl == "PRINT" and wait_input:
+                lep_log.bind(to_console=True, end="").info(msg, **kwargs)
+                lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
+            elif msg_lvl == "PRINT":
+                lep_log.bind(to_console=True).info(msg, **kwargs)
+                lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
+            else:
+                if conf.DEBUG:
+                    lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
 
 
 def replace_unsafe_chars(filename: str) -> str:

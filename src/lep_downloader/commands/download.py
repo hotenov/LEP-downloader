@@ -20,6 +20,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -32,18 +33,23 @@ from lep_downloader.downloader import Audio
 from lep_downloader.downloader import LepFileList
 from lep_downloader.downloader import PagePDF
 from lep_downloader.exceptions import DataBaseUnavailable
+from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisodeList
 
 
 def require_to_press_enter(quiet: bool) -> None:
     """Prevent script closing without reading execution output."""
     if not quiet:
+        Lep.msg(
+            "<Y><k>Press [ENTER] key to close 'LEP-downloader'</k></Y>", wait_input=True
+        )
         click.confirm(
-            "Press 'Enter' key to close 'LEP-downloader'",
+            "",
             # prompt_suffix="...",
             show_default=False,
         )
-        click.get_current_context().exit()
+        # click.get_current_context().exit()
+        sys.exit(0)
 
 
 @click.command(name="download")
@@ -57,6 +63,7 @@ def cli(  # noqa: C901 'too complex'
     dest: Path,
     db_url: str,
     quiet: bool,
+    debug: bool,
 ) -> None:
     """Downloads LEP episodes on disk."""
     lep_dl = downloader.LepDL(db_url)
@@ -66,7 +73,8 @@ def cli(  # noqa: C901 'too complex'
     try:
         lep_dl.use_or_get_db_episodes()
     except DataBaseUnavailable:
-        click.echo("JSON database is not available now.\n" + "Try again later.")
+        Lep.msg("<r>JSON database is not available now.</>\n")
+        Lep.msg("<c>Try again later.</c>\n")
         require_to_press_enter(quiet)
         click.get_current_context().exit()
 
@@ -106,7 +114,14 @@ def cli(  # noqa: C901 'too complex'
                 click.echo("Your answer is 'NO'. Exit.")
         else:
             lep_dl.download_files(dest)
+            Lep.msg(
+                "QUIET EXIT: Downloaded: {down_num}; Not Found: {notfound_num}",
+                msg_lvl="DEBUG",
+                down_num=len(lep_dl.downloaded),
+                notfound_num=len(lep_dl.not_found),
+            )
     else:
-        click.echo("Nothing to download for now.")
+        # click.echo("Nothing to download for now.")
+        Lep.msg("Nothing to download for now.")
 
     require_to_press_enter(quiet)

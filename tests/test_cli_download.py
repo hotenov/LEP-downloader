@@ -32,6 +32,7 @@ from lep_downloader import config as conf
 def test_json_database_not_available(
     requests_mock: rm_Mocker,
     run_cli_with_args: Any,
+    # capsys: CaptureFixture[str],
 ) -> None:
     """It prints message and exits when JSON is unavailable."""
     requests_mock.get(
@@ -39,15 +40,19 @@ def test_json_database_not_available(
         text="JSON not found",
         status_code=404,
     )
-    result = run_cli_with_args(["download"])
+    result = run_cli_with_args(["download"], input="\n")
+    # captured = capsys.readouterr()
     assert "JSON database is not available now.\n" in result.output
+    # assert "JSON database is not available now.\n" in captured.out
     assert "Try again later." in result.output
+    # assert "Try again later." in captured.out
     assert result.exit_code == 0
 
 
 def test_json_database_not_available_in_quite_mode(
     requests_mock: rm_Mocker,
     run_cli_with_args: Any,
+    # capsys: CaptureFixture[str],
 ) -> None:
     """It aborts following execution when JSON is unavailable.
 
@@ -59,6 +64,7 @@ def test_json_database_not_available_in_quite_mode(
         status_code=404,
     )
     result = run_cli_with_args(["download", "--quiet"])
+    # captured = capsys.readouterr()
     assert "JSON database is not available now.\n" in result.output
     assert "Try again later." in result.output
     assert result.exit_code == 0
@@ -871,6 +877,7 @@ def test_final_prompt_to_press_enter(
     mp3_file1_mock: bytes,
     tmp_path: Path,
     run_cli_with_args: Any,
+    # capsys: CaptureFixture[str],
 ) -> None:
     """It requires to press enter at the end of script execution."""
     requests_mock.get(
@@ -887,8 +894,9 @@ def test_final_prompt_to_press_enter(
         ["-ep", "35", "-d", f"{tmp_path}"],
         input="\n",  # Two inputs in this case.
     )
+    # captured = capsys.readouterr()
     assert "Do you want to continue? [y/N]: \n" in result.output
     # assert len(LepDL.downloaded) == 0
     # assert len(LepDL.not_found) == 0
-    assert "Press 'Enter' key to close 'LEP-downloader':" in result.output
+    assert "Press [ENTER] key to close 'LEP-downloader'" in result.output
     assert result.exit_code == 0

@@ -11,6 +11,6 @@ def main() -> None:  # pragma: no cover
 
 if __name__ == "__main__":  # pragma: no cover
     if len(sys.argv) == 1:  # pragma: no cover
-        cli.cli()(prog_name="playlist-along")  # pragma: no cover
+        cli.cli(prog_name="playlist-along")  # pragma: no cover
     else:  # pragma: no cover
         main()  # pragma: no cover

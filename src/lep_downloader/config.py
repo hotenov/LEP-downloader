@@ -75,3 +75,5 @@ ses_headers = {
 # Default options
 WITH_HTML = False
 PATH_TO_HTML_FILES = "data_dump"
+DEBUG = False
+DEBUG_FILENAME = "_lep_debug_.log"

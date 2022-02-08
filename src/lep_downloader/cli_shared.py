@@ -142,6 +142,15 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
             "There is no question whether to download files or not."
         ),
     )
+    @click.option(
+        "--debug",
+        "debug",
+        is_flag=True,
+        help=(
+            "Enable DEBUG mode for writing log file "
+            "with detailed information about script execution."
+        ),
+    )
     def new_func(*args, **kwargs):  # type: ignore
         return f(*args, **kwargs)
 

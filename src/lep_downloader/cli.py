@@ -27,9 +27,12 @@ import click
 from click import Context
 
 from lep_downloader import __version__
+from lep_downloader import config as conf
 from lep_downloader.cli_shared import common_options
 from lep_downloader.cli_shared import MyCLI
 from lep_downloader.commands.download import cli as download_cli
+from lep_downloader.lep import Lep
+from lep_downloader.lep import init_lep_log
 
 
 @click.command(
@@ -49,10 +52,18 @@ def cli(
     dest: Path,
     db_url: str,
     quiet: bool,
+    debug: bool,
 ) -> None:
     """LEP-downloader - console application.
 
     Get free episodes of Luke's English Podcast archive page.
     """
+    if debug:
+        conf.DEBUG = True
+        conf.DEBUG_FILENAME = str((dest / conf.DEBUG_FILENAME).absolute())
+    init_lep_log()
+
+    Lep.msg("<fg #00005f>Running script...\n</fg #00005f>")
+
     if ctx.invoked_subcommand is None:
         ctx.forward(download_cli)
