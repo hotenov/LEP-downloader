@@ -6,11 +6,11 @@ from lep_downloader import cli  # pragma: no cover
 
 def main() -> None:  # pragma: no cover
     """Calls click group."""
-    cli.cli()  # pragma: no cover
+    cli.cli(obj={})  # pragma: no cover
 
 
 if __name__ == "__main__":  # pragma: no cover
     if len(sys.argv) == 1:  # pragma: no cover
-        cli.cli(prog_name="playlist-along")  # pragma: no cover
+        cli.cli(prog_name="playlist-along", obj={})  # pragma: no cover
     else:  # pragma: no cover
         main()  # pragma: no cover

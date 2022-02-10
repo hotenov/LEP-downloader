@@ -38,6 +38,7 @@ from lep_downloader import config as conf
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
+from lep_downloader.lep import LepLog
 
 
 # COMPILED REGEX PATTERNS #
@@ -250,6 +251,7 @@ def download_and_write_file(
     session: requests.Session,
     save_dir: Path,
     filename: str,
+    log: LepLog,
 ) -> bool:
     """Downloads file by URL and returns operation status."""
     is_writing_started = False
@@ -263,16 +265,16 @@ def download_and_write_file(
                 ):
                     out_file.write(chunk)
                     is_writing_started = True
-            Lep.msg("<g> + </g>{filename}", filename=filename)
+            log.msg("<g> + </g>{filename}", filename=filename)
             return True
     except OSError:
         if is_writing_started:
             # It's hard to mock / monkeypatch this case. Tested manually
             file_path.unlink()  # Delete incomplete file # pragma: no cover
-        Lep.msg("Can't write file: {filename}", filename=filename, msg_lvl="ERROR")
+        log.msg("Can't write file: {filename}", filename=filename, msg_lvl="MISSING")
         return False
     except Exception as err:
-        Lep.msg("URL: {url} | Unhandled: {err}", err=err, url=url, msg_lvl="CRITICAL")
+        log.msg("URL: {url} | Unhandled: {err}", err=err, url=url, msg_lvl="CRITICAL")
         return False
 
 
@@ -283,6 +285,7 @@ class LepDL(Lep):
         self,
         json_url: str = conf.JSON_DB_URL,
         session: requests.Session = None,
+        log: Optional[LepLog] = None,
     ) -> None:
         """Initialize LepDL object.
 
@@ -290,8 +293,9 @@ class LepDL(Lep):
             json_url (str): URL to JSON datavase
             session (requests.Session): Requests session object
                 if None, get default global session.
+            log (LepLog): Log instance of LepLog class where to output message.
         """
-        super().__init__(session)
+        super().__init__(session, log)
         self.json_url = json_url
         self.db_episodes: LepEpisodeList = LepEpisodeList()
         self.db_urls: Dict[str, str] = {}
@@ -348,9 +352,10 @@ class LepDL(Lep):
 
             result_ok = download_and_write_file(
                 primary_link,
-                Lep().cls_session,
+                self.session,
                 save_dir,
                 filename,
+                self.lep_log,
             )
             if result_ok:
                 self.downloaded.append(file_obj)
@@ -362,17 +367,17 @@ class LepDL(Lep):
                 # Try downloading for auxiliary links
                 if secondary_url:
                     aux_result_ok = download_and_write_file(
-                        secondary_url, self.session, save_dir, filename
+                        secondary_url, self.session, save_dir, filename, self.lep_log
                     )
                 if tertiary_url and not aux_result_ok:
                     aux_result_ok = download_and_write_file(
-                        tertiary_url, self.session, save_dir, filename
+                        tertiary_url, self.session, save_dir, filename, self.lep_log
                     )
                 if aux_result_ok:
                     self.downloaded.append(file_obj)
                 else:
                     self.not_found.append(file_obj)
-                    Lep.msg("<r> - </r>{filename}", filename=filename)
+                    self.lep_log.msg("<r> - </r>{filename}", filename=filename)
 
 
 def url_encoded_chars_to_lower_case(url: str) -> str:

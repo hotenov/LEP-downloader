@@ -44,8 +44,8 @@ def test_parse_incorrect_archive_url(
     """It prints error text and exits for incorrect archive page."""
     requests_mock.get(conf.ARCHIVE_URL, text="Invalid archive page")
     result = run_cli_with_args(["parse"])
-    assert "[ERROR]:" in result.output
-    assert "Can't parse this page: <article> tag was not found." in result.output
+    assert "ERROR:" in result.output
+    assert "Can't parse this page: 'article' tag was not found." in result.output
     assert f"\t{conf.ARCHIVE_URL}" in result.output
     assert "Archive page has invalid HTML content. Exit." in result.output
     assert result.exit_code == 0
@@ -73,7 +73,7 @@ def test_parse_archive_without_episodes(
     requests_mock.get(conf.ARCHIVE_URL, text=fake_html)
     result = run_cli_with_args(["parse"])
     # assert "[ERROR]:" in result.output
-    assert "[ERROR]: No episode links on archive page" in result.output
+    assert "ERROR: No episode links on archive page" in result.output
     assert f"\t{conf.ARCHIVE_URL}" in result.output
     assert "Can't parse any episodes. Exit." in result.output
     assert result.exit_code == 0
@@ -672,7 +672,7 @@ def test_write_log_error_when_non_episode_url(
 
     expected_folder = tmp_path
 
-    log = Path(tmp_path / "_lep_debug_.log").read_text()
+    log = Path(tmp_path / "_lep_debug_.log").read_text(encoding="utf-8")
 
     assert len(list(expected_folder.iterdir())) == 2  # JSON file + debug log
     record = (
@@ -685,3 +685,87 @@ def test_write_log_error_when_non_episode_url(
     )
     assert "WARNING" in log
     assert record in log
+
+
+def test_write_invalid_objects_of_json_to_logfile(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    run_cli_with_args: Callable[[List[str]], Result],
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """It writes invalid objects into logfile."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text='[{"episode": 1, "fake_key": "Skip me"}]',
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    result = run_cli_with_args(["--debug", "parse"])
+    assert "WARNING:" in result.output
+    assert "no valid episode objects" in result.output
+    log = Path(tmp_path / "_lep_debug_.log").read_text(encoding="utf-8")
+    assert "WARNING" in log
+    assert "Invalid object in JSON:" in log
+
+
+def test_write_critical_logrecord_for_archive_without_episodes(
+    requests_mock: rm_Mocker,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It records CRITICAL message into logfile for archive without episodes."""
+    markup = """<!DOCTYPE html><head><title>The Dormouse'req_ses story</title></head>
+        <article>
+            <p class="story">Once upon a time there were three little sisters; and their names were
+                <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+                and they lived at the bottom of a well.
+            </p>
+            <p class="story">...</p>
+    """  # noqa: E501,B950
+    requests_mock.get(conf.ARCHIVE_URL, text=markup)
+    monkeypatch.chdir(tmp_path)
+
+    result = run_cli_with_args(["--debug", "parse"])
+
+    logfile = tmp_path / "_lep_debug_.log"
+    log_text = logfile.read_text(encoding="utf-8")
+    assert "ERROR: No episode links on archive page" in result.output
+    assert "| CRITICAL | No episode links on archive page" in log_text
+
+
+def test_write_critical_logrecord_for_invalid_archive_page(
+    requests_mock: rm_Mocker,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It records CRITICAL message into logfile for invalid archive html."""
+    # NOTE: No !DOCTYPE for html tag, but there is <article>
+    markup = """<html><head><title>The Dormouse'req_ses story</title></head>
+        <article>
+            <p class="story">Once upon a time there were three little sisters; and their names were
+                <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+                and they lived at the bottom of a well.
+            </p>
+            <p class="story">...</p>
+    """  # noqa: E501,B950
+    requests_mock.get(conf.ARCHIVE_URL, text=markup)
+    monkeypatch.chdir(tmp_path)
+
+    result = run_cli_with_args(["--debug", "parse"])
+
+    logfile = tmp_path / "_lep_debug_.log"
+    log_text = logfile.read_text(encoding="utf-8")
+    assert "ERROR: Can't parse this page: 'article' tag was not found." in result.output
+    assert "| CRITICAL | No 'DOCTYPE' or 'article' tag" in log_text

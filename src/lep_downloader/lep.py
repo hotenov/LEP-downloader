@@ -23,6 +23,7 @@
 import json
 import re
 import sys
+from dataclasses import dataclass
 from datetime import datetime
 from datetime import time
 from datetime import timedelta
@@ -58,31 +59,46 @@ PROD_SES.headers.update(conf.ses_headers)
 logger = logger.opt(colors=True)
 logger.opt = partial(logger.opt, colors=True)  # type: ignore
 new_level_print = logger.level("PRINT", no=22)
+new_level_missing = logger.level("MISSING", no=33)
 
-lep_log: Any
 
-
-def formatter(record: Any) -> str:
+def stdout_formatter(record: Any) -> str:
     """Return formatter string for console sink."""
     end: str = record["extra"].get("end", "\n")
     return "{message}" + end
 
 
-def init_lep_log() -> None:
+def logfile_formatter(record: Any) -> str:
+    """Return formatter string for console sink."""
+    date = "{time:YYYY-MM-DD HH:mm:ss.SSS} | "
+    level = "{level: <8} | "
+    # name = "{name} - "  # Always the same in my case
+    return date + level + "{message}" + "\n"
+
+
+def init_lep_log(
+    debug: bool = False,
+    logfile: str = conf.DEBUG_FILENAME,
+) -> Any:
     """Create custom log after modules initialization."""
-    global lep_log
+    # global lep_log
     lep_log = logger
     lep_log.remove()
-    file_log = Path(conf.DEBUG_FILENAME)
+    file_log = Path(logfile)
 
-    if conf.DEBUG:
-        lep_log.add(file_log, filter=lambda record: "to_file" in record["extra"])
+    if debug:
+        lep_log.add(
+            file_log,
+            format=logfile_formatter,
+            filter=lambda record: "to_file" in record["extra"],
+        )
 
     lep_log.add(
         sys.stdout,
-        format=formatter,
+        format=stdout_formatter,
         filter=lambda record: "to_console" in record["extra"],
     )
+    return lep_log
 
 
 @total_ordering
@@ -286,10 +302,59 @@ def as_lep_episode_obj(dct: Dict[str, Any]) -> Any:
         lep_ep._short_date = lep_ep.date.strftime(r"%Y-%m-%d")
     except TypeError:
         # Message only to log file
-        Lep.msg("Invalid object in JSON: {dct}", dct=dct, msg_lvl="WARNING")
+        Lep.cls_lep_log.msg("Invalid object in JSON: {dct}", dct=dct, msg_lvl="WARNING")
         return None
     else:
         return lep_ep
+
+
+@dataclass
+class LepLog:
+    """Represent LepLog object."""
+
+    debug: bool = False
+    logfile: str = conf.DEBUG_FILENAME  # Default is '_lep_debug_.log'
+
+    def __post_init__(self) -> None:
+        """Create logger for LepLog instance."""
+        self.lep_log = init_lep_log(debug=self.debug, logfile=self.logfile)
+
+    def msg(
+        self,
+        msg: str,
+        *,
+        skip_file: bool = False,
+        one_line: bool = True,
+        msg_lvl: str = "PRINT",
+        wait_input: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """Output message to console or log file.
+
+        If DEBUG = True duplicates all console messaged to log file (level PRINT).
+            Also add records (messages) for other log levels.
+        """
+        if msg_lvl == "PRINT" and not self.debug:
+            if wait_input:
+                self.lep_log.bind(to_console=True, end="").info(msg, **kwargs)
+            else:
+                self.lep_log.bind(to_console=True).info(msg, **kwargs)
+        else:
+            msg_oneline = msg
+            if one_line:
+                msg_oneline = msg.replace("\n", "⏎")
+
+            if msg_lvl == "PRINT" and skip_file:
+                self.lep_log.bind(to_console=True).info(msg, **kwargs)
+            elif msg_lvl == "PRINT" and wait_input:
+                self.lep_log.bind(to_console=True, end="").info(msg, **kwargs)
+                self.lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
+            elif msg_lvl == "PRINT":
+                self.lep_log.bind(to_console=True).info(msg, **kwargs)
+                self.lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
+            else:
+                if self.debug:
+                    self.lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
 
 
 class Lep:
@@ -297,15 +362,23 @@ class Lep:
 
     cls_session: ClassVar[requests.Session] = requests.Session()
     json_body: ClassVar[str] = ""
+    cls_lep_log: ClassVar[LepLog]
 
-    def __init__(self, session: Optional[requests.Session] = None) -> None:
+    def __init__(
+        self,
+        session: Optional[requests.Session] = None,
+        log: Optional[LepLog] = None,
+    ) -> None:
         """Default instance of LepTemplate.
 
         Args:
             session (requests.Session): Global session for descendants.
+            log (LepLog): Log instance of LepLog class where to output message.
         """
         self.session = session if session else PROD_SES
+        self.lep_log = log if log else LepLog()
         Lep.cls_session = self.session
+        Lep.cls_lep_log = self.lep_log
 
     @classmethod
     def get_web_document(
@@ -351,7 +424,7 @@ class Lep:
         try:
             db_episodes = json.loads(json_body, object_hook=as_lep_episode_obj)
         except json.JSONDecodeError:
-            Lep.msg(
+            cls.cls_lep_log.msg(
                 "<r>ERROR: Data is not a valid JSON document.</r>\n\tURL: {json_url}",
                 json_url=json_url,
             )
@@ -361,7 +434,7 @@ class Lep:
             # Remove None elements
             db_episodes = LepEpisodeList(obj for obj in db_episodes if obj)
             if not db_episodes or is_db_str:
-                Lep.msg(
+                cls.cls_lep_log.msg(
                     "<y>WARNING: JSON file ({json_url}) has no valid episode objects.</y>",  # noqa: E501,B950
                     json_url=json_url,
                 )
@@ -384,45 +457,6 @@ class Lep:
         else:
             raise DataBaseUnavailable()
         return db_episodes
-
-    @classmethod
-    def msg(
-        cls,
-        msg: str,
-        *,
-        skip_file: bool = False,
-        one_line: bool = True,
-        msg_lvl: str = "PRINT",
-        wait_input: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        """Output message to console or log file.
-
-        If DEBUG = True duplicates all console messaged to log file (level PRINT).
-            Also add records (messages) for other log levels.
-        """
-        global lep_log
-        if msg_lvl == "PRINT" and not conf.DEBUG:
-            if wait_input:
-                lep_log.bind(to_console=True, end="").info(msg, **kwargs)
-            else:
-                lep_log.bind(to_console=True).info(msg, **kwargs)
-        else:
-            msg_oneline = msg
-            if one_line:
-                msg_oneline = msg.replace("\n", "⏎")
-
-            if msg_lvl == "PRINT" and skip_file:
-                lep_log.bind(to_console=True).info(msg, **kwargs)
-            elif msg_lvl == "PRINT" and wait_input:
-                lep_log.bind(to_console=True, end="").info(msg, **kwargs)
-                lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
-            elif msg_lvl == "PRINT":
-                lep_log.bind(to_console=True).info(msg, **kwargs)
-                lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
-            else:
-                if conf.DEBUG:
-                    lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
 
 
 def replace_unsafe_chars(filename: str) -> str:

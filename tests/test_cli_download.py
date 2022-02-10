@@ -898,5 +898,47 @@ def test_final_prompt_to_press_enter(
     assert "Do you want to continue? [y/N]: \n" in result.output
     # assert len(LepDL.downloaded) == 0
     # assert len(LepDL.not_found) == 0
-    assert "Press [ENTER] key to close 'LEP-downloader'" in result.output
+    assert "Press the [ENTER] key to close 'LEP-downloader'" in result.output
     assert result.exit_code == 0
+
+
+def test_write_message_about_downloaded_files_to_logfile(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    mp3_file1_mock: bytes,
+    tmp_path: Path,
+    run_cli_with_args: Any,
+) -> None:
+    """It populates URL and downloads page PDF."""
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+    requests_mock.get(
+        "https://hotenov.com/d/lep/%5B2017-08-26%5D%20%23%20%5BWebsite%20only%5D%20A%20History%20of%20British%20Pop%20%E2%80%93%20A%20Musical%20Tour%20through%20James%E2%80%99%20Vinyl%20Collection.pdf",  # noqa: E501,B950
+        content=mp3_file1_mock,
+    )
+
+    run_cli_with_args(
+        [
+            "--debug",
+            "-pdf",
+            "-S",
+            "2017-08-26",
+            "-E",
+            "2017-08-26",
+            "-q",
+            "-d",
+            f"{tmp_path}",
+        ]
+    )
+
+    expected_filename_1 = "[2017-08-26] # [Website only] A History of British Pop – A Musical Tour through James’ Vinyl Collection.pdf"  # noqa: E501,B950
+    expected_file_1 = tmp_path / expected_filename_1
+    log = Path(tmp_path / "_lep_debug_.log").read_text(encoding="utf-8")
+    record = " + " + expected_filename_1
+    assert len(list(tmp_path.iterdir())) == 2
+    assert record in log
+    # assert len(LepDL.downloaded) == 1
+    # assert len(LepDL.not_found) == 0
+    assert expected_file_1.exists()

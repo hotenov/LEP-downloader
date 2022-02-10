@@ -35,6 +35,7 @@ import pytest
 import requests
 import requests_mock as req_mock
 from bs4 import BeautifulSoup
+from pytest import CaptureFixture
 from pytest import MonkeyPatch
 from pytest_mock import MockFixture
 from requests_mock.mocker import Mocker as rm_Mocker
@@ -331,8 +332,7 @@ def test_parsing_invalid_html(
         archive.parser.parse_url()
     assert conf.ARCHIVE_URL in ex.value.args[0]  # Trailing slash for domain URL
     assert (
-        ex.value.args[1]
-        == "[ERROR]: Can't parse this page: <article> tag was not found."
+        ex.value.args[1] == "ERROR: Can't parse this page: 'article' tag was not found."
     )
 
 
@@ -353,7 +353,7 @@ def test_parsing_archive_without_episodes(archive: Archive) -> None:
         archive_parser.collect_links()
     assert len(archive.collected_links) == 0
     assert ex.value.args[0] == conf.ARCHIVE_URL
-    assert ex.value.args[1] == "[ERROR]: No episode links on archive page"
+    assert ex.value.args[1] == "ERROR: No episode links on archive page"
 
 
 def test_parsing_archive_with_known_duplicates(
@@ -625,7 +625,7 @@ def test_episodes_sorting_by_date_and_index() -> None:
     assert sorted_episodes == expected_sorted
 
 
-def test_writing_lep_episodes_to_json(lep_temp_path: Path) -> None:
+def test_writing_lep_episodes_to_json(tmp_path: Path) -> None:
     """It creates JSON file from list of LepEpisode objects."""
     lep_ep_1 = LepEpisode(
         702,
@@ -635,7 +635,7 @@ def test_writing_lep_episodes_to_json(lep_temp_path: Path) -> None:
     lep_ep_2 = LepEpisode(episode=2, post_title="2. Test episode #2")
     episodes = LepEpisodeList([lep_ep_1, lep_ep_2])
 
-    json_file = str(Path(lep_temp_path / "json_db_tmp.json").absolute())
+    json_file = str(Path(tmp_path / "json_db_tmp.json").absolute())
     parser.write_parsed_episodes_to_json(episodes, json_file)
     with open(json_file, "rb") as f:
         py_from_json = json.load(f)
@@ -778,7 +778,7 @@ def test_updating_json_database_with_new_episodes(
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
     modified_json_less_db_mock: str,
-    lep_temp_path: Path,
+    tmp_path: Path,
     archive: Archive,
 ) -> None:
     """It retrives and saves new episodes from archive."""
@@ -793,8 +793,7 @@ def test_updating_json_database_with_new_episodes(
         text=modified_json_less_db_mock,
     )
 
-    # json_file = lep_temp_path / "json_db_tmp.json"
-    json_file = str(Path(lep_temp_path / "json_db_tmp.json").absolute())
+    json_file = str(Path(tmp_path / "json_db_tmp.json").absolute())
     archive.do_parsing_actions(conf.JSON_DB_URL, json_name=json_file)
     with open(json_file, "rb") as f:
         py_from_json: LepEpisodeList = json.load(f, object_hook=as_lep_episode_obj)
@@ -821,8 +820,7 @@ def test_parsing_invalid_html_in_main_actions(
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert conf.ARCHIVE_URL in ex.value.args[0]
     assert (
-        ex.value.args[1]
-        == "[ERROR]: Can't parse this page: <article> tag was not found."
+        ex.value.args[1] == "ERROR: Can't parse this page: 'article' tag was not found."
     )
 
 
@@ -991,3 +989,73 @@ def test_skip_writing_html_when_any_error(
     #     parser.write_text_to_html(text, name, tmp_path)
     parser.write_text_to_html(text, name, str(tmp_path))
     assert not expected_file.exists()
+
+
+def test_lep_log_writing_newlines_in_logfile(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """It uses 'oneline' parameter to print newlines in logfile (if needed)."""
+    monkeypatch.chdir(tmp_path)
+    log_1 = lep.LepLog(True)
+    log_1.msg("First raw \n Second Raw")
+    logfile_1 = tmp_path / "_lep_debug_.log"
+    log_text = logfile_1.read_text(encoding="utf-8")
+    assert "First raw ⏎ Second Raw" in log_text
+
+    log_2 = lep.LepLog(True, "with_lines.log")
+    log_2.msg("First raw \n Second Raw", one_line=False)
+    logfile_2 = tmp_path / "with_lines.log"
+    log_text_2 = logfile_2.read_text(encoding="utf-8")
+    assert "First raw \n Second Raw" in log_text_2
+
+
+def test_lep_log_writing_several_messages_on_oneline_in_console(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It can print log messages on one line.
+
+    But in logfile it will be separate message (or even files)
+    """
+    monkeypatch.chdir(tmp_path)
+    log_1 = lep.LepLog(True, "1.log")
+    log_1.msg("Msg from #1 | ", wait_input=True)
+    logfile_1 = tmp_path / "1.log"
+    log_text_1 = logfile_1.read_text(encoding="utf-8")
+
+    log_2 = lep.LepLog(True, "2.log")
+    log_2.msg("Msg from #2.")
+    log_1.msg("Again #1")
+    logfile_2 = tmp_path / "2.log"
+    log_text_2 = logfile_2.read_text(encoding="utf-8")
+    captured = capsys.readouterr()
+    assert "Msg from #1 | Msg from #2.\nAgain #1" in captured.out
+    assert ("Msg from #1 | " in log_text_1) and ("Msg from #1 | " not in log_text_2)
+    assert "Msg from #2." in log_text_2
+    assert "Again #1" in log_text_2  # Note: in '2.log' due to loguru design
+
+
+def test_lep_log_display_messages_in_console_only(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It can skip logfile for certain messages in debug mode.
+
+    And display them only in console.
+    """
+    monkeypatch.chdir(tmp_path)
+    log_1 = lep.LepLog(True, "1.log")
+    log_1.msg("Message #1")
+    log_1.msg("Message #2 console", skip_file=True)
+    log_1.msg("Message #3")
+
+    logfile_1 = tmp_path / "1.log"
+    log_text_1 = logfile_1.read_text(encoding="utf-8")
+    captured = capsys.readouterr()
+    assert "Message #1\nMessage #2 console\nMessage #3" in captured.out
+    assert "Message #1" in log_text_1
+    assert "Message #3" in log_text_1
+    assert "Message #2 console" not in log_text_1

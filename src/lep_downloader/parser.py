@@ -26,6 +26,7 @@ from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
 from lep_downloader.lep import LepJsonEncoder
+from lep_downloader.lep import LepLog
 
 
 # COMPILED REGEX PATTERNS #
@@ -59,11 +60,12 @@ class Archive(Lep):
         url: str = conf.ARCHIVE_URL,
         session: requests.Session = None,
         mode: str = "fetch",
+        log: Optional[LepLog] = None,
     ) -> None:
         """Initialize an archive instance."""
-        super().__init__(session)
+        super().__init__(session, log)
         self.url = url
-        self.parser = ArchiveParser(self, self.url)
+        self.parser = ArchiveParser(self, self.url, log=self.lep_log)
         self.collected_links: Dict[str, str] = {}
         self.deleted_links: Set[str] = set()
         self.used_indexes: Set[int] = set()
@@ -111,7 +113,7 @@ class Archive(Lep):
         # https://docs.python.org/3/library/typing.html#typing.Reversible
         for url, text in reversed(urls.items()):
             try:
-                ep_parser = EpisodeParser(self, url, post_title=text)
+                ep_parser = EpisodeParser(self, url, post_title=text, log=self.lep_log)
                 ep_parser.parse_url()
                 self.episodes.append(ep_parser.episode)
                 # TODO (hotenov): Try to resolve coverage ignoring
@@ -126,7 +128,7 @@ class Archive(Lep):
                     )
             except NotEpisodeURLError as ex:
                 # Log non-episode URL to file (only), but skip for user
-                Lep.msg(
+                self.lep_log.msg(
                     "Non-episode URL: {url} | Location: {final} | err: {err}",
                     url=url,
                     final=ex.args[0],
@@ -137,7 +139,7 @@ class Archive(Lep):
             except LepEpisodeNotFound as ex:
                 not_found_episode = ex.args[0]
                 self.episodes.append(not_found_episode)
-                Lep.msg(
+                self.lep_log.msg(
                     "Episode 404: {url} | Location: {final}",
                     url=url,
                     final=not_found_episode.url,
@@ -162,7 +164,7 @@ class Archive(Lep):
             all_episodes = LepEpisodeList(reversed(self.episodes))
         else:
             # Get database episodes from web JSON
-            lep_dl = LepDL(json_url, self.session)
+            lep_dl = LepDL(json_url, self.session, self.lep_log)
             lep_dl.use_or_get_db_episodes()
 
             if lep_dl.db_episodes:
@@ -175,7 +177,7 @@ class Archive(Lep):
                     "there are NO episodes in this file. Exit."
                 )
             if updates is None:  # For fetch mode this is not good.
-                Lep.msg(
+                self.lep_log.msg(
                     "<y>WARNING: Database contains more episodes"
                     + " than current archive!</y>"
                 )
@@ -189,7 +191,7 @@ class Archive(Lep):
                 all_episodes = LepEpisodeList(new_episodes + lep_dl.db_episodes)
                 all_episodes = all_episodes.desc_sort_by_date_and_index()
             else:
-                Lep.msg("<c>There are no new episodes. Exit.</c>")
+                self.lep_log.msg("<c>There are no new episodes. Exit.</c>")
                 return None
 
         write_parsed_episodes_to_json(all_episodes, json_name)
@@ -343,6 +345,7 @@ class LepParser(Lep):
         archive_obj: Archive,
         url: str,
         session: requests.Session = None,
+        log: Optional[LepLog] = None,
     ) -> None:
         """Initialize LepParser object.
 
@@ -352,8 +355,9 @@ class LepParser(Lep):
             url (str): URL for parsing.
             session (requests.Session): Requests session object
                 if None, get default global session.
+            log (LepLog): Log instance of LepLog class where to output message.
         """
-        super().__init__(session)
+        super().__init__(session, log)
         self.archive = archive_obj
         self.url = url
         self.content: str = ""
@@ -380,9 +384,10 @@ class LepParser(Lep):
         """Parse DOM for <article> tag only."""
         self.soup = BeautifulSoup(self.content, "lxml", parse_only=only_article_content)
         if len(self.soup) < 2:  # tag DOCTYPE always at [0] position
+            self.lep_log.msg("No 'DOCTYPE' or 'article' tag", msg_lvl="CRITICAL")
             raise NotEpisodeURLError(
                 self.final_location,
-                "[ERROR]: Can't parse this page: <article> tag was not found.",
+                "ERROR: Can't parse this page: 'article' tag was not found.",
             )
 
     def collect_links(self) -> None:
@@ -429,9 +434,10 @@ class ArchiveParser(LepParser):
                 link_string = " ".join([text for text in tag_a.stripped_strings])
                 self.archive.collected_links[link] = link_string
         else:
+            self.lep_log.msg("No episode links on archive page", msg_lvl="CRITICAL")
             raise NoEpisodeLinksError(
                 self.final_location,
-                "[ERROR]: No episode links on archive page",
+                "ERROR: No episode links on archive page",
             )
 
     def remove_irrelevant_links(self) -> None:
@@ -476,9 +482,10 @@ class EpisodeParser(LepParser):
         page_url: str,
         session: Optional[requests.Session] = None,
         post_title: str = "",
+        log: Optional[LepLog] = None,
     ) -> None:
         """Initialize EpisodeParser object."""
-        super().__init__(archive_obj, page_url, session)
+        super().__init__(archive_obj, page_url, session, log)
         self.episode = LepEpisode()
         self.episode.post_title = post_title
         self.used_indexes = archive_obj.used_indexes

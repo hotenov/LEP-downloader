@@ -2,6 +2,7 @@
 from pathlib import Path
 
 import click
+from click import Context
 
 from lep_downloader import config as conf
 from lep_downloader import parser
@@ -10,6 +11,7 @@ from lep_downloader.exceptions import DataBaseUnavailable
 from lep_downloader.exceptions import NoEpisodeLinksError
 from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.exceptions import NotEpisodeURLError
+from lep_downloader.lep import LepLog
 
 
 @click.command(name="parse")
@@ -58,19 +60,22 @@ from lep_downloader.exceptions import NotEpisodeURLError
     help="Directory path (absolute or relative) to JSON result file destination.",
     metavar="<string>",
 )
+@click.pass_context
 def cli(
+    ctx: Context,
     mode: str,
     html_yes: bool,
     html_dir: Path,
     dest: Path,
 ) -> None:
     """Parses LEP archive web page."""
+    lep_log: LepLog = ctx.obj["log"]
     if html_yes:
         conf.WITH_HTML = True
         conf.PATH_TO_HTML_FILES = str(html_dir.absolute())
 
     try:
-        archive = parser.Archive(mode=mode)
+        archive = parser.Archive(mode=mode, log=lep_log)
         archive.do_parsing_actions(conf.JSON_DB_URL, str(dest))
     except NotEpisodeURLError as ex:
         click.echo(f"{ex.args[1]}:\n\t{ex.args[0]}")

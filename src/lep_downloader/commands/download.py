@@ -25,6 +25,7 @@ from datetime import datetime
 from pathlib import Path
 
 import click
+from click import Context
 
 from lep_downloader import downloader
 from lep_downloader.cli_shared import common_options
@@ -33,15 +34,17 @@ from lep_downloader.downloader import Audio
 from lep_downloader.downloader import LepFileList
 from lep_downloader.downloader import PagePDF
 from lep_downloader.exceptions import DataBaseUnavailable
-from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisodeList
+from lep_downloader.lep import LepLog
 
 
-def require_to_press_enter(quiet: bool) -> None:
+def require_to_press_enter(quiet: bool, log: LepLog) -> None:
     """Prevent script closing without reading execution output."""
     if not quiet:
-        Lep.msg(
-            "<Y><k>Press [ENTER] key to close 'LEP-downloader'</k></Y>", wait_input=True
+        log.msg("\n", skip_file=True)  # Empty line for console output
+        log.msg(
+            "<Y><k>Press the [ENTER] key to close 'LEP-downloader'</k></Y>",
+            wait_input=True,
         )
         click.confirm(
             "",
@@ -54,7 +57,9 @@ def require_to_press_enter(quiet: bool) -> None:
 
 @click.command(name="download")
 @common_options
+@click.pass_context
 def cli(  # noqa: C901 'too complex'
+    ctx: Context,
     episode: str,
     pdf_yes: bool,
     last_yes: bool,
@@ -66,20 +71,21 @@ def cli(  # noqa: C901 'too complex'
     debug: bool,
 ) -> None:
     """Downloads LEP episodes on disk."""
-    lep_dl = downloader.LepDL(db_url)
+    lep_log: LepLog = ctx.obj["log"]
+    lep_dl = downloader.LepDL(db_url, log=lep_log)
     filtered_episodes = LepEpisodeList()
     filtered_files = LepFileList()
 
     try:
         lep_dl.use_or_get_db_episodes()
     except DataBaseUnavailable:
-        Lep.msg("<r>JSON database is not available now.</>\n")
-        Lep.msg("<c>Try again later.</c>\n")
-        require_to_press_enter(quiet)
+        lep_log.msg("<r>JSON database is not available now.</>\n")
+        lep_log.msg("<c>Try again later.</c>\n")
+        require_to_press_enter(quiet, lep_log)
         click.get_current_context().exit()
 
     if not lep_dl.db_episodes:  # no valid episode objects
-        require_to_press_enter(quiet)
+        require_to_press_enter(quiet, lep_log)
         click.get_current_context().exit()
 
     if not last_yes:
@@ -114,7 +120,7 @@ def cli(  # noqa: C901 'too complex'
                 click.echo("Your answer is 'NO'. Exit.")
         else:
             lep_dl.download_files(dest)
-            Lep.msg(
+            lep_log.msg(
                 "QUIET EXIT: Downloaded: {down_num}; Not Found: {notfound_num}",
                 msg_lvl="DEBUG",
                 down_num=len(lep_dl.downloaded),
@@ -122,6 +128,6 @@ def cli(  # noqa: C901 'too complex'
             )
     else:
         # click.echo("Nothing to download for now.")
-        Lep.msg("Nothing to download for now.")
+        lep_log.msg("Nothing to download for now.")
 
-    require_to_press_enter(quiet)
+    require_to_press_enter(quiet, lep_log)
