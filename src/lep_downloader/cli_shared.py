@@ -20,9 +20,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+import functools
 import importlib
 from datetime import datetime
-from functools import update_wrapper
 from pathlib import Path
 from typing import Any
 from typing import Callable
@@ -151,10 +151,11 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
             "with detailed information about script execution."
         ),
     )
-    def new_func(*args, **kwargs):  # type: ignore
+    @functools.wraps(f)
+    def wrapper_common_options(*args, **kwargs):  # type: ignore
         return f(*args, **kwargs)
 
-    return update_wrapper(new_func, f)
+    return wrapper_common_options
 
 
 def validate_episode_number(
