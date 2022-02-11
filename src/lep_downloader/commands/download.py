@@ -112,13 +112,21 @@ def cli(  # noqa: C901 'too complex'
 
     if total_number > 0:
         if not quiet:
-            click.echo(f"{total_number} non-existing file(s) will be downloaded.")
-            # click.echo("Would download file(s). Proceed (y/n)?: ")
-            if click.confirm("Do you want to continue?"):
+            lep_log.msg(
+                "<g>{total}</g> non-existing file(s) will be downloaded.",
+                total=total_number,
+            )
+            lep_log.msg(
+                "<Y><k>Do you want to continue?</k></Y>",
+                wait_input=True,
+            )
+            if click.confirm(""):
+                lep_log.msg("<m>Starting downloading...</m>")
                 lep_dl.download_files(dest)
             else:
-                click.echo("Your answer is 'NO'. Exit.")
+                lep_log.msg("<c>Your answer is '<y>NO</y>'. Exit.</c>")
         else:
+            lep_log.msg("<m>Starting downloading...</m>")
             lep_dl.download_files(dest)
             lep_log.msg(
                 "QUIET EXIT: Downloaded: {down_num}; Not Found: {notfound_num}",
@@ -127,7 +135,6 @@ def cli(  # noqa: C901 'too complex'
                 notfound_num=len(lep_dl.not_found),
             )
     else:
-        # click.echo("Nothing to download for now.")
-        lep_log.msg("Nothing to download for now.")
+        lep_log.msg("<c>Nothing to download for now.</c>")
 
     require_to_press_enter(quiet, lep_log)

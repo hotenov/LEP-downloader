@@ -125,7 +125,7 @@ def test_parse_json_db_does_not_contain_episodes_in_plain_str(
     )
 
     result = run_cli_with_args(["parse"])
-    assert "[WARNING]" in result.output
+    assert "WARNING:" in result.output
     assert f"({conf.JSON_DB_URL})" in result.output
     assert "has no valid episode objects" in result.output
     assert "\tJSON is available, but" in result.output
@@ -818,3 +818,47 @@ def test_updating_with_custom_json_url(
     assert expected_file_1.exists()
     assert expected_file_2.exists()
     assert expected_file_3.exists()
+
+
+def test_handling_unknown_exception_in_debug_mode(
+    requests_mock: rm_Mocker,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    archive_page_mock: str,
+    run_cli_with_args: Callable[[List[str]], Result],
+    mocker: MockFixture,
+) -> None:
+    """It prints short message to user.
+
+    And records CRITICAL message into logfile for unhandled exception.
+    """
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    monkeypatch.chdir(tmp_path)
+
+    mock = mocker.patch("lep_downloader.parser.Archive.do_parsing_actions")
+    mock.side_effect = Exception("Unknown Exception!")
+
+    result = run_cli_with_args(["--debug", "parse"])
+
+    logfile = tmp_path / "_lep_debug_.log"
+    log_text = logfile.read_text(encoding="utf-8")
+    assert f"See details in log file: {str(logfile)}" in result.output
+    assert "| CRITICAL | Unhandled: Unknown Exception!" in log_text
+
+
+def test_handling_unknown_exception(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    run_cli_with_args: Callable[[List[str]], Result],
+    mocker: MockFixture,
+) -> None:
+    """It prints short message to user with exception details."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+
+    mock = mocker.patch("lep_downloader.parser.Archive.do_parsing_actions")
+    mock.side_effect = Exception("Unknown Exception!")
+
+    result = run_cli_with_args(["parse"])
+
+    assert "Oops.. Unhandled error.\n" in result.output
+    assert "\tUnknown Exception!" in result.output

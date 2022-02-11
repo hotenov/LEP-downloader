@@ -85,17 +85,35 @@ def cli(
 
     try:
         archive = parser.Archive(mode=mode, log=lep_log)
+
+        lep_log.msg("<m>Starting parsing...</m>")
         archive.do_parsing_actions(db_url, str(dest))
+
     except NotEpisodeURLError as ex:
-        click.echo(f"{ex.args[1]}:\n\t{ex.args[0]}")
-        click.echo("Archive page has invalid HTML content. Exit.")
+        lep_log.msg("<r>{err}:</r>\n\t<c>{url}</c>", err=ex.args[1], url=ex.args[0])
+        lep_log.msg("Archive page has invalid HTML content. Exit.")
+
     except NoEpisodeLinksError as ex:
-        click.echo(f"{ex.args[1]}:\n\t{ex.args[0]}")
-        click.echo("Can't parse any episodes. Exit.")
+        lep_log.msg("<r>{err}:</r>\n\t<c>{url}</c>", err=ex.args[1], url=ex.args[0])
+        lep_log.msg("Can't parse any episodes. Exit.")
+
     except DataBaseUnavailable:
-        click.echo("JSON database is not available. Exit.")
+        lep_log.msg("<r>JSON database is not available.</r> <c>Exit.</c>")
+
     except NoEpisodesInDataBase as ex:
-        click.echo(
-            f"[WARNING]: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
+        lep_log.msg(
+            "<y>WARNING: JSON file <c>{url}</c> has no valid episode objects.</y>",
+            url=db_url,
         )
-        click.echo("\t" + ex.args[0])
+        lep_log.msg("\t" + ex.args[0])
+
+    except Exception as ex:
+        lep_log.msg("<r>Oops.. Unhandled error.</r>")
+        if not lep_log.debug:
+            lep_log.msg("<y>\t{ex}</y>", ex=ex)
+        else:
+            lep_log.msg("Unhandled: {ex}", ex=ex, msg_lvl="CRITICAL")
+            lep_log.msg(
+                "See details in log file: <c>{logpath}</c>",
+                logpath=lep_log.logfile,
+            )
