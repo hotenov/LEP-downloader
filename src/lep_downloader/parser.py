@@ -165,7 +165,7 @@ class Archive(Lep):
         else:
             # Get database episodes from web JSON
             lep_dl = LepDL(json_url, self.session, self.lep_log)
-            lep_dl.use_or_get_db_episodes()
+            lep_dl.get_remote_episodes()
 
             if lep_dl.db_episodes:
                 updates = self.fetch_updates(

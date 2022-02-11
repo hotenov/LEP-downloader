@@ -305,14 +305,10 @@ class LepDL(Lep):
         self.existed: LepFileList = LepFileList()
         self.non_existed: LepFileList = LepFileList()
 
-    def use_or_get_db_episodes(self) -> None:
-        """Take database episodes after parsing stage.
-
-        Or get them from web JSON file.
-        """
-        if not self.db_episodes:
-            self.db_episodes = Lep.get_db_episodes(self.json_url)
-            self.db_urls = extract_urls_from_episode_list(self.db_episodes)
+    def get_remote_episodes(self) -> None:
+        """Get database episodes from remote JSON database."""
+        self.db_episodes = Lep.get_db_episodes(self.json_url)
+        self.db_urls = extract_urls_from_episode_list(self.db_episodes)
 
     def detach_existed_files(
         self,

@@ -113,7 +113,7 @@ def test_separating_existing_and_non_existing_mp3(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
-    lep_dl.use_or_get_db_episodes()
+    lep_dl.get_remote_episodes()
     lep_dl.files = downloader.gather_all_files(lep_dl.db_episodes)
     audio_files = lep_dl.files.filter_by_type(Audio)
     lep_dl.detach_existed_files(tmp_path, audio_files)
@@ -354,7 +354,7 @@ def test_gathering_audio_files(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
-    lep_dl.use_or_get_db_episodes()
+    lep_dl.get_remote_episodes()
     lep_dl.files = downloader.gather_all_files(lep_dl.db_episodes)
     audio_files = lep_dl.files.filter_by_type(Audio)
     assert len(audio_files) == 18
@@ -397,34 +397,6 @@ def test_collecting_auxiliary_audio_links(
     assert lep_dl.files[1].secondary_url == "https://part2-someurl2.local"
 
 
-def test_using_db_episodes_after_parsing(
-    lep_dl: LepDL,
-) -> None:
-    """It uses database episodes retrieved during parsing stage."""
-    ep_1 = LepEpisode()
-    ep_1.index = 2022011101
-    ep_1.episode = 888
-    ep_1.post_title = "888. Some title."
-    ep_1._short_date = "2022-01-11"
-    ep_1.post_type = "AUDIO"
-    ep_1.files = {
-        "audios": [
-            [
-                "https://someurl1.local",
-                "https://someurl2.local",
-                "https://someurl3.local",
-            ]
-        ],
-        "page_pdf": [],
-    }
-    lep_dl.db_episodes.append(ep_1)
-    lep_dl.use_or_get_db_episodes()
-    lep_dl.files = downloader.gather_all_files(lep_dl.db_episodes)
-    assert len(lep_dl.files) == 2  # + 1 PDF file
-    assert lep_dl.files[0].primary_url == "https://someurl1.local"
-    assert lep_dl.files[0].filename == "[2022-01-11] # 888. Some title..mp3"
-
-
 def test_no_valid_episodes_in_database(
     requests_mock: rm_Mocker,
     lep_dl: LepDL,
@@ -443,7 +415,7 @@ def test_no_valid_episodes_in_database(
         conf.JSON_DB_URL,
         text=json_test,
     )
-    lep_dl.use_or_get_db_episodes()
+    lep_dl.get_remote_episodes()
     lep_dl.files = downloader.gather_all_files(lep_dl.db_episodes)
     assert len(lep_dl.files) == 0
     # assert "No episodes for gathering files. Exit." in ex.value.args[0]

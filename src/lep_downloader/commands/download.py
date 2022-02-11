@@ -77,7 +77,7 @@ def cli(  # noqa: C901 'too complex'
     filtered_files = LepFileList()
 
     try:
-        lep_dl.use_or_get_db_episodes()
+        lep_dl.get_remote_episodes()
     except DataBaseUnavailable:
         lep_log.msg("<r>JSON database is not available now.</>\n")
         lep_log.msg("<c>Try again later.</c>\n")
