@@ -60,6 +60,14 @@ from lep_downloader.lep import LepLog
     help="Directory path (absolute or relative) to JSON result file destination.",
     metavar="<string>",
 )
+@click.option(
+    "--db-url",
+    "-db",
+    "db_url",
+    default=conf.JSON_DB_URL,
+    help="URL to custom JSON database file.",
+    metavar="<string>",
+)
 @click.pass_context
 def cli(
     ctx: Context,
@@ -67,6 +75,7 @@ def cli(
     html_yes: bool,
     html_dir: Path,
     dest: Path,
+    db_url: str,
 ) -> None:
     """Parses LEP archive web page."""
     lep_log: LepLog = ctx.obj["log"]
@@ -76,7 +85,7 @@ def cli(
 
     try:
         archive = parser.Archive(mode=mode, log=lep_log)
-        archive.do_parsing_actions(conf.JSON_DB_URL, str(dest))
+        archive.do_parsing_actions(db_url, str(dest))
     except NotEpisodeURLError as ex:
         click.echo(f"{ex.args[1]}:\n\t{ex.args[0]}")
         click.echo("Archive page has invalid HTML content. Exit.")

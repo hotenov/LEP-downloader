@@ -769,3 +769,52 @@ def test_write_critical_logrecord_for_invalid_archive_page(
     log_text = logfile.read_text(encoding="utf-8")
     assert "ERROR: Can't parse this page: 'article' tag was not found." in result.output
     assert "| CRITICAL | No 'DOCTYPE' or 'article' tag" in log_text
+
+
+def test_updating_with_custom_json_url(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    modified_json_less_db_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It parses new episodes comparing with custom DB URL."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        "https://hotenov.com/some_json_url.json",
+        text=modified_json_less_db_mock,
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    expected_subfolder = tmp_path / "data_dump"
+
+    run_cli_with_args(
+        [
+            "parse",
+            "-html",
+            "--mode",
+            "pull",
+            "--db-url",
+            "https://hotenov.com/some_json_url.json",
+        ]
+    )
+
+    file_1 = "[2017-03-11] # LEP on ZEP – My recent interview on Zdenek’s English Podcast.html"  # noqa: E501,B950
+    file_2 = "[2021-04-11] # 714. Robin from Hamburg (WISBOLEP Runner-Up).html"
+    file_3 = "[2021-08-03] # 733. A Summer Ramble.html"
+    expected_file_1 = expected_subfolder / file_1
+    expected_file_2 = expected_subfolder / file_2
+    expected_file_3 = expected_subfolder / file_3
+    assert len(list(expected_subfolder.iterdir())) == 3
+    assert expected_file_1.exists()
+    assert expected_file_2.exists()
+    assert expected_file_3.exists()
