@@ -60,6 +60,8 @@ class Archive(Lep):
         url: str = conf.ARCHIVE_URL,
         session: requests.Session = None,
         mode: str = "fetch",
+        with_html: bool = False,
+        html_path: Optional[str] = None,
         log: Optional[LepLog] = None,
     ) -> None:
         """Initialize an archive instance."""
@@ -71,6 +73,8 @@ class Archive(Lep):
         self.used_indexes: Set[int] = set()
         self.episodes: LepEpisodeList = LepEpisodeList()
         self.mode = mode
+        self.with_html = with_html
+        self.html_path = html_path
 
     def fetch_updates(
         self,
@@ -116,15 +120,14 @@ class Archive(Lep):
                 ep_parser = EpisodeParser(self, url, post_title=text, log=self.lep_log)
                 ep_parser.parse_url()
                 self.episodes.append(ep_parser.episode)
-                # TODO (hotenov): Try to resolve coverage ignoring
-                if conf.WITH_HTML:  # pragma: no cover
+                if self.with_html:
                     short_date = ep_parser.episode._short_date
                     post_title = ep_parser.episode.post_title
                     file_stem = f"[{short_date}] # {post_title}"
                     write_text_to_html(
                         ep_parser.content,
                         file_stem,
-                        conf.PATH_TO_HTML_FILES,
+                        self.html_path,
                     )
             except NotEpisodeURLError as ex:
                 # Log non-episode URL to file (only), but skip for user

@@ -79,12 +79,12 @@ def cli(
 ) -> None:
     """Parses LEP archive web page."""
     lep_log: LepLog = ctx.obj["log"]
-    if html_yes:
-        conf.WITH_HTML = True
-        conf.PATH_TO_HTML_FILES = str(html_dir.absolute())
+    path_to_html = str(html_dir.absolute())
 
     try:
-        archive = parser.Archive(mode=mode, log=lep_log)
+        archive = parser.Archive(
+            mode=mode, log=lep_log, with_html=html_yes, html_path=path_to_html
+        )
 
         lep_log.msg("<m>Starting parsing...</m>")
         archive.do_parsing_actions(db_url, str(dest))

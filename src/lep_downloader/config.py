@@ -72,7 +72,6 @@ ses_headers = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/signed-exchange;v=b3;q=0.9",  # noqa: E501,B950
 }
 
-# Default options
-WITH_HTML = False
+# Default file names / paths
 PATH_TO_HTML_FILES = "data_dump"
 DEBUG_FILENAME = "_lep_debug_.log"
