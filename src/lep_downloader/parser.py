@@ -124,10 +124,10 @@ class Archive(Lep):
                     short_date = ep_parser.episode._short_date
                     post_title = ep_parser.episode.post_title
                     file_stem = f"[{short_date}] # {post_title}"
-                    write_text_to_html(
-                        ep_parser.content,
-                        file_stem,
-                        self.html_path,
+                    self.write_text_to_html(
+                        text=ep_parser.content,
+                        file_stem=file_stem,
+                        path=self.html_path,
                     )
             except NotEpisodeURLError as ex:
                 # Log non-episode URL to file (only), but skip for user
@@ -198,6 +198,37 @@ class Archive(Lep):
                 return None
 
         write_parsed_episodes_to_json(all_episodes, json_name)
+
+    def write_text_to_html(
+        self,
+        text: str,
+        file_stem: str,
+        path: Optional[str] = None,
+        ext: str = ".html",
+    ) -> None:
+        """Write text (content) to HTML file."""
+        path = path if path else conf.PATH_TO_HTML_FILES
+        filename = file_stem + ext
+        filename = lep.replace_unsafe_chars(filename)
+        file_path = Path(path) / filename
+        try:
+            file_path.write_text(text, encoding="utf-8")
+        except PermissionError:
+            # Ignore any exception here, but record them to logfile
+            self.lep_log.msg(
+                "Permission Error for HTML: {filepath}",
+                filepath=file_path,
+                msg_lvl="WARNING",
+            )
+            pass
+        except OSError as ex:
+            self.lep_log.msg(
+                "OS Error for HTML: {filepath} | err: {err}",
+                filepath=file_path,
+                err=ex,
+                msg_lvl="WARNING",
+            )
+            pass
 
 
 def is_tag_a_repeated(tag_a: Tag) -> bool:
@@ -317,27 +348,6 @@ def write_parsed_episodes_to_json(
         filepath = Path(json_path)
     with open(filepath, "w") as outfile:
         json.dump(lep_objects, outfile, indent=4, cls=LepJsonEncoder)
-
-
-def write_text_to_html(
-    text: str,
-    file_stem: str,
-    path: Optional[str] = None,
-    ext: str = ".html",
-) -> None:
-    """Write text (content) to HTML file."""
-    path = path if path else conf.PATH_TO_HTML_FILES
-    filename = file_stem + ext
-    filename = lep.replace_unsafe_chars(filename)
-    file_path = Path(path) / filename
-    try:
-        file_path.write_text(text, encoding="utf-8")
-    except PermissionError:
-        # Ignore any exception here, but
-        # TODO (hotenov): Add record to log.
-        pass
-    except OSError:
-        pass
 
 
 class LepParser(Lep):

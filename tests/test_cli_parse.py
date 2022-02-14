@@ -846,7 +846,7 @@ def test_handling_unknown_exception_in_debug_mode(
     assert "| CRITICAL | Unhandled: Unknown Exception!" in log_text
 
 
-def test_handling_unknown_exception(
+def test_handling_unknown_exception_during_parsing(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
     run_cli_with_args: Callable[[List[str]], Result],
@@ -862,3 +862,38 @@ def test_handling_unknown_exception(
 
     assert "Oops.. Unhandled error.\n" in result.output
     assert "\tUnknown Exception!" in result.output
+
+
+def test_writing_log_for_permission_error_during_saving_html(
+    requests_mock: rm_Mocker,
+    archive_page_mock: str,
+    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
+    single_page_mock: str,
+    modified_json_less_db_mock: str,
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    run_cli_with_args: Callable[[List[str]], Result],
+) -> None:
+    """It writes errors during writing HTML files to logfile."""
+    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
+    requests_mock.get(
+        req_mock.ANY,
+        additional_matcher=single_page_matcher,
+        text=single_page_mock,
+    )
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=modified_json_less_db_mock,
+    )
+    monkeypatch.chdir(tmp_path)
+
+    # Make dir with the same name of one HTML
+    Path(tmp_path / "[2021-08-03] # 733. A Summer Ramble.html").mkdir()
+
+    run_cli_with_args(["--debug", "parse", "-html", "-hd", f"{tmp_path}"])
+
+    logfile = tmp_path / "_lep_debug_.log"
+    log_text = logfile.read_text(encoding="utf-8")
+    expected_file = tmp_path / "[2021-08-03] # 733. A Summer Ramble.html"
+
+    assert f"| WARNING  | Permission Error for HTML: {expected_file}" in log_text

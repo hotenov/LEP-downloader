@@ -929,6 +929,7 @@ def test_parsing_html_title_for_mocked_episodes(
 
 def test_write_text_to_html_by_absolute_path(
     tmp_path: Path,
+    archive: Archive,
 ) -> None:
     """It saves text to HTML file by passed absolute path."""
     text = """<html>
@@ -936,7 +937,7 @@ def test_write_text_to_html_by_absolute_path(
     </html>
     """
     name = "Unsafe / name : \\ here"
-    parser.write_text_to_html(text, name, str(tmp_path))
+    archive.write_text_to_html(text, name, str(tmp_path))
     expected_filename = "Unsafe _ name _ _ here.html"
     expected_file = tmp_path / expected_filename
     assert expected_file.exists()
@@ -946,6 +947,7 @@ def test_write_text_to_html_by_absolute_path(
 def test_write_text_to_html_by_relative_path(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
+    archive: Archive,
 ) -> None:
     """It saves text to HTML file by default (relative) path."""
     text = """<html>
@@ -958,7 +960,7 @@ def test_write_text_to_html_by_relative_path(
     # Create relative path
     # For this test only. Folder will be created during path validation
     Path(tmp_path / expected_subfolder).mkdir(parents=True, exist_ok=True)
-    parser.write_text_to_html(text, name)
+    archive.write_text_to_html(text, name)
     expected_filename = "Unsafe _ name _ _ here.html"
     expected_file = tmp_path / expected_subfolder / expected_filename
     assert expected_file.exists()
@@ -968,8 +970,9 @@ def test_write_text_to_html_by_relative_path(
 def test_skip_writing_html_when_any_error(
     mocker: MockFixture,
     tmp_path: Path,
+    archive: Archive,
 ) -> None:
-    """It ignores errors during writing HTM files."""
+    """It ignores errors during writing HTML files."""
     text = """Some text"""
     name = "Unsafe / name : \\ here"
 
@@ -981,13 +984,13 @@ def test_skip_writing_html_when_any_error(
     mock.side_effect = PermissionError
     # with pytest.raises(PermissionError):
     #     parser.write_text_to_html(text, name, tmp_path)
-    parser.write_text_to_html(text, name, str(tmp_path))
+    archive.write_text_to_html(text, name, str(tmp_path))
     assert not expected_file.exists()
 
     mock.side_effect = OSError
     # with pytest.raises(PermissionError):
     #     parser.write_text_to_html(text, name, tmp_path)
-    parser.write_text_to_html(text, name, str(tmp_path))
+    archive.write_text_to_html(text, name, str(tmp_path))
     assert not expected_file.exists()
 
 
