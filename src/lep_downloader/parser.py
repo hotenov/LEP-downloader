@@ -120,6 +120,9 @@ class Archive(Lep):
                 ep_parser = EpisodeParser(self, url, post_title=text, log=self.lep_log)
                 ep_parser.parse_url()
                 self.episodes.append(ep_parser.episode)
+                self.lep_log.msg(
+                    "<g>done:</g> {title}", title=ep_parser.episode.post_title
+                )
                 if self.with_html:
                     short_date = ep_parser.episode._short_date
                     post_title = ep_parser.episode.post_title
