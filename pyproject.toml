@@ -79,6 +79,13 @@ show_error_context = true
 
 [[tool.mypy.overrides]]
 module = [
+    "lep_downloader.commands.makepdf",
+    "lep_downloader.commands.utils",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
     'desert',
     'pytest',
     'pytest_mock.*',
