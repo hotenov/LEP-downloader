@@ -189,8 +189,7 @@ class Archive(Lep):
                 )
                 return None
             if len(updates) > 0:
-                # Parse new episodes and add them to shared class list
-                # with parsed episodes (list empty until this statement)
+                # Parse only updates
                 self.parse_each_episode(updates)
                 new_episodes = self.episodes
                 new_episodes = LepEpisodeList(reversed(new_episodes))

@@ -11,7 +11,7 @@ from lep_downloader.exceptions import DataBaseUnavailable
 from lep_downloader.exceptions import NoEpisodeLinksError
 from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.exceptions import NotEpisodeURLError
-from lep_downloader.lep import LepLog
+from lep_downloader.lep import LepEpisodeList, LepLog
 
 
 @click.command(name="parse")
@@ -79,6 +79,7 @@ def cli(
 ) -> None:
     """Parses LEP archive web page."""
     lep_log: LepLog = ctx.obj["log"]
+    ctx.obj["parsed_episodes"] = LepEpisodeList()
     path_to_html = str(html_dir.absolute())
 
     try:
@@ -88,6 +89,7 @@ def cli(
 
         lep_log.msg("<m>Starting parsing...</m>")
         archive.do_parsing_actions(db_url, str(dest))
+        ctx.obj["parsed_episodes"] = archive.episodes
 
     except NotEpisodeURLError as ex:
         lep_log.msg("<r>{err}:</r>\n\t<c>{url}</c>", err=ex.args[1], url=ex.args[0])
