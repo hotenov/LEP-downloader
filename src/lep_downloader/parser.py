@@ -515,6 +515,7 @@ class EpisodeParser(LepParser):
         self.episode.url = self.final_location
         current_date_utc = datetime.now(timezone.utc)
         self.episode.parsed_at = current_date_utc.strftime(r"%Y-%m-%dT%H:%M:%S.%fZ")
+        self.episode.updated_at = self.episode.parsed_at
 
         self.episode.episode = parse_episode_number(self.episode.post_title)
 
