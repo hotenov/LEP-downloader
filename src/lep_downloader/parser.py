@@ -349,7 +349,8 @@ def write_parsed_episodes_to_json(
     else:
         filepath = Path(json_path)
     with open(filepath, "w") as outfile:
-        json.dump(lep_objects, outfile, indent=4, cls=LepJsonEncoder)
+        # json.dump(lep_objects, outfile, indent=4, cls=LepJsonEncoder)
+        json.dump(lep_objects, outfile, separators=(",", ":"), cls=LepJsonEncoder)
 
 
 class LepParser(Lep):

@@ -11,7 +11,8 @@ from lep_downloader.exceptions import DataBaseUnavailable
 from lep_downloader.exceptions import NoEpisodeLinksError
 from lep_downloader.exceptions import NoEpisodesInDataBase
 from lep_downloader.exceptions import NotEpisodeURLError
-from lep_downloader.lep import LepEpisodeList, LepLog
+from lep_downloader.lep import LepEpisodeList
+from lep_downloader.lep import LepLog
 
 
 @click.command(name="parse")
