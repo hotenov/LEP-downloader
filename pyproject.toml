@@ -58,6 +58,7 @@ pytest-mock = "^3.6.1"
 
 [tool.poetry.scripts]
 lep-downloader = "lep_downloader.__main__:main"
+lep-dl = "lep_downloader.__main__:main"
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]

@@ -1,4 +1,5 @@
 """Test cases for the cli module."""
+from typing import Any
 from typing import Callable
 from typing import List
 
@@ -39,6 +40,16 @@ def test_cli_prints_help(
     """It prints help text and exits."""
     result = run_cli_with_args(["--help"])
     assert result.exit_code == 0
+    assert "Usage:" in result.output
+    assert "Options:" in result.output
+    assert "Commands:" in result.output
+
+
+def test_cli_prints_help_for_short_script_name(run_cli_with_args: Any) -> None:
+    """It prints help text and exits."""
+    result = run_cli_with_args(["--help"], prog_name="lep-dl")
+    assert result.exit_code == 0
+    assert "Usage: lep-dl [OPTIONS] COMMAND [ARGS]..." in result.output
     assert "Usage:" in result.output
     assert "Options:" in result.output
     assert "Commands:" in result.output
