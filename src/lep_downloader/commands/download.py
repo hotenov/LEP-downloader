@@ -23,6 +23,8 @@
 import sys
 from datetime import datetime
 from pathlib import Path
+from string import Template
+from typing import Optional
 
 import click
 from click import Context
@@ -53,6 +55,59 @@ def require_to_press_enter(quiet: bool, log: LepLog) -> None:
         )
         # click.get_current_context().exit()
         sys.exit(0)
+
+
+def phrase_for_filtered_episodes(  # noqa: C901 'too complex'
+    start_num: int,
+    end_num: int,
+    date_start: Optional[datetime],
+    date_end: Optional[datetime],
+    last: bool,
+) -> str:
+    """Compose phrase (or word) for specified episodes."""
+    interval = Template("from $left to $right")
+    left = right = ""
+
+    if last:
+        return "LAST"
+
+    if date_start or date_end:
+
+        date_start = date_start if date_start else LepEpisodeList.default_start_date
+        date_end = date_end if date_end else LepEpisodeList.default_end_date
+        start_date = date_start.date()
+        end_date = date_end.date()
+
+        if start_date == end_date:
+            return f"posted on {start_date}"
+
+        if start_date > end_date:
+            start_date, end_date = end_date, start_date
+
+        if start_date == LepEpisodeList.default_start_date.date():
+            left = "FIRST"
+        else:
+            left = start_date.strftime(r"%Y-%m-%d")
+        if end_date == LepEpisodeList.default_end_date.date():
+            right = "LAST"
+        else:
+            right = end_date.strftime(r"%Y-%m-%d")
+        date_interval = interval.substitute(left=left, right=right)
+        return date_interval
+    else:
+        if start_num == 0 and end_num == 0:
+            return "Without audio (TEXT)"
+        if start_num == end_num:
+            return f"Number {start_num}"
+        if start_num == 0 and end_num == 9999:
+            return "ALL"
+        else:
+            if start_num > end_num:
+                start_num, end_num = end_num, start_num
+            left = "FIRST" if start_num == 0 else str(start_num)
+            right = "LAST" if end_num == 9999 else str(end_num)
+            num_interval = interval.substitute(left=left, right=right)
+            return num_interval
 
 
 @click.command(name="download")
@@ -88,6 +143,15 @@ def cli(  # noqa: C901 'too complex'
         require_to_press_enter(quiet, lep_log)
         click.get_current_context().exit()
 
+    # Print text interval
+    start, end = episode[0], episode[1]
+    lep_log.msg(
+        "Specified episodes: <g>{phrase}</g>",
+        phrase=phrase_for_filtered_episodes(
+            int(start), int(end), start_date, end_date, last_yes
+        ),
+    )
+
     if not last_yes:
         if start_date or end_date:
             filtered_episodes = lep_dl.db_episodes.filter_by_date(start_date, end_date)
@@ -113,7 +177,7 @@ def cli(  # noqa: C901 'too complex'
     if total_number > 0:
         if not quiet:
             lep_log.msg(
-                "<g>{total}</g> non-existing file(s) will be downloaded.",
+                "\t<g>{total}</g> non-existing file(s) will be downloaded.",
                 total=total_number,
             )
             lep_log.msg(

@@ -942,3 +942,43 @@ def test_write_message_about_downloaded_files_to_logfile(
     # assert len(LepDL.downloaded) == 1
     # assert len(LepDL.not_found) == 0
     assert expected_file_1.exists()
+
+
+def test_phrase_for_episodes_interval_all_cases(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    run_cli_with_args: Any,
+) -> None:
+    """It prints  text with different episodes interval (by date and by number)."""
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+
+    result = run_cli_with_args(["download"], input="No")
+    assert "Specified episodes: ALL" in result.output
+    result = run_cli_with_args(["download", "-ep", "666-"], input="No")
+    assert "Specified episodes: from 666 to LAST" in result.output
+    result = run_cli_with_args(["download", "-ep", "-666"], input="No")
+    assert "Specified episodes: from FIRST to 666" in result.output
+    result = run_cli_with_args(["download", "-ep", "777-666"], input="No")
+    assert "Specified episodes: from 666 to 777" in result.output
+    result = run_cli_with_args(["download", "-ep", "0-0"], input="No")
+    assert "Specified episodes: Without audio (TEXT)" in result.output
+    result = run_cli_with_args(["download", "-ep", "666-666"], input="No")
+    assert "Specified episodes: Number 666" in result.output
+    result = run_cli_with_args(["download", "-ep", "666"], input="No")
+    assert "Specified episodes: Number 666" in result.output
+
+    result = run_cli_with_args(["download", "-S", "2017-07-07"], input="No")
+    assert "Specified episodes: from 2017-07-07 to LAST" in result.output
+    result = run_cli_with_args(["download", "-E", "2017-07-07"], input="No")
+    assert "Specified episodes: from FIRST to 2017-07-07" in result.output
+    result = run_cli_with_args(["download", "-E", "2016-06-06", "-S", "2019-09-09"], input="No")  # noqa: E501,B950,BLK100
+    assert "Specified episodes: from 2016-06-06 to 2019-09-09" in result.output
+    result = run_cli_with_args(["download", "-S", "2016-06-06", "-E", "2016-06-06"], input="No")  # noqa: E501,B950
+    assert "Specified episodes: posted on 2016-06-06" in result.output
+
+    # Ignore number if date is provided
+    result = run_cli_with_args(["download", "-ep", "24", "-S", "2017-07-07"], input="No")  # noqa: E501,B950
+    assert "Specified episodes: from 2017-07-07 to LAST" in result.output

@@ -168,6 +168,8 @@ def test_parse_json_db_with_extra_episode(
     single_page_mock: str,
     modified_json_extra_db_mock: str,
     run_cli_with_args: Callable[[List[str]], Result],
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """It prints message and exits.
 
@@ -183,6 +185,8 @@ def test_parse_json_db_with_extra_episode(
         conf.JSON_DB_URL,
         text=modified_json_extra_db_mock,
     )
+
+    monkeypatch.chdir(tmp_path)
 
     result = run_cli_with_args(["parse"])
 
