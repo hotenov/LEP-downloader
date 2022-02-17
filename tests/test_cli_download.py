@@ -974,11 +974,17 @@ def test_phrase_for_episodes_interval_all_cases(
     assert "Specified episodes: from 2017-07-07 to LAST" in result.output
     result = run_cli_with_args(["download", "-E", "2017-07-07"], input="No")
     assert "Specified episodes: from FIRST to 2017-07-07" in result.output
-    result = run_cli_with_args(["download", "-E", "2016-06-06", "-S", "2019-09-09"], input="No")  # noqa: E501,B950,BLK100
+    result = run_cli_with_args(
+        ["download", "-E", "2016-06-06", "-S", "2019-09-09"], input="No"
+    )
     assert "Specified episodes: from 2016-06-06 to 2019-09-09" in result.output
-    result = run_cli_with_args(["download", "-S", "2016-06-06", "-E", "2016-06-06"], input="No")  # noqa: E501,B950
+    result = run_cli_with_args(
+        ["download", "-S", "2016-06-06", "-E", "2016-06-06"], input="No"
+    )
     assert "Specified episodes: posted on 2016-06-06" in result.output
 
     # Ignore number if date is provided
-    result = run_cli_with_args(["download", "-ep", "24", "-S", "2017-07-07"], input="No")  # noqa: E501,B950
+    result = run_cli_with_args(
+        ["download", "-ep", "24", "-S", "2017-07-07"], input="No"
+    )
     assert "Specified episodes: from 2017-07-07 to LAST" in result.output
