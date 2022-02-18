@@ -36,15 +36,17 @@ import requests
 import requests_mock as req_mock
 from bs4 import BeautifulSoup
 from pytest import CaptureFixture
+from pytest import MonkeyPatch
+from pytest_mock import MockFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 from requests_mock.request import _RequestObjectProxy
 
 from lep_downloader import config as conf
 from lep_downloader import lep
 from lep_downloader import parser
-from lep_downloader.exceptions import DataBaseUnavailable
+from lep_downloader.exceptions import DataBaseUnavailableError
 from lep_downloader.exceptions import NoEpisodeLinksError
-from lep_downloader.exceptions import NoEpisodesInDataBase
+from lep_downloader.exceptions import NoEpisodesInDataBaseError
 from lep_downloader.exceptions import NotEpisodeURLError
 from lep_downloader.lep import as_lep_episode_obj
 from lep_downloader.lep import Lep
@@ -330,8 +332,7 @@ def test_parsing_invalid_html(
         archive.parser.parse_url()
     assert conf.ARCHIVE_URL in ex.value.args[0]  # Trailing slash for domain URL
     assert (
-        ex.value.args[1]
-        == "[ERROR]: Can't parse this page: <article> tag was not found."
+        ex.value.args[1] == "ERROR: Can't parse this page: 'article' tag was not found."
     )
 
 
@@ -352,7 +353,7 @@ def test_parsing_archive_without_episodes(archive: Archive) -> None:
         archive_parser.collect_links()
     assert len(archive.collected_links) == 0
     assert ex.value.args[0] == conf.ARCHIVE_URL
-    assert ex.value.args[1] == "[ERROR]: No episode links on archive page"
+    assert ex.value.args[1] == "ERROR: No episode links on archive page"
 
 
 def test_parsing_archive_with_known_duplicates(
@@ -624,7 +625,7 @@ def test_episodes_sorting_by_date_and_index() -> None:
     assert sorted_episodes == expected_sorted
 
 
-def test_writing_lep_episodes_to_json(lep_temp_path: Path) -> None:
+def test_writing_lep_episodes_to_json(tmp_path: Path) -> None:
     """It creates JSON file from list of LepEpisode objects."""
     lep_ep_1 = LepEpisode(
         702,
@@ -634,7 +635,7 @@ def test_writing_lep_episodes_to_json(lep_temp_path: Path) -> None:
     lep_ep_2 = LepEpisode(episode=2, post_title="2. Test episode #2")
     episodes = LepEpisodeList([lep_ep_1, lep_ep_2])
 
-    json_file = str(Path(lep_temp_path / "json_db_tmp.json").absolute())
+    json_file = str(Path(tmp_path / "json_db_tmp.json").absolute())
     parser.write_parsed_episodes_to_json(episodes, json_file)
     with open(json_file, "rb") as f:
         py_from_json = json.load(f)
@@ -645,38 +646,11 @@ def test_writing_lep_episodes_to_json(lep_temp_path: Path) -> None:
     )
 
 
-def test_no_new_episodes_on_archive_vs_json_db(
-    requests_mock: rm_Mocker,
-    archive_page_mock: str,
-    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
-    single_page_mock: str,
-    json_db_mock: str,
-    capsys: CaptureFixture[str],
-    archive: Archive,
-) -> None:
-    """It prints when no new episodes on archive page."""
-    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    requests_mock.get(
-        req_mock.ANY,
-        additional_matcher=single_page_matcher,
-        text=single_page_mock,
-    )
-    requests_mock.get(
-        conf.JSON_DB_URL,
-        text=json_db_mock,
-    )
-
-    archive.do_parsing_actions(conf.JSON_DB_URL)
-    captured = capsys.readouterr()
-    assert "There are no new episodes. Exit." in captured.out
-
-
 def test_no_valid_episode_objects_in_json_db(
     requests_mock: rm_Mocker,
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
-    capsys: CaptureFixture[str],
     archive: Archive,
 ) -> None:
     """It prints warning when there are no valid episode objects."""
@@ -693,13 +667,9 @@ def test_no_valid_episode_objects_in_json_db(
         text="[]",
     )
 
-    with pytest.raises(NoEpisodesInDataBase) as ex:
+    with pytest.raises(NoEpisodesInDataBaseError) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
-
-    captured = capsys.readouterr()
-    assert "[WARNING]" in captured.out
-    assert "no valid episode objects" in captured.out
 
 
 def test_json_db_not_valid(
@@ -707,7 +677,6 @@ def test_json_db_not_valid(
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
-    capsys: CaptureFixture[str],
     archive: Archive,
 ) -> None:
     """It prints error for invalid JSON document."""
@@ -722,12 +691,9 @@ def test_json_db_not_valid(
         text="",
     )
 
-    with pytest.raises(NoEpisodesInDataBase) as ex:
+    with pytest.raises(NoEpisodesInDataBaseError) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
-    captured = capsys.readouterr()
-    assert "[ERROR]" in captured.out
-    assert "Data is not a valid JSON document." in captured.out
 
 
 def test_json_db_not_available(
@@ -751,7 +717,7 @@ def test_json_db_not_available(
         status_code=404,
     )
 
-    with pytest.raises(DataBaseUnavailable):
+    with pytest.raises(DataBaseUnavailableError):
         archive.do_parsing_actions(conf.JSON_DB_URL)
     # assert "" in ex.value.args[0]
     # captured = capsys.readouterr()
@@ -763,7 +729,6 @@ def test_json_db_contains_only_string(
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
-    capsys: CaptureFixture[str],
     archive: Archive,
 ) -> None:
     """It prints warning for JSON as str."""
@@ -778,12 +743,9 @@ def test_json_db_contains_only_string(
         text='"episode"',
     )
 
-    with pytest.raises(NoEpisodesInDataBase) as ex:
+    with pytest.raises(NoEpisodesInDataBaseError) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
-    captured = capsys.readouterr()
-    assert "[WARNING]" in captured.out
-    assert "no valid episode objects" in captured.out
 
 
 def test_invalid_objects_in_json_not_included(
@@ -791,7 +753,6 @@ def test_invalid_objects_in_json_not_included(
     archive_page_mock: str,
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
-    capsys: CaptureFixture[str],
     archive: Archive,
 ) -> None:
     """It skips invalid objects in JSON database."""
@@ -806,12 +767,9 @@ def test_invalid_objects_in_json_not_included(
         text='[{"episode": 1, "fake_key": "Skip me"}]',
     )
 
-    with pytest.raises(NoEpisodesInDataBase) as ex:
+    with pytest.raises(NoEpisodesInDataBaseError) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
-    captured = capsys.readouterr()
-    assert "[WARNING]" in captured.out
-    assert "no valid episode objects" in captured.out
 
 
 def test_updating_json_database_with_new_episodes(
@@ -820,7 +778,7 @@ def test_updating_json_database_with_new_episodes(
     single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
     single_page_mock: str,
     modified_json_less_db_mock: str,
-    lep_temp_path: Path,
+    tmp_path: Path,
     archive: Archive,
 ) -> None:
     """It retrives and saves new episodes from archive."""
@@ -835,8 +793,7 @@ def test_updating_json_database_with_new_episodes(
         text=modified_json_less_db_mock,
     )
 
-    # json_file = lep_temp_path / "json_db_tmp.json"
-    json_file = str(Path(lep_temp_path / "json_db_tmp.json").absolute())
+    json_file = str(Path(tmp_path / "json_db_tmp.json").absolute())
     archive.do_parsing_actions(conf.JSON_DB_URL, json_name=json_file)
     with open(json_file, "rb") as f:
         py_from_json: LepEpisodeList = json.load(f, object_hook=as_lep_episode_obj)
@@ -852,34 +809,6 @@ def test_updating_json_database_with_new_episodes(
     # assert len(py_from_json) == 786
 
 
-def test_updating_json_database_with_extra_episodes(
-    requests_mock: rm_Mocker,
-    archive_page_mock: str,
-    single_page_matcher: Optional[Callable[[_RequestObjectProxy], bool]],
-    single_page_mock: str,
-    modified_json_extra_db_mock: str,
-    capsys: CaptureFixture[str],
-    archive: Archive,
-) -> None:
-    """It prints warning if database contains more episodes than archive."""
-    requests_mock.get(conf.ARCHIVE_URL, text=archive_page_mock)
-    requests_mock.get(
-        req_mock.ANY,
-        additional_matcher=single_page_matcher,
-        text=single_page_mock,
-    )
-    requests_mock.get(
-        conf.JSON_DB_URL,
-        text=modified_json_extra_db_mock,
-    )
-
-    archive.do_parsing_actions(conf.JSON_DB_URL)
-    captured = capsys.readouterr()
-    expected_message = "Database contains more episodes than current archive!"
-    assert "[WARNING]" in captured.out
-    assert expected_message in captured.out
-
-
 def test_parsing_invalid_html_in_main_actions(
     requests_mock: rm_Mocker,
     archive: Archive,
@@ -891,8 +820,7 @@ def test_parsing_invalid_html_in_main_actions(
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert conf.ARCHIVE_URL in ex.value.args[0]
     assert (
-        ex.value.args[1]
-        == "[ERROR]: Can't parse this page: <article> tag was not found."
+        ex.value.args[1] == "ERROR: Can't parse this page: 'article' tag was not found."
     )
 
 
@@ -997,3 +925,140 @@ def test_parsing_html_title_for_mocked_episodes(
         == "36. London Video Interviews Pt.1 | Luke’s ENGLISH Podcast"
     )
     assert parsed_episodes_mock[45]._title == "NO TITLE!"
+
+
+def test_write_text_to_html_by_absolute_path(
+    tmp_path: Path,
+    archive: Archive,
+) -> None:
+    """It saves text to HTML file by passed absolute path."""
+    text = """<html>
+        <body>Some text</body>
+    </html>
+    """
+    name = "Unsafe / name : \\ here"
+    archive.write_text_to_html(text, name, str(tmp_path))
+    expected_filename = "Unsafe _ name _ _ here.html"
+    expected_file = tmp_path / expected_filename
+    assert expected_file.exists()
+    assert expected_file.read_text() == text
+
+
+def test_write_text_to_html_by_relative_path(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    archive: Archive,
+) -> None:
+    """It saves text to HTML file by default (relative) path."""
+    text = """<html>
+        <body>Some text</body>
+    </html>
+    """
+    name = "Unsafe / name : \\ here"
+    monkeypatch.chdir(tmp_path)
+    expected_subfolder = Path(conf.PATH_TO_HTML_FILES)
+    # Create relative path
+    # For this test only. Folder will be created during path validation
+    Path(tmp_path / expected_subfolder).mkdir(parents=True, exist_ok=True)
+    archive.write_text_to_html(text, name)
+    expected_filename = "Unsafe _ name _ _ here.html"
+    expected_file = tmp_path / expected_subfolder / expected_filename
+    assert expected_file.exists()
+    assert expected_file.read_text() == text
+
+
+def test_skip_writing_html_when_any_error(
+    mocker: MockFixture,
+    tmp_path: Path,
+    archive: Archive,
+) -> None:
+    """It ignores errors during writing HTML files."""
+    text = """Some text"""
+    name = "Unsafe / name : \\ here"
+
+    expected_filename = "Unsafe _ name _ _ here.html"
+    expected_file = tmp_path / expected_filename
+
+    mock = mocker.patch("pathlib.Path.write_text")
+
+    mock.side_effect = PermissionError
+    # with pytest.raises(PermissionError):
+    #     parser.write_text_to_html(text, name, tmp_path)
+    archive.write_text_to_html(text, name, str(tmp_path))
+    assert not expected_file.exists()
+
+    mock.side_effect = OSError
+    # with pytest.raises(PermissionError):
+    #     parser.write_text_to_html(text, name, tmp_path)
+    archive.write_text_to_html(text, name, str(tmp_path))
+    assert not expected_file.exists()
+
+
+def test_lep_log_writing_newlines_in_logfile(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """It uses 'oneline' parameter to print newlines in logfile (if needed)."""
+    monkeypatch.chdir(tmp_path)
+    log_1 = lep.LepLog(True)
+    log_1.msg("First raw \n Second Raw")
+    logfile_1 = tmp_path / "_lep_debug_.log"
+    log_text = logfile_1.read_text(encoding="utf-8")
+    assert "First raw ⏎ Second Raw" in log_text
+
+    log_2 = lep.LepLog(True, "with_lines.log")
+    log_2.msg("First raw \n Second Raw", one_line=False)
+    logfile_2 = tmp_path / "with_lines.log"
+    log_text_2 = logfile_2.read_text(encoding="utf-8")
+    assert "First raw \n Second Raw" in log_text_2
+
+
+def test_lep_log_writing_several_messages_on_oneline_in_console(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It can print log messages on one line.
+
+    But in logfile it will be separate message (or even files)
+    """
+    monkeypatch.chdir(tmp_path)
+    log_1 = lep.LepLog(True, "1.log")
+    log_1.msg("Msg from #1 | ", wait_input=True)
+    logfile_1 = tmp_path / "1.log"
+    log_text_1 = logfile_1.read_text(encoding="utf-8")
+
+    log_2 = lep.LepLog(True, "2.log")
+    log_2.msg("Msg from #2.")
+    log_1.msg("Again #1")
+    logfile_2 = tmp_path / "2.log"
+    log_text_2 = logfile_2.read_text(encoding="utf-8")
+    captured = capsys.readouterr()
+    assert "Msg from #1 | Msg from #2.\nAgain #1" in captured.out
+    assert ("Msg from #1 | " in log_text_1) and ("Msg from #1 | " not in log_text_2)
+    assert "Msg from #2." in log_text_2
+    assert "Again #1" in log_text_2  # Note: in '2.log' due to loguru design
+
+
+def test_lep_log_display_messages_in_console_only(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    capsys: CaptureFixture[str],
+) -> None:
+    """It can skip logfile for certain messages in debug mode.
+
+    And display them only in console.
+    """
+    monkeypatch.chdir(tmp_path)
+    log_1 = lep.LepLog(True, "1.log")
+    log_1.msg("Message #1")
+    log_1.msg("Message #2 console", skip_file=True)
+    log_1.msg("Message #3")
+
+    logfile_1 = tmp_path / "1.log"
+    log_text_1 = logfile_1.read_text(encoding="utf-8")
+    captured = capsys.readouterr()
+    assert "Message #1\nMessage #2 console\nMessage #3" in captured.out
+    assert "Message #1" in log_text_1
+    assert "Message #3" in log_text_1
+    assert "Message #2 console" not in log_text_1

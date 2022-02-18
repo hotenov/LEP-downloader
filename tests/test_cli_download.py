@@ -21,11 +21,9 @@
 # SOFTWARE.
 """Test cases for the download command module."""
 from pathlib import Path
-from typing import Callable
-from typing import List
+from typing import Any
 
-from click.testing import CliRunner
-from click.testing import Result
+from pytest import MonkeyPatch
 from pytest_mock import MockFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 
@@ -34,7 +32,8 @@ from lep_downloader import config as conf
 
 def test_json_database_not_available(
     requests_mock: rm_Mocker,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
+    # capsys: CaptureFixture[str],
 ) -> None:
     """It prints message and exits when JSON is unavailable."""
     requests_mock.get(
@@ -42,15 +41,19 @@ def test_json_database_not_available(
         text="JSON not found",
         status_code=404,
     )
-    result = run_cli_with_args(["download"])
+    result = run_cli_with_args(["download"], input="\n")
+    # captured = capsys.readouterr()
     assert "JSON database is not available now.\n" in result.output
+    # assert "JSON database is not available now.\n" in captured.out
     assert "Try again later." in result.output
+    # assert "Try again later." in captured.out
     assert result.exit_code == 0
 
 
 def test_json_database_not_available_in_quite_mode(
     requests_mock: rm_Mocker,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
+    # capsys: CaptureFixture[str],
 ) -> None:
     """It aborts following execution when JSON is unavailable.
 
@@ -62,6 +65,7 @@ def test_json_database_not_available_in_quite_mode(
         status_code=404,
     )
     result = run_cli_with_args(["download", "--quiet"])
+    # captured = capsys.readouterr()
     assert "JSON database is not available now.\n" in result.output
     assert "Try again later." in result.output
     assert result.exit_code == 0
@@ -70,21 +74,15 @@ def test_json_database_not_available_in_quite_mode(
 def test_download_without_options(
     requests_mock: rm_Mocker,
     json_db_mock: str,
-    runner: CliRunner,
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all audio files for parsed episodes."""
-    from lep_downloader import cli
-
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
-    result = runner.invoke(
-        cli.cli,
-        ["download"],
-        prog_name="lep-downloader",
-        input="n\n",
-    )
+    result = run_cli_with_args(["download"], input="n\n")
+
     assert "18 non-existing file(s) will be downloaded" in result.output
     assert "Do you want to continue? [y/N]: n\n" in result.output
     assert "Your answer is 'NO'. Exit." in result.output
@@ -95,11 +93,9 @@ def test_continue_prompt_yes(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    runner: CliRunner,
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads files if user answers 'Yes'."""
-    from lep_downloader import cli
-
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
@@ -109,10 +105,8 @@ def test_continue_prompt_yes(
         content=mp3_file1_mock,
     )
 
-    result = runner.invoke(
-        cli.cli,
+    result = run_cli_with_args(
         ["download", "-ep", "703", "-pdf", "-d", f"{tmp_path}"],
-        prog_name="lep-downloader",
         input="y\n",
     )
 
@@ -129,30 +123,21 @@ def test_continue_prompt_no(
     requests_mock: rm_Mocker,
     json_db_mock: str,
     tmp_path: Path,
-    runner: CliRunner,
+    run_cli_with_args: Any,
 ) -> None:
     """It exists if user answers 'No'."""
-    from lep_downloader import cli
-
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
 
-    result = runner.invoke(
-        cli.cli,
-        ["download", "-ep", "714"],
-        prog_name="lep-downloader",
-        input="No",
-    )
+    result = run_cli_with_args(["download", "-ep", "714"], input="No")
     assert "Do you want to continue? [y/N]: No\n" in result.output
     assert "Your answer is 'NO'. Exit." in result.output
     assert len(list(tmp_path.iterdir())) == 0
 
-    result = runner.invoke(
-        cli.cli,
+    result = run_cli_with_args(
         ["download", "-ep", "714"],
-        prog_name="lep-downloader",
         input="\n",  # Pressed 'Enter' key (empty input)
     )
 
@@ -162,7 +147,7 @@ def test_continue_prompt_no(
 
 def test_no_valid_episodes_in_database(
     requests_mock: rm_Mocker,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It prints message and exits if no episodes in JSON database."""
     requests_mock.get(
@@ -171,7 +156,7 @@ def test_no_valid_episodes_in_database(
     )
     result = run_cli_with_args(["download"])
     assert (
-        f"[WARNING]: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
+        f"WARNING: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
         in result.output
     )
     assert result.exit_code == 0
@@ -179,7 +164,7 @@ def test_no_valid_episodes_in_database(
 
 def test_no_valid_episodes_quiet_mode(
     requests_mock: rm_Mocker,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It aborts following execution if no episodes in JSON database.
 
@@ -191,7 +176,7 @@ def test_no_valid_episodes_quiet_mode(
     )
     result = run_cli_with_args(["download", "--quiet"])
     assert (
-        f"[WARNING]: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
+        f"WARNING: JSON file ({conf.JSON_DB_URL}) has no valid episode objects."
         in result.output
     )
     assert result.exit_code == 0
@@ -202,7 +187,7 @@ def test_last_option(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads the last episode when '--last' option is provided."""
     requests_mock.get(
@@ -231,7 +216,7 @@ def test_filtering_for_one_day(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes for certain day."""
     requests_mock.get(
@@ -268,7 +253,7 @@ def test_filtering_by_start_date(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes from start date to last."""
     requests_mock.get(
@@ -303,7 +288,7 @@ def test_filtering_by_end_date(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes from first to end date."""
     requests_mock.get(
@@ -332,10 +317,47 @@ def test_filtering_by_end_date(
     assert expected_file_2.exists()
 
 
+def test_filtering_with_confused_dates(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    mp3_file1_mock: bytes,
+    mp3_file2_mock: bytes,
+    tmp_path: Path,
+    run_cli_with_args: Any,
+) -> None:
+    """It swaps dates if they were confused."""
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+    requests_mock.get(
+        "http://traffic.libsyn.com/teacherluke/15-extra-podcast-12-phrasal-verbs.mp3",  # noqa: E501,B950
+        content=mp3_file1_mock,
+    )
+    requests_mock.get(
+        "http://traffic.libsyn.com/teacherluke/16-michael-jackson.mp3",  # noqa: E501,B950
+        content=mp3_file2_mock,
+    )
+
+    run_cli_with_args(
+        ["download", "-S", "2009-10-20", "-E", "2009-10-19", "-q", "-d", f"{tmp_path}"]
+    )
+
+    expected_filename_1 = "[2009-10-19] # 15. Extra Podcast – 12 Phrasal Verbs.mp3"
+    expected_file_1 = tmp_path / expected_filename_1
+    expected_filename_2 = "[2009-10-19] # 16. Michael Jackson.mp3"
+    expected_file_2 = tmp_path / expected_filename_2
+    assert len(list(tmp_path.iterdir())) == 2
+    # assert len(LepDL.downloaded) == 2
+    # assert len(LepDL.not_found) == 0
+    assert expected_file_1.exists()
+    assert expected_file_2.exists()
+
+
 def test_invalid_start_date_inputs(
     requests_mock: rm_Mocker,
     json_db_mock: str,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It validates and exits with error (2) when invalid start date is provided."""
     requests_mock.get(
@@ -388,7 +410,7 @@ def test_invalid_start_date_inputs(
 def test_invalid_end_date_inputs(
     requests_mock: rm_Mocker,
     json_db_mock: str,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It validates and exits with error (2) when invalid end date is provided."""
     requests_mock.get(
@@ -443,7 +465,7 @@ def test_populating_default_url_for_page_pdf(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It populates URL and downloads page PDF."""
     requests_mock.get(
@@ -482,7 +504,7 @@ def test_filtering_by_one_episode_number(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads one episode by its number."""
     requests_mock.get(
@@ -511,7 +533,7 @@ def test_filtering_not_numbered_episodes(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes with number = 0."""
     requests_mock.get(
@@ -548,7 +570,7 @@ def test_filtering_by_number_with_default_start(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes from 0 to provided number."""
     requests_mock.get(
@@ -583,7 +605,7 @@ def test_filtering_by_number_with_default_end(
     mp3_file1_mock: bytes,
     mp3_file2_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It downloads all episodes from provided number to last."""
     requests_mock.get(
@@ -612,10 +634,45 @@ def test_filtering_by_number_with_default_end(
     assert expected_file_2.exists()
 
 
+def test_filtering_by_number_with_confused_start_end(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    mp3_file1_mock: bytes,
+    mp3_file2_mock: bytes,
+    tmp_path: Path,
+    run_cli_with_args: Any,
+) -> None:
+    """It swaps provided confused numbers to correct interval."""
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+    requests_mock.get(
+        "https://traffic.libsyn.com/secure/teacherluke/703._Walaa_from_Syria_-_WISBOLEP_Competition_Winner_.mp3",  # noqa: E501,B950
+        content=mp3_file1_mock,
+    )
+    requests_mock.get(
+        "https://traffic.libsyn.com/secure/teacherluke/733._A_Summer_Ramble.mp3",  # noqa: E501,B950
+        content=mp3_file2_mock,
+    )
+
+    run_cli_with_args(["download", "-ep", "800-703", "-q", "-d", f"{tmp_path}"])
+
+    expected_filename_1 = "[2021-02-03] # 703. Walaa from Syria – WISBOLEP Competition Winner.mp3"  # noqa: E501,B950
+    expected_file_1 = tmp_path / expected_filename_1
+    expected_filename_2 = "[2021-08-03] # 733. A Summer Ramble.mp3"  # noqa: E501,B950
+    expected_file_2 = tmp_path / expected_filename_2
+    assert len(list(tmp_path.iterdir())) == 2
+    # assert len(LepDL.downloaded) == 2
+    # assert len(LepDL.not_found) == 2
+    assert expected_file_1.exists()
+    assert expected_file_2.exists()
+
+
 def test_invalid_number_inputs(
     requests_mock: rm_Mocker,
     json_db_mock: str,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It validates and exits with error (2) when invalid episode number is provided."""
     requests_mock.get(
@@ -668,7 +725,7 @@ def test_custom_db_url(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It uses provided JSON URL instead of default."""
     requests_mock.get(
@@ -706,7 +763,7 @@ def test_no_files_for_downloading(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It prints and exits when nothing to download."""
     requests_mock.get(
@@ -736,7 +793,7 @@ def test_no_permission_for_folder_destination(
     requests_mock: rm_Mocker,
     json_db_mock: str,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It validates destination folder before downloading files.
 
@@ -764,7 +821,7 @@ def test_os_error_for_folder_destination(
     requests_mock: rm_Mocker,
     json_db_mock: str,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It validates destination folder before downloading files.
 
@@ -792,7 +849,7 @@ def test_passing_options_from_group_to_command(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    run_cli_with_args: Callable[[List[str]], Result],
+    run_cli_with_args: Any,
 ) -> None:
     """It passes options to 'download' command from command group (script itself)."""
     requests_mock.get(
@@ -820,11 +877,10 @@ def test_final_prompt_to_press_enter(
     json_db_mock: str,
     mp3_file1_mock: bytes,
     tmp_path: Path,
-    runner: CliRunner,
+    run_cli_with_args: Any,
+    # capsys: CaptureFixture[str],
 ) -> None:
     """It requires to press enter at the end of script execution."""
-    from lep_downloader import cli
-
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
@@ -835,14 +891,108 @@ def test_final_prompt_to_press_enter(
         content=mp3_file1_mock,
     )
 
-    result = runner.invoke(
-        cli.cli,
+    result = run_cli_with_args(
         ["-ep", "35", "-d", f"{tmp_path}"],
-        prog_name="lep-downloader",
         input="\n",  # Two inputs in this case.
     )
+    # captured = capsys.readouterr()
     assert "Do you want to continue? [y/N]: \n" in result.output
     # assert len(LepDL.downloaded) == 0
     # assert len(LepDL.not_found) == 0
-    assert "Press 'Enter' key to close 'LEP-downloader':" in result.output
+    assert "Press the [ENTER] key to close 'LEP-downloader'" in result.output
     assert result.exit_code == 0
+
+
+def test_write_message_about_downloaded_files_to_logfile(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    mp3_file1_mock: bytes,
+    tmp_path: Path,
+    run_cli_with_args: Any,
+) -> None:
+    """It populates URL and downloads page PDF."""
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+    requests_mock.get(
+        "https://hotenov.com/d/lep/%5B2017-08-26%5D%20%23%20%5BWebsite%20only%5D%20A%20History%20of%20British%20Pop%20%E2%80%93%20A%20Musical%20Tour%20through%20James%E2%80%99%20Vinyl%20Collection.pdf",  # noqa: E501,B950
+        content=mp3_file1_mock,
+    )
+
+    run_cli_with_args(
+        [
+            "--debug",
+            "-pdf",
+            "-S",
+            "2017-08-26",
+            "-E",
+            "2017-08-26",
+            "-q",
+            "-d",
+            f"{tmp_path}",
+        ]
+    )
+
+    expected_filename_1 = "[2017-08-26] # [Website only] A History of British Pop – A Musical Tour through James’ Vinyl Collection.pdf"  # noqa: E501,B950
+    expected_file_1 = tmp_path / expected_filename_1
+    log = Path(tmp_path / "_lep_debug_.log").read_text(encoding="utf-8")
+    record = " + " + expected_filename_1
+    assert len(list(tmp_path.iterdir())) == 2
+    assert record in log
+    # assert len(LepDL.downloaded) == 1
+    # assert len(LepDL.not_found) == 0
+    assert expected_file_1.exists()
+
+
+def test_phrase_for_episodes_interval_all_cases(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    run_cli_with_args: Any,
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """It prints  text with different episodes interval (by date and by number)."""
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    result = run_cli_with_args(["download"], input="No")
+    assert "Specified episodes: ALL" in result.output
+    result = run_cli_with_args(["download", "-ep", "666-"], input="No")
+    assert "Specified episodes: from 666 to LAST" in result.output
+    result = run_cli_with_args(["download", "-ep", "-666"], input="No")
+    assert "Specified episodes: from FIRST to 666" in result.output
+    result = run_cli_with_args(["download", "-ep", "777-666"], input="No")
+    assert "Specified episodes: from 666 to 777" in result.output
+    result = run_cli_with_args(["download", "-ep", "0-0"], input="No")
+    assert "Specified episodes: Without audio (TEXT)" in result.output
+    result = run_cli_with_args(["download", "-ep", "666-666"], input="No")
+    assert "Specified episodes: Number 666" in result.output
+    result = run_cli_with_args(["download", "-ep", "666"], input="No")
+    assert "Specified episodes: Number 666" in result.output
+
+    result = run_cli_with_args(["download", "-S", "2017-07-07"], input="No")
+    assert "Specified episodes: from 2017-07-07 to LAST" in result.output
+    result = run_cli_with_args(["download", "-E", "2017-07-07"], input="No")
+    assert "Specified episodes: from FIRST to 2017-07-07" in result.output
+    result = run_cli_with_args(
+        ["download", "-E", "2016-06-06", "-S", "2019-09-09"], input="No"
+    )
+    assert "Specified episodes: from 2016-06-06 to 2019-09-09" in result.output
+    result = run_cli_with_args(
+        ["download", "-S", "2016-06-06", "-E", "2016-06-06"], input="No"
+    )
+    assert "Specified episodes: posted on 2016-06-06" in result.output
+
+    # Ignore number if date is provided
+    result = run_cli_with_args(
+        ["download", "-ep", "24", "-S", "2017-07-07"], input="No"
+    )
+    assert "Specified episodes: from 2017-07-07 to LAST" in result.output
+    # Last episode also ignores other filters (number and date)
+    result = run_cli_with_args(["download", "-ep", "666", "--last"], input="No")
+    assert "Specified episodes: LAST" in result.output

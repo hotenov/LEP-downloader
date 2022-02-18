@@ -22,11 +22,16 @@
 """LEP module for general logic and classes."""
 import json
 import re
+import sys
+from dataclasses import dataclass
 from datetime import datetime
+from datetime import time
 from datetime import timedelta
 from datetime import timezone
+from functools import partial
 from functools import total_ordering
 from operator import attrgetter
+from pathlib import Path
 from typing import Any
 from typing import ClassVar
 from typing import Dict
@@ -35,9 +40,10 @@ from typing import Optional
 from typing import Union
 
 import requests
+from loguru import logger
 
 from lep_downloader import config as conf
-from lep_downloader.exceptions import DataBaseUnavailable
+from lep_downloader.exceptions import DataBaseUnavailableError
 
 
 # COMPILED REGEX PATTERNS #
@@ -47,6 +53,52 @@ INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
 # PRODUCTION SESSION #
 PROD_SES = requests.Session()
 PROD_SES.headers.update(conf.ses_headers)
+
+
+# SETUP LOGGER #
+logger = logger.opt(colors=True)
+logger.opt = partial(logger.opt, colors=True)  # type: ignore
+new_level_print = logger.level("PRINT", no=22)
+new_level_missing = logger.level("MISSING", no=33)
+
+
+def stdout_formatter(record: Any) -> str:
+    """Return formatter string for console sink."""
+    end: str = record["extra"].get("end", "\n")
+    return "{message}" + end
+
+
+def logfile_formatter(record: Any) -> str:
+    """Return formatter string for console sink."""
+    date = "{time:YYYY-MM-DD HH:mm:ss.SSS} | "
+    level = "{level: <8} | "
+    # name = "{name} - "  # Always the same in my case
+    return date + level + "{message}" + "\n"
+
+
+def init_lep_log(
+    debug: bool = False,
+    logfile: str = conf.DEBUG_FILENAME,
+) -> Any:
+    """Create custom log after modules initialization."""
+    # global lep_log
+    lep_log = logger
+    lep_log.remove()
+    file_log = Path(logfile)
+
+    if debug:
+        lep_log.add(
+            file_log,
+            format=logfile_formatter,
+            filter=lambda record: "to_file" in record["extra"],
+        )
+
+    lep_log.add(
+        sys.stdout,
+        format=stdout_formatter,
+        filter=lambda record: "to_console" in record["extra"],
+    )
+    return lep_log
 
 
 @total_ordering
@@ -181,6 +233,8 @@ class LepEpisodeList(List[Any]):
 
     def filter_by_number(self, start: int, end: int) -> Any:
         """Return new filtered list by episode number."""
+        if start > end:
+            start, end = end, start
         filtered = LepEpisodeList(
             ep for ep in self if ep.episode >= start and ep.episode <= end
         )
@@ -197,8 +251,21 @@ class LepEpisodeList(List[Any]):
         """Return new filtered list by episode (post) date."""
         start = start if start else self.default_start_date
         end = end if end else self.default_end_date
+        if start.date() > end.date():
+            start, end = end, start
+        start_aware = datetime.combine(
+            start.date(),
+            time(0, 1),  # Begining of a day
+            tzinfo=timezone(timedelta(hours=2)),
+        )
+        end_aware = datetime.combine(
+            end.date(),
+            time(23, 55),  # End (almost) of a day
+            tzinfo=timezone(timedelta(hours=2)),
+        )
+
         filtered = LepEpisodeList(
-            ep for ep in self if ep.date >= start and ep.date <= end
+            ep for ep in self if ep.date >= start_aware and ep.date <= end_aware
         )
         return filtered
 
@@ -234,10 +301,60 @@ def as_lep_episode_obj(dct: Dict[str, Any]) -> Any:
         lep_ep = LepEpisode(**dct)
         lep_ep._short_date = lep_ep.date.strftime(r"%Y-%m-%d")
     except TypeError:
-        print(f"[WARNING]: Invalid object in JSON!\n\t{dct}")
+        # Message only to log file
+        Lep.cls_lep_log.msg("Invalid object in JSON: {dct}", dct=dct, msg_lvl="WARNING")
         return None
     else:
         return lep_ep
+
+
+@dataclass
+class LepLog:
+    """Represent LepLog object."""
+
+    debug: bool = False
+    logfile: str = conf.DEBUG_FILENAME  # Default is '_lep_debug_.log'
+
+    def __post_init__(self) -> None:
+        """Create logger for LepLog instance."""
+        self.lep_log = init_lep_log(debug=self.debug, logfile=self.logfile)
+
+    def msg(
+        self,
+        msg: str,
+        *,
+        skip_file: bool = False,
+        one_line: bool = True,
+        msg_lvl: str = "PRINT",
+        wait_input: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """Output message to console or log file.
+
+        If DEBUG = True duplicates all console messaged to log file (level PRINT).
+            Also add records (messages) for other log levels.
+        """
+        if msg_lvl == "PRINT" and not self.debug:
+            if wait_input:
+                self.lep_log.bind(to_console=True, end="").info(msg, **kwargs)
+            else:
+                self.lep_log.bind(to_console=True).info(msg, **kwargs)
+        else:
+            msg_oneline = msg
+            if one_line:
+                msg_oneline = msg.replace("\n", "⏎")
+
+            if msg_lvl == "PRINT" and skip_file:
+                self.lep_log.bind(to_console=True).info(msg, **kwargs)
+            elif msg_lvl == "PRINT" and wait_input:
+                self.lep_log.bind(to_console=True, end="").info(msg, **kwargs)
+                self.lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
+            elif msg_lvl == "PRINT":
+                self.lep_log.bind(to_console=True).info(msg, **kwargs)
+                self.lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
+            else:
+                if self.debug:
+                    self.lep_log.bind(to_file=True).log(msg_lvl, msg_oneline, **kwargs)
 
 
 class Lep:
@@ -245,15 +362,23 @@ class Lep:
 
     cls_session: ClassVar[requests.Session] = requests.Session()
     json_body: ClassVar[str] = ""
+    cls_lep_log: ClassVar[LepLog]
 
-    def __init__(self, session: Optional[requests.Session] = None) -> None:
+    def __init__(
+        self,
+        session: Optional[requests.Session] = None,
+        log: Optional[LepLog] = None,
+    ) -> None:
         """Default instance of LepTemplate.
 
         Args:
             session (requests.Session): Global session for descendants.
+            log (LepLog): Log instance of LepLog class where to output message.
         """
         self.session = session if session else PROD_SES
+        self.lep_log = log if log else LepLog()
         Lep.cls_session = self.session
+        Lep.cls_lep_log = self.lep_log
 
     @classmethod
     def get_web_document(
@@ -299,15 +424,19 @@ class Lep:
         try:
             db_episodes = json.loads(json_body, object_hook=as_lep_episode_obj)
         except json.JSONDecodeError:
-            print(f"[ERROR]: Data is not a valid JSON document.\n\tURL: {json_url}")
+            cls.cls_lep_log.msg(
+                "<r>ERROR: Data is not a valid JSON document.</r>\n\tURL: {json_url}",
+                json_url=json_url,
+            )
             return LepEpisodeList()
         else:
             is_db_str: bool = isinstance(db_episodes, str)
             # Remove None elements
             db_episodes = LepEpisodeList(obj for obj in db_episodes if obj)
             if not db_episodes or is_db_str:
-                print(
-                    f"[WARNING]: JSON file ({json_url}) has no valid episode objects."  # noqa: E501,B950
+                cls.cls_lep_log.msg(
+                    "<y>WARNING: JSON file ({json_url}) has no valid episode objects.</y>",  # noqa: E501,B950
+                    json_url=json_url,
                 )
                 return LepEpisodeList()
             else:
@@ -326,7 +455,7 @@ class Lep:
         if status_db_ok:
             db_episodes = Lep.extract_only_valid_episodes(cls.json_body, json_url)
         else:
-            raise DataBaseUnavailable()
+            raise DataBaseUnavailableError()
         return db_episodes
 
 

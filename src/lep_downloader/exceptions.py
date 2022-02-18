@@ -22,13 +22,13 @@
 """Module for LEP custom exceptions."""
 
 
-class LepException(Exception):
+class LepExceptionError(Exception):
     """Base class for exceptions in 'lep_downloader' package."""
 
     pass
 
 
-class NoEpisodeLinksError(LepException):
+class NoEpisodeLinksError(LepExceptionError):
     """Raised when no valid episode links on page.
 
     Attributes:
@@ -42,7 +42,7 @@ class NoEpisodeLinksError(LepException):
         self.message = message
 
 
-class NotEpisodeURLError(LepException):
+class NotEpisodeURLError(LepExceptionError):
     """Raised when given URL is not episode / archive URL.
 
     Attributes:
@@ -56,7 +56,7 @@ class NotEpisodeURLError(LepException):
         self.message = message
 
 
-class LepEpisodeNotFound(LepException):
+class LepEpisodeNotFoundError(LepExceptionError):
     """Raised when given episode URL is not available.
 
     Attributes:
@@ -71,7 +71,7 @@ class LepEpisodeNotFound(LepException):
         self.message = message
 
 
-class DataBaseUnavailable(LepException):
+class DataBaseUnavailableError(LepExceptionError):
     """Raised when JSON database file is not available.
 
     Attributes:
@@ -83,7 +83,7 @@ class DataBaseUnavailable(LepException):
         self.message = message
 
 
-class NoEpisodesInDataBase(LepException):
+class NoEpisodesInDataBaseError(LepExceptionError):  # pragma: no cover for Python 3.10
     """Raised when JSON database has no any valid episode.
 
     Attributes:
