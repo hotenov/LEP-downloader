@@ -187,7 +187,7 @@ def validate_date(
         parsed_date = datetime.strptime(value, "%Y-%m-%d")
         return parsed_date
     except ValueError:
-        raise click.BadParameter("date format must be 'YYYY-MM-DD'")
+        raise click.BadParameter("date format must be 'YYYY-MM-DD'") from None
 
 
 def validate_dir(ctx: Context, param: Parameter, value: Any) -> Any:
@@ -206,7 +206,7 @@ def validate_dir(ctx: Context, param: Parameter, value: Any) -> Any:
         probe_file.write_text("Directory is writable", encoding="utf-8")
         probe_file.unlink()
         return value
-    except PermissionError:
-        raise click.BadParameter("folder has no 'write' permission.")
+    except PermissionError as ex:
+        raise click.BadParameter("folder has no 'write' permission.") from ex
     except OSError as ex:
-        raise click.BadParameter(ex.args[1])
+        raise click.BadParameter(ex.args[1]) from ex
