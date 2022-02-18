@@ -25,6 +25,7 @@ import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -37,11 +38,11 @@ from lep_downloader import config as conf
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
 from lep_downloader.lep import LepEpisodeList
+from lep_downloader.lep import LepLog
 
 
 # COMPILED REGEX PATTERNS #
-
-INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
+URL_ENCODED_CHARS_PATTERN = re.compile(r"%[0-9A-Z]{2}")
 
 
 @dataclass
@@ -250,6 +251,7 @@ def download_and_write_file(
     session: requests.Session,
     save_dir: Path,
     filename: str,
+    log: LepLog,
 ) -> bool:
     """Downloads file by URL and returns operation status."""
     is_writing_started = False
@@ -258,23 +260,21 @@ def download_and_write_file(
         with session.get(url, stream=True) as response:
             response.raise_for_status()
             with file_path.open(mode="wb") as out_file:
-                for chunk in response.iter_content(
+                for chunk in response.iter_content(  # pragma: no cover for Python 3.10
                     chunk_size=1024 * 1024  # 1MB chunks
                 ):
                     out_file.write(chunk)
                     is_writing_started = True
-            print(f" + {filename}")
+            log.msg("<g> + </g>{filename}", filename=filename)
             return True
     except OSError:
-        # TODO (hotenov): Add log or debug print only
-        # print(f"[ERROR]: Can't write file: {err}")
         if is_writing_started:
+            # It's hard to mock / monkeypatch this case. Tested manually
             file_path.unlink()  # Delete incomplete file # pragma: no cover
-            # It's hard to mock / monkeypatch this case
-            # Tested manually
+        log.msg("Can't write file: {filename}", filename=filename, msg_lvl="MISSING")
         return False
     except Exception as err:
-        print(f"[ERROR]: Unknown error: {err}")
+        log.msg("URL: {url} | Unhandled: {err}", err=err, url=url, msg_lvl="CRITICAL")
         return False
 
 
@@ -285,6 +285,7 @@ class LepDL(Lep):
         self,
         json_url: str = conf.JSON_DB_URL,
         session: requests.Session = None,
+        log: Optional[LepLog] = None,
     ) -> None:
         """Initialize LepDL object.
 
@@ -292,23 +293,22 @@ class LepDL(Lep):
             json_url (str): URL to JSON datavase
             session (requests.Session): Requests session object
                 if None, get default global session.
+            log (LepLog): Log instance of LepLog class where to output message.
         """
-        super().__init__(session)
+        super().__init__(session, log)
         self.json_url = json_url
         self.db_episodes: LepEpisodeList = LepEpisodeList()
+        self.db_urls: Dict[str, str] = {}
         self.files: LepFileList = LepFileList()
         self.downloaded: LepFileList = LepFileList()
         self.not_found: LepFileList = LepFileList()
         self.existed: LepFileList = LepFileList()
         self.non_existed: LepFileList = LepFileList()
 
-    def use_or_get_db_episodes(self) -> None:
-        """Take database episodes after parsing stage.
-
-        Or get them from web JSON file.
-        """
-        if not self.db_episodes:
-            self.db_episodes = Lep.get_db_episodes(self.json_url)
+    def get_remote_episodes(self) -> None:
+        """Get database episodes from remote JSON database."""
+        self.db_episodes = Lep.get_db_episodes(self.json_url)
+        self.db_urls = extract_urls_from_episode_list(self.db_episodes)
 
     def detach_existed_files(
         self,
@@ -348,9 +348,10 @@ class LepDL(Lep):
 
             result_ok = download_and_write_file(
                 primary_link,
-                Lep().cls_session,
+                self.session,
                 save_dir,
                 filename,
+                self.lep_log,
             )
             if result_ok:
                 self.downloaded.append(file_obj)
@@ -362,14 +363,30 @@ class LepDL(Lep):
                 # Try downloading for auxiliary links
                 if secondary_url:
                     aux_result_ok = download_and_write_file(
-                        secondary_url, self.session, save_dir, filename
+                        secondary_url, self.session, save_dir, filename, self.lep_log
                     )
                 if tertiary_url and not aux_result_ok:
                     aux_result_ok = download_and_write_file(
-                        tertiary_url, self.session, save_dir, filename
+                        tertiary_url, self.session, save_dir, filename, self.lep_log
                     )
                 if aux_result_ok:
                     self.downloaded.append(file_obj)
                 else:
                     self.not_found.append(file_obj)
-                    print(f"[INFO]: Can't download: {filename}")
+                    self.lep_log.msg("<r> - </r>{filename}", filename=filename)
+
+
+def url_encoded_chars_to_lower_case(url: str) -> str:
+    """Change %-escaped chars in string to lower case."""
+    lower_url = URL_ENCODED_CHARS_PATTERN.sub(
+        lambda matchobj: matchobj.group(0).lower(), url
+    )
+    return lower_url
+
+
+def extract_urls_from_episode_list(episodes: LepEpisodeList) -> Dict[str, str]:
+    """Extract page URL and its title for each episode object  in list."""
+    urls_titles = {
+        url_encoded_chars_to_lower_case(ep.url): ep.post_title for ep in episodes
+    }
+    return urls_titles

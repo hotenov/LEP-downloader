@@ -27,9 +27,11 @@ import click
 from click import Context
 
 from lep_downloader import __version__
+from lep_downloader import config as conf
 from lep_downloader.cli_shared import common_options
 from lep_downloader.cli_shared import MyCLI
 from lep_downloader.commands.download import cli as download_cli
+from lep_downloader.lep import LepLog
 
 
 @click.command(
@@ -49,10 +51,23 @@ def cli(
     dest: Path,
     db_url: str,
     quiet: bool,
+    debug: bool,
 ) -> None:
     """LEP-downloader - console application.
 
     Get free episodes of Luke's English Podcast archive page.
     """
+    ctx.ensure_object(dict)  # Create ctx.obj if it was not passed before
+    lep_log = LepLog()  # Create 'default' logger (only console output)
+
+    if debug:
+        abs_logpath = str((dest / conf.DEBUG_FILENAME).absolute())
+        # Create 'debug' logger (console + logfile outputs)
+        lep_log = LepLog(debug=debug, logfile=abs_logpath)
+
+    ctx.obj["log"] = lep_log  # Pass logger instance to nested commands
+
+    lep_log.msg("<fg #00005f>Running script...\n</fg #00005f>")
+
     if ctx.invoked_subcommand is None:
         ctx.forward(download_cli)

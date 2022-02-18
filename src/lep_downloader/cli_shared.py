@@ -20,12 +20,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+import functools
 import importlib
 from datetime import datetime
-from datetime import time
-from datetime import timedelta
-from datetime import timezone
-from functools import update_wrapper
 from pathlib import Path
 from typing import Any
 from typing import Callable
@@ -145,10 +142,20 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
             "There is no question whether to download files or not."
         ),
     )
-    def new_func(*args, **kwargs):  # type: ignore
+    @click.option(
+        "--debug",
+        "debug",
+        is_flag=True,
+        help=(
+            "Enable DEBUG mode for writing log file "
+            "with detailed information about script execution."
+        ),
+    )
+    @functools.wraps(f)
+    def wrapper_common_options(*args, **kwargs):  # type: ignore
         return f(*args, **kwargs)
 
-    return update_wrapper(new_func, f)
+    return wrapper_common_options
 
 
 def validate_episode_number(
@@ -176,33 +183,30 @@ def validate_date(
     if not value:
         return None
 
-    filter_time = time(0, 1)  # Begining of a day
-    if param.name == "end_date":
-        filter_time = time(23, 55)  # End (almost) of a day
     try:
         parsed_date = datetime.strptime(value, "%Y-%m-%d")
-        date_utc = datetime.combine(
-            parsed_date.date(),
-            filter_time,
-            tzinfo=timezone(timedelta(hours=2)),
-        )
-        return date_utc
+        return parsed_date
     except ValueError:
-        raise click.BadParameter("date format must be 'YYYY-MM-DD'")
+        raise click.BadParameter("date format must be 'YYYY-MM-DD'") from None
 
 
 def validate_dir(ctx: Context, param: Parameter, value: Any) -> Any:
-    """Check is dir writable or not.
+    """Check if dir is writable or not.
 
-    Create all parent folders to target destination.
+    Create all parent folders to target destination during path validation.
     """
+    # Do NOT check permission for 'parse' command
+    # if option '--with-html' was not provided
+    if "html_yes" in ctx.params:
+        if not ctx.params["html_yes"] and param.name == "html_dir":
+            return value
     try:
         value.mkdir(parents=True, exist_ok=True)
         probe_file = value / "tmp_dest.txt"
         probe_file.write_text("Directory is writable", encoding="utf-8")
         probe_file.unlink()
         return value
-    except PermissionError:
-        raise click.BadParameter("folder has no 'write' permission.")
+    except PermissionError as ex:
+        raise click.BadParameter("folder has no 'write' permission.") from ex
     except OSError as ex:
-        raise click.BadParameter(ex.args[1])
+        raise click.BadParameter(ex.args[1]) from ex
