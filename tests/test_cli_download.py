@@ -23,6 +23,7 @@
 from pathlib import Path
 from typing import Any
 
+from pytest import MonkeyPatch
 from pytest_mock import MockFixture
 from requests_mock.mocker import Mocker as rm_Mocker
 
@@ -948,12 +949,16 @@ def test_phrase_for_episodes_interval_all_cases(
     requests_mock: rm_Mocker,
     json_db_mock: str,
     run_cli_with_args: Any,
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
 ) -> None:
     """It prints  text with different episodes interval (by date and by number)."""
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
+
+    monkeypatch.chdir(tmp_path)
 
     result = run_cli_with_args(["download"], input="No")
     assert "Specified episodes: ALL" in result.output
