@@ -7,9 +7,9 @@ from click import Context
 from lep_downloader import config as conf
 from lep_downloader import parser
 from lep_downloader.cli_shared import validate_dir
-from lep_downloader.exceptions import DataBaseUnavailable
+from lep_downloader.exceptions import DataBaseUnavailableError
 from lep_downloader.exceptions import NoEpisodeLinksError
-from lep_downloader.exceptions import NoEpisodesInDataBase
+from lep_downloader.exceptions import NoEpisodesInDataBaseError
 from lep_downloader.exceptions import NotEpisodeURLError
 from lep_downloader.lep import LepEpisodeList
 from lep_downloader.lep import LepLog
@@ -100,10 +100,10 @@ def cli(
         lep_log.msg("<r>{err}:</r>\n\t<c>{url}</c>", err=ex.args[1], url=ex.args[0])
         lep_log.msg("Can't parse any episodes. Exit.")
 
-    except DataBaseUnavailable:
+    except DataBaseUnavailableError:
         lep_log.msg("<r>JSON database is not available.</r> <c>Exit.</c>")
 
-    except NoEpisodesInDataBase as ex:
+    except NoEpisodesInDataBaseError as ex:
         lep_log.msg(
             "<y>WARNING: JSON file <c>{url}</c> has no valid episode objects.</y>",
             url=db_url,

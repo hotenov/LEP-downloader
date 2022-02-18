@@ -18,9 +18,9 @@ from bs4.element import Tag
 from lep_downloader import config as conf
 from lep_downloader import lep
 from lep_downloader.downloader import LepDL
-from lep_downloader.exceptions import LepEpisodeNotFound
+from lep_downloader.exceptions import LepEpisodeNotFoundError
 from lep_downloader.exceptions import NoEpisodeLinksError
-from lep_downloader.exceptions import NoEpisodesInDataBase
+from lep_downloader.exceptions import NoEpisodesInDataBaseError
 from lep_downloader.exceptions import NotEpisodeURLError
 from lep_downloader.lep import Lep
 from lep_downloader.lep import LepEpisode
@@ -142,7 +142,7 @@ class Archive(Lep):
                     msg_lvl="WARNING",
                 )
                 continue
-            except LepEpisodeNotFound as ex:
+            except LepEpisodeNotFoundError as ex:
                 not_found_episode = ex.args[0]
                 self.episodes.append(not_found_episode)
                 self.lep_log.msg(
@@ -184,7 +184,7 @@ class Archive(Lep):
                     )
                     return None
             else:
-                raise NoEpisodesInDataBase(
+                raise NoEpisodesInDataBaseError(
                     "JSON is available, but\n"
                     "there are NO episodes in this file. Exit."
                 )
@@ -530,7 +530,7 @@ class EpisodeParser(LepParser):
         if not self.is_url_ok:
             self.episode.url = self.final_location
             self.episode.admin_note = self.content[:50]
-            raise LepEpisodeNotFound(self.episode)
+            raise LepEpisodeNotFoundError(self.episode)
 
     def collect_links(self) -> None:
         """Parse link(s) to episode audio(s)."""

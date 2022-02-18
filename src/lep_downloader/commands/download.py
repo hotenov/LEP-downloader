@@ -35,7 +35,7 @@ from lep_downloader.downloader import ATrack
 from lep_downloader.downloader import Audio
 from lep_downloader.downloader import LepFileList
 from lep_downloader.downloader import PagePDF
-from lep_downloader.exceptions import DataBaseUnavailable
+from lep_downloader.exceptions import DataBaseUnavailableError
 from lep_downloader.lep import LepEpisodeList
 from lep_downloader.lep import LepLog
 
@@ -133,7 +133,7 @@ def cli(  # noqa: C901 'too complex'
 
     try:
         lep_dl.get_remote_episodes()
-    except DataBaseUnavailable:
+    except DataBaseUnavailableError:
         lep_log.msg("<r>JSON database is not available now.</>\n")
         lep_log.msg("<c>Try again later.</c>\n")
         require_to_press_enter(quiet, lep_log)

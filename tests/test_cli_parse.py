@@ -598,6 +598,7 @@ def test_no_valid_episode_objects_in_json_db(
     result = run_cli_with_args(["parse"])
     assert "WARNING:" in result.output
     assert "no valid episode objects" in result.output
+    assert result.exit_code == 0
 
 
 def test_json_db_contains_only_string(

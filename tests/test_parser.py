@@ -44,9 +44,9 @@ from requests_mock.request import _RequestObjectProxy
 from lep_downloader import config as conf
 from lep_downloader import lep
 from lep_downloader import parser
-from lep_downloader.exceptions import DataBaseUnavailable
+from lep_downloader.exceptions import DataBaseUnavailableError
 from lep_downloader.exceptions import NoEpisodeLinksError
-from lep_downloader.exceptions import NoEpisodesInDataBase
+from lep_downloader.exceptions import NoEpisodesInDataBaseError
 from lep_downloader.exceptions import NotEpisodeURLError
 from lep_downloader.lep import as_lep_episode_obj
 from lep_downloader.lep import Lep
@@ -667,7 +667,7 @@ def test_no_valid_episode_objects_in_json_db(
         text="[]",
     )
 
-    with pytest.raises(NoEpisodesInDataBase) as ex:
+    with pytest.raises(NoEpisodesInDataBaseError) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
 
@@ -691,7 +691,7 @@ def test_json_db_not_valid(
         text="",
     )
 
-    with pytest.raises(NoEpisodesInDataBase) as ex:
+    with pytest.raises(NoEpisodesInDataBaseError) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
 
@@ -717,7 +717,7 @@ def test_json_db_not_available(
         status_code=404,
     )
 
-    with pytest.raises(DataBaseUnavailable):
+    with pytest.raises(DataBaseUnavailableError):
         archive.do_parsing_actions(conf.JSON_DB_URL)
     # assert "" in ex.value.args[0]
     # captured = capsys.readouterr()
@@ -743,7 +743,7 @@ def test_json_db_contains_only_string(
         text='"episode"',
     )
 
-    with pytest.raises(NoEpisodesInDataBase) as ex:
+    with pytest.raises(NoEpisodesInDataBaseError) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
 
@@ -767,7 +767,7 @@ def test_invalid_objects_in_json_not_included(
         text='[{"episode": 1, "fake_key": "Skip me"}]',
     )
 
-    with pytest.raises(NoEpisodesInDataBase) as ex:
+    with pytest.raises(NoEpisodesInDataBaseError) as ex:
         archive.do_parsing_actions(conf.JSON_DB_URL)
     assert "there are NO episodes" in ex.value.args[0]
 

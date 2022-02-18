@@ -43,7 +43,7 @@ import requests
 from loguru import logger
 
 from lep_downloader import config as conf
-from lep_downloader.exceptions import DataBaseUnavailable
+from lep_downloader.exceptions import DataBaseUnavailableError
 
 
 # COMPILED REGEX PATTERNS #
@@ -455,7 +455,7 @@ class Lep:
         if status_db_ok:
             db_episodes = Lep.extract_only_valid_episodes(cls.json_body, json_url)
         else:
-            raise DataBaseUnavailable()
+            raise DataBaseUnavailableError()
         return db_episodes
 
 
