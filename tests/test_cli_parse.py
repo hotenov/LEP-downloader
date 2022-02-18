@@ -188,12 +188,18 @@ def test_parse_json_db_with_extra_episode(
 
     monkeypatch.chdir(tmp_path)
 
-    result = run_cli_with_args(["parse"])
+    result = run_cli_with_args(["--debug", "parse"])
 
+    logfile = tmp_path / "_lep_debug_.log"
+    log_text = logfile.read_text(encoding="utf-8")
     expected_message = "Database contains more episodes than current archive!"
     assert "WARNING:" in result.output
     assert expected_message in result.output
     assert result.exit_code == 0
+    assert (
+        "| PRINT    | WARNING: Database contains more episodes than current archive!"
+        in log_text
+    )
 
 
 def test_parse_json_db_with_no_new_episode(

@@ -988,3 +988,6 @@ def test_phrase_for_episodes_interval_all_cases(
         ["download", "-ep", "24", "-S", "2017-07-07"], input="No"
     )
     assert "Specified episodes: from 2017-07-07 to LAST" in result.output
+    # Last episode also ignores other filters (number and date)
+    result = run_cli_with_args(["download", "-ep", "666", "--last"], input="No")
+    assert "Specified episodes: LAST" in result.output

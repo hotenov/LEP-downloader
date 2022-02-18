@@ -159,7 +159,7 @@ class Archive(Lep):
         json_name: str = "",
     ) -> None:
         """Main methdod to do parsing job."""
-        updates: Dict[str, str] = {}
+        updates: Optional[Dict[str, str]] = {}
         all_episodes = LepEpisodeList()
 
         # Collect (get and parse) links and their texts from web archive page.
@@ -177,17 +177,18 @@ class Archive(Lep):
                 updates = self.fetch_updates(
                     lep_dl.db_urls, self.collected_links, self.mode
                 )
+                if updates is None:  # For fetch mode this is not good.
+                    self.lep_log.msg(
+                        "<y>WARNING: Database contains more episodes"
+                        + " than current archive!</y>"
+                    )
+                    return None
             else:
                 raise NoEpisodesInDataBase(
                     "JSON is available, but\n"
                     "there are NO episodes in this file. Exit."
                 )
-            if updates is None:  # For fetch mode this is not good.
-                self.lep_log.msg(
-                    "<y>WARNING: Database contains more episodes"
-                    + " than current archive!</y>"
-                )
-                return None
+
             if len(updates) > 0:
                 # Parse only updates
                 self.parse_each_episode(updates)
