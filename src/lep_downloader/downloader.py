@@ -260,7 +260,7 @@ def download_and_write_file(
         with session.get(url, stream=True) as response:
             response.raise_for_status()
             with file_path.open(mode="wb") as out_file:
-                for chunk in response.iter_content(
+                for chunk in response.iter_content(  # pragma: no cover for Python 3.10
                     chunk_size=1024 * 1024  # 1MB chunks
                 ):
                     out_file.write(chunk)

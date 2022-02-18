@@ -83,7 +83,7 @@ class DataBaseUnavailableError(LepExceptionError):
         self.message = message
 
 
-class NoEpisodesInDataBaseError(LepExceptionError):
+class NoEpisodesInDataBaseError(LepExceptionError):  # pragma: no cover for Python 3.10
     """Raised when JSON database has no any valid episode.
 
     Attributes:
