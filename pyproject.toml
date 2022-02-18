@@ -19,7 +19,7 @@ classifiers = [
 Changelog = "https://github.com/hotenov/LEP-downloader/releases"
 
 [tool.poetry.dependencies]
-python = "^3.7.0"
+python = "^3.8.0"
 click = "^8.0.1"
 requests = "^2.26.0"
 beautifulsoup4 = "^4.9.3"
