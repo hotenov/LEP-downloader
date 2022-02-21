@@ -1,4 +1,9 @@
 .. include:: ../README.rst
+   :start-after: badges-begin
+   :end-before: badges-end
+
+.. include:: ../README.rst
+   :start-after: after-image
    :end-before: github-only
 
 .. _Contributor Guide: contributing.html

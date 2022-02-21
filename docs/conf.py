@@ -11,4 +11,6 @@ extensions = [
     "sphinx_click",
 ]
 autodoc_typehints = "description"
+language = "en"
+html_logo = "_static/logo.png"
 html_theme = "furo"
