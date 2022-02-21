@@ -13,7 +13,8 @@
    :hidden:
    :maxdepth: 1
 
-   usage
+   Usage Examples <usage>
+   Man Page (--help) <manpage>
    reference
    contributing
    Code of Conduct <codeofconduct>
