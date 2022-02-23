@@ -1,3 +1,7 @@
+.. meta::
+   :description: LEP Downloader - Python script to download all Luke's ENGLISH Podcast
+   :keywords: python, script, download, lepsters, offline, collection
+
 .. include:: ../README.rst
    :start-after: badges-begin
    :end-before: badges-end
@@ -15,6 +19,7 @@
 
    Usage Examples <usage>
    Man Page (--help) <manpage>
+   Why? (Motivation) <motivation>
    reference
    contributing
    Code of Conduct <codeofconduct>
