@@ -166,12 +166,12 @@ This project was generated from `@cjolowicz`_'s `Hypermodern Python Cookiecutter
 
 Script uses the following packages / libraries under the hood:
 
-* `click <https://github.com/pallets/click>`_ (`BSD-3-Clause License <https://github.com/pallets/click/blob/main/LICENSE.rst>`_)
-* `requests <https://github.com/psf/requests>`_ (`Apache-2.0 License <https://github.com/psf/requests/blob/main/LICENSE>`_)
-* `beautifulsoup4 <https://www.crummy.com/software/BeautifulSoup/bs4/doc/index.html>`_ (`MIT License <https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/view/head:/LICENSE>`_)
-* `lxml <https://github.com/lxml/lxml>`_ (`BSD-3-Clause License <https://github.com/lxml/lxml/blob/master/LICENSE.txt>`_)
-* `loguru <https://github.com/Delgan/loguru>`_ (`MIT License <https://github.com/Delgan/loguru/blob/master/LICENSE>`_)
-* `single-source <https://github.com/rabbit72/single-source>`_ (`MIT License <https://github.com/rabbit72/single-source/blob/master/LICENSE>`_)
+* `click <https://github.com/pallets/click>`_ (`BSD-3-Clause License <https://github.com/pallets/click/blob/main/LICENSE.rst>`__)
+* `requests <https://github.com/psf/requests>`_ (`Apache-2.0 License <https://github.com/psf/requests/blob/main/LICENSE>`__)
+* `beautifulsoup4 <https://www.crummy.com/software/BeautifulSoup/bs4/doc/index.html>`_ (`MIT License <https://bazaar.launchpad.net/~leonardr/beautifulsoup/bs4/view/head:/LICENSE>`__)
+* `lxml <https://github.com/lxml/lxml>`_ (`BSD-3-Clause License <https://github.com/lxml/lxml/blob/master/LICENSE.txt>`__)
+* `loguru <https://github.com/Delgan/loguru>`_ (`MIT License <https://github.com/Delgan/loguru/blob/master/LICENSE>`__)
+* `single-source <https://github.com/rabbit72/single-source>`_ (`MIT License <https://github.com/rabbit72/single-source/blob/master/LICENSE>`__)
 
 and other amazing Python packages for development and testing.
 See a full list of them in 'dependencies' section of ``pyproject.toml``
