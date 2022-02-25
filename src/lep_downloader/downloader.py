@@ -279,7 +279,15 @@ def download_and_write_file(
 
 
 class LepDL(Lep):
-    """Represent downloader object."""
+    """Represent downloader object.
+
+    Args:
+        json_url (str): URL to JSON database
+        session (requests.Session): Requests session object
+            if None, get default global session.
+        log (LepLog): Log instance of LepLog class where to output message.
+
+    """
 
     def __init__(
         self,
@@ -287,14 +295,7 @@ class LepDL(Lep):
         session: requests.Session = None,
         log: Optional[LepLog] = None,
     ) -> None:
-        """Initialize LepDL object.
-
-        Args:
-            json_url (str): URL to JSON datavase
-            session (requests.Session): Requests session object
-                if None, get default global session.
-            log (LepLog): Log instance of LepLog class where to output message.
-        """
+        """Initialize LepDL object."""
         super().__init__(session, log)
         self.json_url = json_url
         self.db_episodes: LepEpisodeList = LepEpisodeList()

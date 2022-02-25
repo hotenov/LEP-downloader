@@ -461,7 +461,7 @@ class ArchiveParser(LepParser):
         """Delete known irrelevant links from dictionary.
 
         First, write irrelevant links into 'deleted_links'
-            before deletion them from dictionary.
+        before deletion them from dictionary.
         Then rebuild dictionary skipping irrelevant links.
         """
         self.archive.deleted_links = {
