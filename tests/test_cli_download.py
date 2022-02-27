@@ -94,6 +94,7 @@ def test_continue_prompt_yes(
     mp3_file1_mock: bytes,
     tmp_path: Path,
     run_cli_with_args: Any,
+    monkeypatch: MonkeyPatch,
 ) -> None:
     """It downloads files if user answers 'Yes'."""
     requests_mock.get(
@@ -104,6 +105,7 @@ def test_continue_prompt_yes(
         "https://traffic.libsyn.com/secure/teacherluke/703._Walaa_from_Syria_-_WISBOLEP_Competition_Winner_.mp3",  # noqa: E501,B950
         content=mp3_file1_mock,
     )
+    monkeypatch.chdir(tmp_path)
 
     result = run_cli_with_args(
         ["download", "-ep", "703", "-pdf", "-d", f"{tmp_path}"],
@@ -124,12 +126,15 @@ def test_continue_prompt_no(
     json_db_mock: str,
     tmp_path: Path,
     run_cli_with_args: Any,
+    monkeypatch: MonkeyPatch,
 ) -> None:
     """It exists if user answers 'No'."""
     requests_mock.get(
         conf.JSON_DB_URL,
         text=json_db_mock,
     )
+
+    monkeypatch.chdir(tmp_path)
 
     result = run_cli_with_args(["download", "-ep", "714"], input="No")
     assert "Do you want to continue? [y/N]: No\n" in result.output
