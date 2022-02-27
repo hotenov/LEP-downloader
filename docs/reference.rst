@@ -3,7 +3,7 @@ Developer Reference
 
 Classes and functions definitions for main modules.
 All descriptions are generated automatically
-from code docstrings.
+from source code docstrings.
 
 
 
@@ -12,9 +12,9 @@ lep_downloader.lep
 
 .. automodule:: lep_downloader.lep
    :members:
-   :undoc-members:
    :show-inheritance:
 
+=========
 
 lep_downloader.downloader
 --------------------------
@@ -24,6 +24,7 @@ lep_downloader.downloader
    :undoc-members:
    :show-inheritance:
 
+=========
 
 lep_downloader.parser
 --------------------------
@@ -32,6 +33,8 @@ lep_downloader.parser
    :members:
    :undoc-members:
    :show-inheritance:
+
+=========
 
 lep_downloader.exceptions
 --------------------------
