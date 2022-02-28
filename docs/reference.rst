@@ -21,7 +21,6 @@ lep_downloader.downloader
 
 .. automodule:: lep_downloader.downloader
    :members:
-   :undoc-members:
    :show-inheritance:
 
 =========
