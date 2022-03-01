@@ -22,6 +22,9 @@
 """Module for LEP custom exceptions."""
 
 
+from typing import Any
+
+
 class LepExceptionError(Exception):
     """Base class for exceptions in 'lep_downloader' package."""
 
@@ -31,65 +34,77 @@ class LepExceptionError(Exception):
 class NoEpisodeLinksError(LepExceptionError):
     """Raised when no valid episode links on page.
 
-    Attributes:
-        url (str): URL which has no episode links. Default is ''
-        message (str): Explanation of the error. Default is ''
+    Args:
+        url (str): URL which has no episode links. Default is empty string.
+        message (str): Explanation of the error. Default is empty string.
     """
 
     def __init__(self, url: str = "", message: str = "") -> None:
         """Initialize  NoEpisodeLinksError exception."""
-        self.url = url
-        self.message = message
+        #: URL which has no episode links.
+        self.url: str = url
+        #: Explanation of the error.
+        self.message: str = message
 
 
 class NotEpisodeURLError(LepExceptionError):
     """Raised when given URL is not episode / archive URL.
 
-    Attributes:
-        url (str): URL which has <article> tag. Default is ''
-        message (str): Explanation of the error. Default is ''
+    Args:
+        url (str): URL which has no <article> tag. Default is empty string.
+        message (str): Explanation of the error. Default is empty string.
     """
 
     def __init__(self, url: str = "", message: str = "") -> None:
         """Initialize  NotEpisodeURLError exception."""
-        self.url = url
-        self.message = message
+        #: URL which has no <article> tag.
+        self.url: str = url
+        #: Explanation of the error.
+        self.message: str = message
 
 
 class LepEpisodeNotFoundError(LepExceptionError):
     """Raised when given episode URL is not available.
 
-    Attributes:
-        episode (LepEpisode): Episode object.
-            Partially filled to add as 'bad' episode.
-        message (str): Explanation of the error. Default is ''
+    First argument serves to pass partially filled episode instance,
+    in order to add it as 'bad' episode.
+
+    Args:
+        episode (LepEpisode): Episode instance.
+        message (str): Explanation of the error. Default is empty string.
     """
 
-    def __init__(self, episode: object, message: str = "") -> None:
+    def __init__(self, episode: Any, message: str = "") -> None:
         """Initialize  NotEpisodeURLError exception."""
-        self.bad_episode = episode
-        self.message = message
+        from lep_downloader.lep import LepEpisode
+
+        #: Episode instance.
+        self.bad_episode: LepEpisode = episode
+        #: Explanation of the error.
+        self.message: str = message
 
 
 class DataBaseUnavailableError(LepExceptionError):
     """Raised when JSON database file is not available.
 
-    Attributes:
-        message (str): Explanation of the error. Default is ''
+    Args:
+        message (str): Explanation of the error. Default is empty string.
     """
 
     def __init__(self, message: str = "") -> None:
         """Initialize  DataBaseUnavailable exception."""
-        self.message = message
+        #: Explanation of the error.
+        self.message: str = message
 
 
 class NoEpisodesInDataBaseError(LepExceptionError):  # pragma: no cover for Python 3.10
     """Raised when JSON database has no any valid episode.
 
-    Attributes:
-        message (str): Explanation of the error. Default is ''
+    Args:
+        message (str): Explanation of the error. Default is empty string.
     """
 
     def __init__(self, message: str = "") -> None:
         """Initialize  NoEpisodesInDataBase exception."""
-        self.message = message
+        #: Explanation of the error.
+        self.message: str = message

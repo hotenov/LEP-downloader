@@ -39,5 +39,4 @@ lep_downloader.exceptions
 
 .. automodule:: lep_downloader.exceptions
    :members:
-   :undoc-members:
    :show-inheritance:
