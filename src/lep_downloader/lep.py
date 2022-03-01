@@ -522,7 +522,7 @@ class Lep:
         session: Optional[requests.Session] = None,
         log: Optional[LepLog] = None,
     ) -> None:
-        """Default instance of LepTemplate."""
+        """Default instance of Lep class."""
         self.session = session if session else PROD_SES
         self.lep_log = log if log else LepLog()
         Lep.cls_session = self.session
@@ -650,7 +650,7 @@ def replace_unsafe_chars(filename: str) -> str:
     Returns:
         Safe name for writing file on Windows OS (and others).
 
-    Examples:
+    Example:
         >>> import lep_downloader.lep
         >>> unsafe = "What/ will: be* replaced?.mp3"
         >>> lep_downloader.lep.replace_unsafe_chars(unsafe)
