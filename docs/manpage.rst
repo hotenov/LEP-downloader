@@ -9,7 +9,7 @@ Man Page
    They are the same.
 
    If you don't know how to read and use ``--help`` output,
-   you should visit `Usage Examples`_ page (with "copy-paste" instructions) 
+   you should visit `Usage Examples`_ page (with "copy-paste" instructions)
 
 .. click:: lep_downloader.cli:cli
    :prog: lep-downloader

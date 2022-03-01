@@ -66,7 +66,7 @@ Option has short version ``-d``
 .. note::
    On Windows, you can use both path style:
    with back slash (native), or with forward slash.
-   
+
    On MacOS and Linux, forward slash is more preferable.
 
    All intermediate sub-directories for destination folder
@@ -126,7 +126,7 @@ The same story for ``-ep -10`` (episodes from first to #10).
    If you specify range option \--episode / -ep
    and date filter option -S / -E together ->
    **range option will be ignored**.
-   
+
    You **cannot** specify random (comma separated range),
    i.e. ``-ep 3,117,513`` is invalid option value.
 
@@ -158,7 +158,7 @@ or with short ``-pdf``
 
 .. code:: none
 
-   lep-downloader -d "C:\English\podcasts\LEP" -pdf --last 
+   lep-downloader -d "C:\English\podcasts\LEP" -pdf --last
 
 If you want to download PDF files for all "TEXT" episodes (without any audio),
 you should combine two options:
