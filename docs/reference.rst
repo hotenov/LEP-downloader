@@ -30,7 +30,6 @@ lep_downloader.parser
 
 .. automodule:: lep_downloader.parser
    :members:
-   :undoc-members:
    :show-inheritance:
 
 =========
