@@ -83,7 +83,7 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
             "Episode number for downloading. "
             "To specify range of episodes use hyphen, i.e. <num>-<num>."
         ),
-        metavar="<string>",
+        metavar="<range>",
     )
     @click.option(
         "--with-pdf",
@@ -106,14 +106,14 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
         "start_date",
         type=click.UNPROCESSED,
         callback=validate_date,
-        help="To specify 'START DATE' for date range filtering. Format 'YYYY-MM-DD'",
+        help="To specify 'START_DATE' for date range filtering. Format 'YYYY-MM-DD'",
     )
     @click.option(
         "-E",
         "end_date",
         type=click.UNPROCESSED,
         callback=validate_date,
-        help="To specify 'END DATE' for date range filtering. Format 'YYYY-MM-DD'",
+        help="To specify 'END_DATE' for date range filtering. Format 'YYYY-MM-DD'",
     )
     @click.option(
         "--dest",
@@ -122,7 +122,7 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
         callback=validate_dir,
         default=Path(),
         help="Directory path (absolute or relative) to LEP files destination.",
-        metavar="<string>",
+        metavar="<path>",
     )
     @click.option(
         "--db-url",
@@ -130,7 +130,7 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
         "db_url",
         default=conf.JSON_DB_URL,
         help="URL to custom JSON database file.",
-        metavar="<string>",
+        metavar="<url>",
     )
     @click.option(
         "--quiet",

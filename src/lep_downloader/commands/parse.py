@@ -50,7 +50,7 @@ from lep_downloader.lep import LepLog
         "Directory path (absolute or relative) for storing HTML files. "
         "It makes sense only if option '--with-html' is provided."
     ),
-    metavar="<string>",
+    metavar="<path>",
 )
 @click.option(
     "--dest",
@@ -59,7 +59,7 @@ from lep_downloader.lep import LepLog
     callback=validate_dir,
     default=Path(),
     help="Directory path (absolute or relative) to JSON result file destination.",
-    metavar="<string>",
+    metavar="<path>",
 )
 @click.option(
     "--db-url",
@@ -67,7 +67,7 @@ from lep_downloader.lep import LepLog
     "db_url",
     default=conf.JSON_DB_URL,
     help="URL to custom JSON database file.",
-    metavar="<string>",
+    metavar="<url>",
 )
 @click.pass_context
 def cli(
