@@ -12,6 +12,7 @@
 
 .. _Contributor Guide: contributing.html
 .. _Usage: usage.html
+.. _Manpage: manpage.html
 
 .. toctree::
    :hidden:

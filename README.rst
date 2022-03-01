@@ -44,6 +44,13 @@ LEP Downloader
 .. raw:: html
 
    <p align="center"><img alt="logo" src="docs/_static/logo.png" width="40%" /></p>
+   <p align="center">
+      📚
+      <a href="https://lep-downloader.readthedocs.io" target="_blank">
+         Read the full documentation
+      </a>
+      📚
+   </p>
 
 
 .. after-image
@@ -112,7 +119,10 @@ You can also use the short script name:
 
    lep-dl --last
 
-Please see the `Command-line Reference <Usage_>`_ for details.
+Please see the `Usage Examples <Usage_>`_ for details.
+
+Or skim the `Man Page <Manpage_>`_ for available options
+(if terminal is your best friend).
 
 
 ✨ What's new in version 3
@@ -192,3 +202,4 @@ See a full list of them in 'dependencies' section of ``pyproject.toml``
 .. github-only
 .. _Contributor Guide: CONTRIBUTING.rst
 .. _Usage: https://lep-downloader.readthedocs.io/en/latest/usage.html
+.. _Manpage: https://lep-downloader.readthedocs.io/en/latest/manpage.html
