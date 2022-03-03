@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lep-downloader"
-version = "3.0.0a5"
+version = "3.0.0b1"
 description = "LEP Downloader - CLI app for parsing and downloading episodes of Luke's English Podcast"
 authors = ["Artem Hotenov <qa@hotenov.com>"]
 license = "MIT"
@@ -9,7 +9,7 @@ homepage = "https://github.com/hotenov/LEP-downloader"
 repository = "https://github.com/hotenov/LEP-downloader"
 documentation = "https://lep-downloader.readthedocs.io"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
