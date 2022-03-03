@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lep-downloader"
-version = "3.0.0b1"
+version = "3.0.0b2"
 description = "LEP Downloader - CLI app for parsing and downloading episodes of Luke's English Podcast"
 authors = ["Artem Hotenov <qa@hotenov.com>"]
 license = "MIT"
