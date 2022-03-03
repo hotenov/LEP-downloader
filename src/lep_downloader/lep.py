@@ -47,6 +47,8 @@ from lep_downloader import config as conf
 from lep_downloader.exceptions import DataBaseUnavailableError
 
 
+default_episode_datetime = datetime(2000, 1, 1, tzinfo=timezone.utc)
+
 # COMPILED REGEX PATTERNS #
 
 INVALID_PATH_CHARS_PATTERN = re.compile(conf.INVALID_PATH_CHARS_RE)
@@ -144,9 +146,9 @@ class LepEpisode:
 
     Args:
         episode (int): Episode number.
-        date (str | datetime | None): Post datetime.
-            It will be converted to UTC timezone.
-            If None defaults to "2000-01-01T00:00:00+00:00".
+        date (str | datetime): Post datetime.
+            It will be converted to `datetime` object with UTC timezone.
+            If None, defaults to `datetime` equaling "2000-01-01T00:00:00+00:00".
         url (str): Final location of web post URL.
         post_title (str): Post title
             extracted from link text (unsafe).
@@ -165,26 +167,27 @@ class LepEpisode:
             **Important:** Not stored in JSON database.
     """
 
-    def _convert_date(self, date: Union[datetime, str, None]) -> datetime:
-        """Convert string date to datetime object and UTC timezone.
+    def _convert_date(self, date: Union[datetime, str]) -> Tuple[datetime, str]:
+        """Convert string date to datetime object with UTC timezone.
 
         Input format: 2000-01-01T00:00:00+00:00
-        If datetime is passed, then only convert date to UTC timezone.
+        If `datetime` is passed, it will be converted to UTC timezone.
         """
+        converted_date: datetime
+        short_date_not_utc: str = "2000-01-01"
         if isinstance(date, str):
             converted_date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S%z")
+            short_date_not_utc = converted_date.strftime(r"%Y-%m-%d")
             converted_date = converted_date.astimezone(timezone.utc)
         else:
-            if date is not None:  # To satisfy 'typeguard' check
-                converted_date = date.astimezone(timezone.utc)
-            else:
-                converted_date = datetime(2000, 1, 1, tzinfo=timezone.utc)
-        return converted_date
+            short_date_not_utc = date.strftime(r"%Y-%m-%d")
+            converted_date = date.astimezone(timezone.utc)
+        return converted_date, short_date_not_utc
 
     def __init__(
         self,
         episode: int = 0,
-        date: Union[datetime, str, None] = None,
+        date: Any = default_episode_datetime,
         url: str = "",
         post_title: str = "",
         post_type: str = "",
@@ -208,18 +211,29 @@ class LepEpisode:
         self.admin_note = admin_note
         self.updated_at = updated_at
         self._title = html_title
-        self._short_date = ""
 
     @property
     def date(self) -> Any:
-        """Episode date. To be accurate, posting date on the website."""
+        """Episode datetime (in UTC).
+
+        To be accurate, posting datetime on the website
+        converted to UTC.
+        """
         return self._date
 
     @date.setter
-    def date(self, new_post_date: Union[datetime, str, None]) -> None:
+    def date(self, new_post_date: Union[datetime, str]) -> None:
         """Episode date setter."""
-        self._date = self._convert_date(new_post_date)
-        self._short_date = self._date.strftime(r"%Y-%m-%d")
+        self._date, self._short_date = self._convert_date(new_post_date)
+
+    @property
+    def short_date(self) -> str:
+        """Episode short date (from original date, not converted to UTC).
+
+        It's the same as posting date in the episode URL,
+        just formatted as "YYYY-MM-DD".
+        """
+        return self._short_date
 
     @property
     def post_title(self) -> str:
@@ -410,7 +424,6 @@ def as_lep_episode_obj(dct: Dict[str, Any]) -> Any:
         return dct
     try:
         lep_ep = LepEpisode(**dct)
-        lep_ep._short_date = lep_ep.date.strftime(r"%Y-%m-%d")
     except TypeError:
         # Message only to log file
         Lep.cls_lep_log.msg("Invalid object in JSON: {dct}", dct=dct, msg_lvl="WARNING")

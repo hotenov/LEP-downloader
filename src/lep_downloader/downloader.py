@@ -319,16 +319,16 @@ def gather_all_files(lep_episodes: LepEpisodeList) -> LepFileList:
             audios = ep.files.setdefault("audios", [])
             if audios:
                 append_each_audio_to_container_list(
-                    ep.index, ep.post_title, ep._short_date, audios, Audio
+                    ep.index, ep.post_title, ep.short_date, audios, Audio
                 )
             audio_tracks = ep.files.setdefault("atrack", [])
             if audio_tracks:
                 append_each_audio_to_container_list(
-                    ep.index, ep.post_title, ep._short_date, audio_tracks, ATrack
+                    ep.index, ep.post_title, ep.short_date, audio_tracks, ATrack
                 )
             page_pdf = ep.files.setdefault("page_pdf", [])
             append_page_pdf_file_to_container_list(
-                ep.index, ep.post_title, ep._short_date, page_pdf
+                ep.index, ep.post_title, ep.short_date, page_pdf
             )
     return files_box
 

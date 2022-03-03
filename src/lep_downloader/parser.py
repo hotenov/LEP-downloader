@@ -167,7 +167,7 @@ class Archive(Lep):
                     "<g>done:</g> {title}", title=ep_parser.episode.post_title
                 )
                 if self.with_html:
-                    short_date = ep_parser.episode._short_date
+                    short_date = ep_parser.episode.short_date
                     post_title = ep_parser.episode.post_title
                     file_stem = f"[{short_date}] # {post_title}"
                     self.write_text_to_html(
