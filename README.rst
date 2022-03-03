@@ -67,6 +67,7 @@ Even though this script was written for convenient episode downloading,
 I don't want to financially harm Luke in any way.
 I just want to make my life a bit easier (as usual for lazy IT person =).
 So consider `donating`_ to Luke's English Podcast and `becoming`_ his premium subscriber.
+And of course, subscribe on his `YouTube channel`_.
 
 
 🚀 Features
@@ -190,6 +191,7 @@ See a full list of them in 'dependencies' section of ``pyproject.toml``
 .. _Luke's ENGLISH Podcast: https://teacherluke.co.uk/archive-of-episodes-1-149/
 .. _donating: https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=CA2KNZNBFGKC6
 .. _becoming: https://teacherluke.co.uk/premium/premiuminfo/
+.. _YouTube channel: https://www.youtube.com/c/LukesEnglishPodcast
 .. _@cjolowicz: https://github.com/cjolowicz
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _PyPI: https://pypi.org/

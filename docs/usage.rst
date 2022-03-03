@@ -184,10 +184,10 @@ For convenience, specify only destination folder:
 .. attention::
    Be careful, running this command.
 
-   ALL episodes (audio + pdf) will take up more than 40 GB
+   ALL episodes (audio + pdf) will take up more than 45 GB
    on your drive (HDD, SSD, flash)
    *(relevant on moment when #758 is the latest episode)*
-   and process of downloading will take at least ~4 hours
+   and process of downloading will take at least ~20 hours
    (depends on the speed of Internet connection).
    You must have enough free space for downloading all of them.
 
