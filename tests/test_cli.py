@@ -21,7 +21,7 @@ def test_cli_prints_version(
     """It prints version."""
     result = run_cli_with_args(["--version"])
     assert result.exit_code == 0
-    assert "lep-downloader, version 3.0.0a" in result.output
+    assert "lep-downloader, version 3." in result.output
 
 
 def test_cli_when_no_such_command(
