@@ -23,7 +23,7 @@ except ImportError:
             "pip install beautifulsoup4\n" +
             "pip install lxml\n")
     print("Quit.")
-    quit()
+    sys.exit(0)
 
 import urllib.parse
 import json
@@ -40,6 +40,7 @@ if platform.platform(aliased=0, terse=1).find("Windows") > -1:
     kernel32 = ctypes.windll.kernel32
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 import time
+import sys
 
 # Version of the parser script
 __version__ = "2.0.11"
@@ -131,6 +132,8 @@ def find_appropriate_tag_a(tag):
             and not (re.compile("phrasal-verb-a-day").search(tag.attrs['href'])
             or re.compile(r"^.{0,2}\[VIDEO\]", re.I).search(tag.string)
             or re.compile(r"Website content\].?$").search(tag.string)
+            or re.compile(r"all Premium").search(tag.string)
+            or re.compile(r"LEP App").search(tag.string)
             or re.compile(r"episode 522").search(tag.string)))
     else:
         return tag.has_attr('href') and re.compile(r'rock-n-roll-english-podcast|dvd-commentary|british-pop').search(tag.attrs['href'])
@@ -183,13 +186,15 @@ def ask_uer_to_print_json():
 def get_stat_dict(data_dict, result_key, result_val, has_key, negation = False):
     """Return filtered dict for statistics"""
     if negation:
-         filtered_dict = {
+        filtered_dict = {
             v[result_key] : v[result_val]
-            for k, v in data_dict.items() if not v[has_key]}
+            for k, v in data_dict.items() if not v[has_key]
+        }
     else:
         filtered_dict = {
             v[result_key] : v[result_val]
-            for k, v in data_dict.items() if v[has_key]}
+            for k, v in data_dict.items() if v[has_key]
+        }
     return filtered_dict
 
 
@@ -206,7 +211,7 @@ resp = get_utf8_response(s, archive_page_url)
 if not resp.ok:
     print("\n- - - - - -\n" + bg("FAILED", 88)+ ": Script cannot get content of this URL:\n" 
         + archive_page_url + "\n- - - - - -\n")
-    quit() # is equivalent to exit(0)
+    sys.exit(0) # is equivalent to exit(0)
 
 soup = get_bs_object(resp.text)
 
@@ -214,9 +219,9 @@ soup = get_bs_object(resp.text)
 posts_div = soup.find('div', {'class': 'entry-content'})
 if posts_div == None:
     print(bg("\nEMPTY", 88) +": Cannot find div container with class='entry-content' on this URL:\n"
-         + archive_page_url
-         + fg("\nQuit.\n", 228))
-    quit()
+        + archive_page_url
+        + fg("\nQuit.\n", 228))
+    sys.exit(0)
 
 print(fg("\n... Parsing START ... \n\n", 208))
 
@@ -261,7 +266,7 @@ if items_in_lep_db < all_post_number:
     print(fg(str(updates_delta), 228) + " new posts " + fg("will be processed...", 228))
 else:
     print(fg("There are NO NEW posts from the last website parsing.", 34) + fg("\nQuit.", 228))
-    quit()
+    sys.exit(1)
 
 # Iterate all tags with filtered links
 # and populate dict 'all_links'
@@ -271,7 +276,7 @@ if cleaned_posts:
 else:
     print(fg("No appropriate links on this page", 160))
     print(fg("\nQuit.\n", 228))
-    quit()
+    sys.exit(0)
 
 # Create main dictionary with link info
 info_data = OrderedDict()
