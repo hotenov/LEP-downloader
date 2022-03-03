@@ -20,7 +20,7 @@ Changelog = "https://github.com/hotenov/LEP-downloader/releases"
 
 [tool.poetry.dependencies]
 python = "^3.8.0"
-click = "^8.0.1"
+click = "^8.0.4"
 requests = "^2.26.0"
 beautifulsoup4 = "^4.9.3"
 lxml = "^4.6.3"
