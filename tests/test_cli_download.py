@@ -252,6 +252,33 @@ def test_filtering_for_one_day(
     assert expected_file_2.exists()
 
 
+def test_filtering_for_one_day_close_to_midnight(
+    requests_mock: rm_Mocker,
+    json_db_mock: str,
+    mp3_file1_mock: bytes,
+    tmp_path: Path,
+    run_cli_with_args: Any,
+) -> None:
+    """It downloads all episodes for certain day."""
+    requests_mock.get(
+        conf.JSON_DB_URL,
+        text=json_db_mock,
+    )
+    requests_mock.get(
+        "https://traffic.libsyn.com/secure/teacherluke/714._Robin_from_Hamburg__WISBOLEP_Runner-Up.mp3",  # noqa: E501,B950
+        content=mp3_file1_mock,
+    )
+
+    run_cli_with_args(
+        ["download", "-S", "2021-04-11", "-E", "2021-04-11", "-q", "-d", f"{tmp_path}"]
+    )
+
+    expected_filename_1 = "[2021-04-11] # 714. Robin from Hamburg (WISBOLEP Runner-Up).mp3"  # noqa: E501,B950
+    expected_file_1 = tmp_path / expected_filename_1
+    assert len(list(tmp_path.iterdir())) == 1
+    assert expected_file_1.exists()
+
+
 def test_filtering_by_start_date(
     requests_mock: rm_Mocker,
     json_db_mock: str,

@@ -912,7 +912,7 @@ def test_setting_episode_date_as_datetime() -> None:
     new_date = datetime(2021, 12, 24, 17, 18, 19, tzinfo=t_zone)
     ep = LepEpisode(date=new_date)
     as_str = ep.date.strftime(r"%Y-%m-%dT%H:%M:%S%z")
-    except_date = "2021-12-24T14:18:19+0000"
+    except_date = "2021-12-24T17:18:19+0300"
     assert as_str == except_date
 
 
