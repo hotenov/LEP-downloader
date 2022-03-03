@@ -43,28 +43,59 @@ from lep_downloader.lep import LepLog
 
 # COMPILED REGEX PATTERNS #
 URL_ENCODED_CHARS_PATTERN = re.compile(r"%[0-9A-Z]{2}")
+"""re.Pattern: Pattern for matching %-encoded Unicode characters."""
 
 
 @dataclass
 class LepFile:
-    """Represent base class for LEP file object."""
+    """Represent base class for LEP file object.
 
-    ep_id: int = 0
-    name: str = ""
-    ext: str = ""
-    short_date: str = ""
-    filename: str = ""
-    primary_url: str = ""
-    secondary_url: str = ""
-    tertiary_url: str = ""
+    Args:
+        ep_id (int): Episode index. Defaults to 0.
+        name (str): File name (without extension). Defaults to empty str.
+        ext (str): File extension. Defaults to empty str.
+        short_date (str): Episode date (format "YYYY-MM-DD"). Defaults to empty str.
+        filename (str): File name + extension. Defaults to empty str.
+        primary_url (str): Primary URL to download file. Defaults to empty str.
+        secondary_url (str): Secondary URL to download file. Defaults to empty str.
+        tertiary_url (str): Tertiary URL to download file. Defaults to empty str.
+    """
+
+    ep_id: int = 0  #: Episode index.
+    name: str = ""  #: File name (without extension).
+    ext: str = ""  #: File extension.
+    short_date: str = ""  #: Episode date (format "YYYY-MM-DD").
+    filename: str = ""  #: File name + extension.
+    primary_url: str = ""  #: Primary URL to download file.
+    secondary_url: str = ""  #: Secondary URL to download file.
+    tertiary_url: str = ""  #: Tertiary URL to download file.
 
 
 @dataclass
 class Audio(LepFile):
-    """Represent episode (or part of it) audio object."""
+    """Represent audio object to episode (or part of it).
 
-    ext: str = ".mp3"
-    part_no: int = 0
+    Args:
+        ep_id (int): Episode index. Defaults to 0.
+        name (str): File name (without extension). Defaults to empty str.
+        ext (str): File extension. Defaults to ".mp3".
+        short_date (str): Episode date (format "YYYY-MM-DD"). Defaults to empty str.
+        filename (str): File name + extension. Defaults to empty str.
+        primary_url (str): Primary URL to download file. Defaults to empty str.
+        secondary_url (str): Secondary URL to download file. Defaults to empty str.
+        tertiary_url (str): Tertiary URL to download file. Defaults to empty str.
+        part_no (int): Part number. Defaults to 0.
+
+    Notes:
+        Filename depends on part number.
+            - If `part_no` = 0, composed as ``f"[{short_date}] # {name}" + ext``
+            - If `part_no` > 0, ``f"[{short_date}] # {name}" + " [Part NN]" + ext``
+
+        Other attrs see :class:`LepFile`
+    """
+
+    ext: str = ".mp3"  #: Extension for audio file.
+    part_no: int = 0  #: Part number.
 
     def __post_init__(self) -> None:
         """Compose filename for this instance."""
@@ -79,9 +110,26 @@ class Audio(LepFile):
 
 @dataclass
 class PagePDF(LepFile):
-    """Represent PDF file of episode page."""
+    """Represent PDF file of episode page.
 
-    ext: str = ".pdf"
+    Args:
+        ep_id (int): Episode index. Defaults to 0.
+        name (str): File name (without extension). Defaults to empty str.
+        ext (str): File extension. Defaults to ".pdf".
+        short_date (str): Episode date (format "YYYY-MM-DD"). Defaults to empty str.
+        filename (str): File name + extension. Defaults to empty str.
+        primary_url (str): Primary URL to download file. Defaults to empty str.
+        secondary_url (str): Secondary URL to download file. Defaults to empty str.
+        tertiary_url (str): Tertiary URL to download file. Defaults to empty str.
+
+    Notes:
+        Filename is composed after initialization other attrs as:
+        ``f"[{short_date}] # {name}" + ext``
+
+        Other attrs see :class:`LepFile`
+    """
+
+    ext: str = ".pdf"  #: Extension for PDF file.
 
     def __post_init__(self) -> None:
         """Compose filename for this instance."""
@@ -90,10 +138,31 @@ class PagePDF(LepFile):
 
 @dataclass
 class ATrack(LepFile):
-    """Represent audio track to episode (or part of it) object."""
+    """Represent audio track object (to episode video or part of it).
 
-    ext: str = ".mp3"
-    part_no: int = 0
+    Args:
+        ep_id (int): Episode index. Defaults to 0.
+        name (str): File name (without extension). Defaults to empty str.
+        ext (str): File extension. Defaults to ".mp3".
+        short_date (str): Episode date (format "YYYY-MM-DD"). Defaults to empty str.
+        filename (str): File name + extension. Defaults to empty str.
+        primary_url (str): Primary URL to download file. Defaults to empty str.
+        secondary_url (str): Secondary URL to download file. Defaults to empty str.
+        tertiary_url (str): Tertiary URL to download file. Defaults to empty str.
+        part_no (int): Part number. Defaults to 0.
+
+    Notes:
+        Filename depends on part number.
+            - If `part_no` = 0,
+                composed as ``f"[{short_date}] # {name}" + " _aTrack_" + ext``
+            - If `part_no` > 0,
+                ``f"[{short_date}] # {name}" + " [Part NN]" + " _aTrack_" + ext``
+
+        Other attrs see :class:`LepFile`
+    """
+
+    ext: str = ".mp3"  #: Extension for audio track file.
+    part_no: int = 0  #: Part number.
 
     def __post_init__(self) -> None:
         """Compose filename for this instance."""
@@ -113,14 +182,31 @@ class LepFileList(List[Any]):
     """Represent list of LepFile objects."""
 
     def filter_by_type(self, *file_types: Any) -> Any:
-        """Return new filtered list by file type(s)."""
+        """Filter list by file type(s).
+
+        Args:
+            file_types (Any): Variable length argument list of file types
+                (Audio, PagePDF, ATrack, and others).
+
+        Returns:
+            :class:`LepFileList`: New filtered LepFileList.
+        """
         file_types = tuple(file_types)
         filtered = LepFileList(file for file in self if isinstance(file, file_types))
         return filtered
 
 
 def crawl_list(links: List[str]) -> Tuple[str, str, str]:
-    """Crawl list of links and return tuple of three links."""
+    """Crawl list of links and return tuple of three links.
+
+    For absent URL empty string is assigned.
+
+    Args:
+        links (list[str]): List of URLs (for one file).
+
+    Returns:
+        Tuple[str, str, str]: A tuple of three strings (URLs).
+    """
     primary_url = secondary_url = tertiary_url = ""
     links_number = len(links)
     if links_number == 1:
@@ -136,16 +222,23 @@ def crawl_list(links: List[str]) -> Tuple[str, str, str]:
     return primary_url, secondary_url, tertiary_url
 
 
-def add_each_audio_to_shared_list(
+def append_each_audio_to_container_list(
     ep_id: int,
     name: str,
     short_date: str,
     audios: List[List[str]],
     file_class: Union[Type[Audio], Type[ATrack]],
 ) -> None:
-    """Gather data for each episode audio.
+    """Relate links for each audio file with episode.
 
-    Then add it as 'Audio' or 'ATrack' object to shared list of LepFile objects.
+    And put audio as 'Audio' or 'ATrack' object to container list of LepFile objects.
+
+    Args:
+        ep_id (int): Episode number.
+        name (str): File name (without extension).
+        short_date (str): Date (format "YYYY-MM-DD").
+        audios (list[list[str]]): List of list of URLs for each audio part.
+        file_class (:class:`Audio` | :class:`ATrack`): LepFile subclass (audio type).
     """
     is_multi_part = False if len(audios) < 2 else True
     start = int(is_multi_part)
@@ -166,15 +259,21 @@ def add_each_audio_to_shared_list(
         files_box.append(audio_file)
 
 
-def add_page_pdf_file(
+def append_page_pdf_file_to_container_list(
     ep_id: int,
     name: str,
     short_date: str,
     page_pdf: List[str],
 ) -> None:
-    """Gather page PDF for episode.
+    """Relate links for page PDF file with episode.
 
-    Then add it as 'PagePDF' object to shared 'files' list of LepFile objects.
+    And put it as 'PagePDF' object to container list of LepFile objects.
+
+    Args:
+        ep_id (int): Episode number.
+        name (str): File name (without extension).
+        short_date (str): Date (format "YYYY-MM-DD").
+        page_pdf (list[str]): List of URLs for page PDF file.
     """
     global files_box
     if not page_pdf:
@@ -198,12 +297,18 @@ def add_page_pdf_file(
 
 
 files_box = LepFileList()
+""":class:`LepFileList`: Module level container list of LepFile objects."""
 
 
 def gather_all_files(lep_episodes: LepEpisodeList) -> LepFileList:
-    """Skim passed episode list and collect all files.
+    """Skim list of episodes and collect all files.
 
-    Return module's 'files_box' list.
+    Args:
+        lep_episodes (LepEpisodeList): List of LepEpisode objects.
+
+    Returns:
+        :class:`LepFileList`: Module's container list
+        :const:`files_box`.
     """
     global files_box
     files_box = LepFileList()
@@ -213,16 +318,18 @@ def gather_all_files(lep_episodes: LepEpisodeList) -> LepFileList:
         if ep.files:
             audios = ep.files.setdefault("audios", [])
             if audios:
-                add_each_audio_to_shared_list(
-                    ep.index, ep.post_title, ep._short_date, audios, Audio
+                append_each_audio_to_container_list(
+                    ep.index, ep.post_title, ep.short_date, audios, Audio
                 )
             audio_tracks = ep.files.setdefault("atrack", [])
             if audio_tracks:
-                add_each_audio_to_shared_list(
-                    ep.index, ep.post_title, ep._short_date, audio_tracks, ATrack
+                append_each_audio_to_container_list(
+                    ep.index, ep.post_title, ep.short_date, audio_tracks, ATrack
                 )
             page_pdf = ep.files.setdefault("page_pdf", [])
-            add_page_pdf_file(ep.index, ep.post_title, ep._short_date, page_pdf)
+            append_page_pdf_file_to_container_list(
+                ep.index, ep.post_title, ep.short_date, page_pdf
+            )
     return files_box
 
 
@@ -230,7 +337,22 @@ def detect_existing_files(
     save_dir: Path,
     files: LepFileList,
 ) -> Tuple[LepFileList, LepFileList]:
-    """Separate lists for existing and non-existing files."""
+    """Separate list for existing and non-existing files.
+
+    Method scans all files in the directory and composes
+    list of filtered files by extensions: mp3, pdf, mp4.
+    Then it separates 'files' list on two:
+    existed files and non-existed files
+    (iterating over filtered files in the directory, not all).
+
+    Args:
+        save_dir (Path): Path to destination folder.
+        files (LepFileList): List of LepFile objects.
+
+    Returns:
+        Tuple[LepFileList, LepFileList]: A tuple with
+        two lists: existed, non_existed.
+    """
     existed = LepFileList()
     non_existed = LepFileList()
     only_files_by_ext: List[str] = []
@@ -253,7 +375,18 @@ def download_and_write_file(
     filename: str,
     log: LepLog,
 ) -> bool:
-    """Downloads file by URL and returns operation status."""
+    """Download a file by URL and save it.
+
+    Args:
+        url (str): URL to file.
+        session (requests.Session): Session to send request.
+        save_dir (Path): Folder where to save file.
+        filename (str): Filename (with extension).
+        log (LepLog): Log object where to print messages.
+
+    Returns:
+        bool: Status operation. True for success, False otherwise.
+    """
     is_writing_started = False
     file_path: Path = save_dir / filename
     try:
@@ -279,7 +412,14 @@ def download_and_write_file(
 
 
 class LepDL(Lep):
-    """Represent downloader object."""
+    """Represent downloader object.
+
+    Args:
+        json_url (str): URL to JSON database
+        session (requests.Session): Requests session object.
+            If None defaults to global session :const:`lep.PROD_SES`.
+        log (LepLog): Log instance where to output messages.
+    """
 
     def __init__(
         self,
@@ -287,26 +427,39 @@ class LepDL(Lep):
         session: requests.Session = None,
         log: Optional[LepLog] = None,
     ) -> None:
-        """Initialize LepDL object.
-
-        Args:
-            json_url (str): URL to JSON datavase
-            session (requests.Session): Requests session object
-                if None, get default global session.
-            log (LepLog): Log instance of LepLog class where to output message.
-        """
+        """Initialize LepDL object."""
         super().__init__(session, log)
-        self.json_url = json_url
+
+        #: URL to JSON database.
+        self.json_url: str = json_url
+
+        #: List of episodes in JSON database.
         self.db_episodes: LepEpisodeList = LepEpisodeList()
+
+        #: Dictionary "URL - post title".
         self.db_urls: Dict[str, str] = {}
+
+        #: List of all files (gathered for downloading).
         self.files: LepFileList = LepFileList()
+
+        #: List of downloaded files.
         self.downloaded: LepFileList = LepFileList()
+
+        #: List of unavailable files.
         self.not_found: LepFileList = LepFileList()
+
+        #: List of existing files on disc.
         self.existed: LepFileList = LepFileList()
+
+        #: List of non-existing files on disc.
         self.non_existed: LepFileList = LepFileList()
 
     def get_remote_episodes(self) -> None:
-        """Get database episodes from remote JSON database."""
+        """Get database episodes from remote JSON database.
+
+        After retreiving episodes, also extract all URLs and their titles
+        and store them in 'db_urls' attribute.
+        """
         self.db_episodes = Lep.get_db_episodes(self.json_url)
         self.db_urls = extract_urls_from_episode_list(self.db_episodes)
 
@@ -315,14 +468,22 @@ class LepDL(Lep):
         save_dir: Path,
         files: Optional[LepFileList] = None,
     ) -> None:
-        """Detach 'existed' files from non 'non_existed'."""
+        """Detach 'existed' files from non 'non_existed'.
+
+        Args:
+            save_dir (Path): Folder for saving files.
+            files (LepFileList, optional): List of files.
+                If None, defaults to self 'files' attribute.
+        """
         files = files if files else self.files
         self.existed, self.non_existed = detect_existing_files(save_dir, files)
 
     def populate_default_url(self) -> None:
-        """Fill in download url (if it is empty) with default value.
+        """Fill in secondary download url (if it is empty) with default value.
 
-        Operate with 'files' shared list.
+        Iterate over 'files' attribute list.
+        Default value composed as: :const:`config.DOWNLOADS_BASE_URL` + url-encoded
+        filename.
         """
         populated_files = LepFileList()
         for file in self.files:
@@ -337,7 +498,14 @@ class LepDL(Lep):
         self,
         save_dir: Path,
     ) -> None:
-        """Download files from passed links bunch."""
+        """Download files from 'non_existed' attribute list.
+
+        For reliability: If primary link is not available,
+        method will try to download other two links (if they present).
+
+        Args:
+            save_dir (Path): Path to folder where to save files.
+        """
         for file_obj in self.non_existed:
             filename = file_obj.filename
             primary_link = file_obj.primary_url
@@ -377,7 +545,20 @@ class LepDL(Lep):
 
 
 def url_encoded_chars_to_lower_case(url: str) -> str:
-    """Change %-escaped chars in string to lower case."""
+    """Change %-escaped chars in string to lower case.
+
+    Args:
+        url (str): URL with uppercase unicode characters.
+
+    Returns:
+        str: URL with lowercase unicode characters.
+
+    Example:
+        >>> import lep_downloader.downloader
+        >>> url = "https://teacherluke.co.uk/2016/03/01/333-more-misheard-lyrics-%E2%99%AC/"
+        >>> lep_downloader.downloader.url_encoded_chars_to_lower_case(url)
+        'https://teacherluke.co.uk/2016/03/01/333-more-misheard-lyrics-%e2%99%ac/'
+    """  # noqa: E501,B950
     lower_url = URL_ENCODED_CHARS_PATTERN.sub(
         lambda matchobj: matchobj.group(0).lower(), url
     )
@@ -385,7 +566,14 @@ def url_encoded_chars_to_lower_case(url: str) -> str:
 
 
 def extract_urls_from_episode_list(episodes: LepEpisodeList) -> Dict[str, str]:
-    """Extract page URL and its title for each episode object  in list."""
+    """Extract page URL and its title for each episode object in list.
+
+    Args:
+        episodes (LepEpisodeList): List of episodes.
+
+    Returns:
+        dict[str, str]: Dictionary "URL - post title".
+    """
     urls_titles = {
         url_encoded_chars_to_lower_case(ep.url): ep.post_title for ep in episodes
     }

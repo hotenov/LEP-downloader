@@ -22,10 +22,10 @@
 """App configuration module."""
 
 
-ARCHIVE_URL = "https://hotenov.com"
+ARCHIVE_URL = "https://teacherluke.co.uk/archive-of-episodes-1-149/"
 
-JSON_DB_URL = "https://hotenov.com/some_json.json"
-DEFAULT_JSON_NAME = "lep-db.min.json"
+JSON_DB_URL = "https://hotenov.com/d/lep/v3-lep-db.min.json"
+DEFAULT_JSON_NAME = "v3-lep-db.min.json"
 
 DOWNLOADS_BASE_URL = "https://hotenov.com/d/lep/"
 
