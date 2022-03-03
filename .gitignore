@@ -134,3 +134,7 @@ dmypy.json
 # Hyper Modern template
 .pytype/
 src/*.egg-info
+
+# Internal click commands
+src/lep_downloader/commands/makepdf.py
+src/lep_downloader/commands/utils.py

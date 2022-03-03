@@ -1,0 +1,11 @@
+{
+  "_template": "gh:cjolowicz/cookiecutter-hypermodern-python",
+  "author": "Artem Hotenov",
+  "email": "qa@hotenov.com",
+  "friendly_name": "LEP Downloader",
+  "github_user": "hotenov",
+  "license": "MIT",
+  "package_name": "lep_downloader",
+  "project_name": "lep-downloader",
+  "version": "3.0.0"
+}
