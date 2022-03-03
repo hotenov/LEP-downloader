@@ -41,18 +41,6 @@ LEP Downloader
 
 .. badges-end
 
-.. raw:: html
-
-   <p align="center"><img alt="logo" src="docs/_static/logo.png" width="40%" /></p>
-   <p align="center">
-      📚
-      <a href="https://lep-downloader.readthedocs.io" target="_blank">
-         Read the full documentation
-      </a>
-      📚
-   </p>
-
-
 .. after-image
 
 About
@@ -69,6 +57,7 @@ I just want to make my life a bit easier (as usual for lazy IT person =).
 So consider `donating`_ to Luke's English Podcast and `becoming`_ his premium subscriber.
 And of course, subscribe on his `YouTube channel`_.
 
+`Read the full documentation <https://lep-downloader.readthedocs.io>`__ on website.
 
 🚀 Features
 -------------
