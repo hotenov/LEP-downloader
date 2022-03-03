@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lep-downloader"
-version = "3.0.0a5"
+version = "3.0.0b1"
 description = "LEP Downloader - CLI app for parsing and downloading episodes of Luke's English Podcast"
 authors = ["Artem Hotenov <qa@hotenov.com>"]
 license = "MIT"
@@ -9,7 +9,7 @@ homepage = "https://github.com/hotenov/LEP-downloader"
 repository = "https://github.com/hotenov/LEP-downloader"
 documentation = "https://lep-downloader.readthedocs.io"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -19,7 +19,7 @@ classifiers = [
 Changelog = "https://github.com/hotenov/LEP-downloader/releases"
 
 [tool.poetry.dependencies]
-python = "^3.7.0"
+python = "^3.8.0"
 click = "^8.0.1"
 requests = "^2.26.0"
 beautifulsoup4 = "^4.9.3"
@@ -47,7 +47,6 @@ pep8-naming = "^0.12.1"
 darglint = "^1.8.1"
 reorder-python-imports = "^2.6.0"
 pre-commit-hooks = "^4.0.1"
-sphinx-rtd-theme = "^0.5.2"
 sphinx-click = "^3.0.2"
 Pygments = "^2.10.0"
 requests-mock = "^1.9.3"
@@ -56,6 +55,7 @@ flake8-import-order = "^0.18.1"
 rope = "^0.20.1"
 yapf = "^0.31.0"
 pytest-mock = "^3.6.1"
+furo = ">=2022.2.14"
 
 [tool.poetry.scripts]
 lep-downloader = "lep_downloader.__main__:main"

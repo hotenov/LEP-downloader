@@ -1,13 +1,42 @@
-Reference
+Developer Reference
+===================
+
+Classes and functions definitions for main modules.
+All descriptions are generated automatically
+from source code docstrings.
+
+
+
+lep_downloader.lep
+--------------------------
+
+.. automodule:: lep_downloader.lep
+   :members:
+   :show-inheritance:
+
 =========
 
-.. contents::
-    :local:
-    :backlinks: none
+lep_downloader.downloader
+--------------------------
 
-
-lep_downloader.cli
------------------------
-
-.. automodule:: lep_downloader.cli
+.. automodule:: lep_downloader.downloader
    :members:
+   :show-inheritance:
+
+=========
+
+lep_downloader.parser
+--------------------------
+
+.. automodule:: lep_downloader.parser
+   :members:
+   :show-inheritance:
+
+=========
+
+lep_downloader.exceptions
+--------------------------
+
+.. automodule:: lep_downloader.exceptions
+   :members:
+   :show-inheritance:

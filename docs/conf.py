@@ -9,7 +9,8 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx_click",
-    "sphinx_rtd_theme",
 ]
 autodoc_typehints = "description"
-html_theme = "sphinx_rtd_theme"
+language = "en"
+html_logo = "_static/logo.png"
+html_theme = "furo"
