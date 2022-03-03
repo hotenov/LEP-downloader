@@ -25,8 +25,6 @@ import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from datetime import time
-from datetime import timedelta
 from datetime import timezone
 from functools import partial
 from functools import total_ordering
@@ -147,7 +145,7 @@ class LepEpisode:
     Args:
         episode (int): Episode number.
         date (str | datetime): Post datetime.
-            It will be converted to `datetime` object with UTC timezone.
+            It will be converted to aware `datetime` object (with timezone).
             If None, defaults to `datetime` equaling "2000-01-01T00:00:00+00:00".
         url (str): Final location of web post URL.
         post_title (str): Post title
@@ -168,21 +166,20 @@ class LepEpisode:
     """
 
     def _convert_date(self, date: Union[datetime, str]) -> Tuple[datetime, str]:
-        """Convert string date to datetime object with UTC timezone.
+        """Convert string datetime to aware datetime object.
 
-        Input format: 2000-01-01T00:00:00+00:00
-        If `datetime` is passed, it will be converted to UTC timezone.
+        String datetime format: 2000-01-01T00:00:00+00:00
+        If `datetime` is passed, it will be set "as-is".
         """
-        converted_date: datetime
-        short_date_not_utc: str = "2000-01-01"
+        converted_date = default_episode_datetime
+        short_date: str = converted_date.strftime(r"%Y-%m-%d")
         if isinstance(date, str):
             converted_date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S%z")
-            short_date_not_utc = converted_date.strftime(r"%Y-%m-%d")
-            converted_date = converted_date.astimezone(timezone.utc)
+            short_date = converted_date.strftime(r"%Y-%m-%d")
         else:
-            short_date_not_utc = date.strftime(r"%Y-%m-%d")
-            converted_date = date.astimezone(timezone.utc)
-        return converted_date, short_date_not_utc
+            short_date = date.strftime(r"%Y-%m-%d")
+            converted_date = date
+        return converted_date, short_date
 
     def __init__(
         self,
@@ -214,10 +211,9 @@ class LepEpisode:
 
     @property
     def date(self) -> Any:
-        """Episode datetime (in UTC).
+        """Episode datetime (with timezone).
 
-        To be accurate, posting datetime on the website
-        converted to UTC.
+        To be accurate, posting datetime on the website.
         """
         return self._date
 
@@ -228,7 +224,7 @@ class LepEpisode:
 
     @property
     def short_date(self) -> str:
-        """Episode short date (from original date, not converted to UTC).
+        """Episode short date.
 
         It's the same as posting date in the episode URL,
         just formatted as "YYYY-MM-DD".
@@ -355,22 +351,16 @@ class LepEpisodeList(List[Any]):
         """
         start = start if start else self.default_start_date
         end = end if end else self.default_end_date
+
         if start.date() > end.date():
             start, end = end, start
-        start_aware = datetime.combine(
-            start.date(),
-            time(0, 1),  # Begining of a day
-            tzinfo=timezone(timedelta(hours=2)),
-        )
-        end_aware = datetime.combine(
-            end.date(),
-            time(23, 55),  # End (almost) of a day
-            tzinfo=timezone(timedelta(hours=2)),
-        )
 
         filtered = LepEpisodeList(
-            ep for ep in self if ep.date >= start_aware and ep.date <= end_aware
+            ep
+            for ep in self
+            if ep.date.date() >= start.date() and ep.date.date() <= end.date()
         )
+
         return filtered
 
 
@@ -388,10 +378,9 @@ class LepJsonEncoder(json.JSONEncoder):
                 Otherwise, TypeError exception is raised.
         """
         if isinstance(obj, LepEpisode):
-            date_0200_zone = obj.date.astimezone(timezone(timedelta(hours=2)))
             return {
                 "episode": obj.episode,
-                "date": date_0200_zone.strftime(r"%Y-%m-%dT%H:%M:%S%z"),
+                "date": obj.date.strftime(r"%Y-%m-%dT%H:%M:%S%z"),
                 "url": obj.url,
                 "post_title": obj.post_title,
                 "post_type": obj.post_type,
