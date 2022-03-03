@@ -55,7 +55,7 @@ flake8-import-order = "^0.18.1"
 rope = "^0.20.1"
 yapf = "^0.31.0"
 pytest-mock = "^3.6.1"
-furo = ">=2022.2.14"
+furo = ">=2022.2.23"
 
 [tool.poetry.scripts]
 lep-downloader = "lep_downloader.__main__:main"
