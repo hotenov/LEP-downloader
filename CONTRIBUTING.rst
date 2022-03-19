@@ -43,7 +43,7 @@ Request features on the `Issue Tracker`_.
 How to set up your development environment
 ------------------------------------------
 
-You need Python 3.6+ and the following tools:
+You need Python 3.8+ and the following tools:
 
 - Poetry_
 - Nox_
@@ -109,7 +109,8 @@ Your pull request needs to meet the following guidelines for acceptance:
 
 Feel free to submit early, though—we can always iterate on this.
 
-To run linting and code formatting checks before commiting your change, you can install pre-commit as a Git hook by running the following command:
+To run linting and code formatting checks before committing your change,
+you can install pre-commit as a Git hook by running the following command:
 
 .. code:: console
 
