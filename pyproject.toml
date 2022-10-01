@@ -61,6 +61,9 @@ furo = ">=2022.2.23"
 lep-downloader = "lep_downloader.__main__:main"
 lep-dl = "lep_downloader.__main__:main"
 
+[tool.poetry.group.dev.dependencies]
+safety = "^2.2.0"
+
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
 
