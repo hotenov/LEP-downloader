@@ -67,7 +67,7 @@ class MyCLI(click.MultiCommand):
             )
         except ModuleNotFoundError:
             return
-        return cmd_module.cli  # type: ignore
+        return cmd_module.cli
 
 
 def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -90,7 +90,7 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
         "-pdf",
         "pdf_yes",
         is_flag=True,
-        help="Tells script to download PDF of episide page as well.",
+        help="Tells script to download PDF of episode page as well.",
     )
     @click.option(
         "--last",
