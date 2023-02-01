@@ -72,7 +72,6 @@ def phrase_for_filtered_episodes(  # noqa: C901 'too complex'
         return "LAST"
 
     if date_start or date_end:
-
         date_start = date_start if date_start else LepEpisodeList.default_start_date
         date_end = date_end if date_end else LepEpisodeList.default_end_date
         start_date = date_start.date()
