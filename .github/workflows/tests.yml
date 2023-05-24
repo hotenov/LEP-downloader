@@ -17,11 +17,9 @@ jobs:
           - { python: "3.10", os: ubuntu-latest, session: "mypy" }
           - { python: "3.9", os: ubuntu-latest, session: "mypy" }
           - { python: "3.8", os: ubuntu-latest, session: "mypy" }
-          # - { python: 3.7, os: ubuntu-latest, session: "mypy" }
           - { python: "3.10", os: ubuntu-latest, session: "tests" }
           - { python: "3.9", os: ubuntu-latest, session: "tests" }
           - { python: "3.8", os: ubuntu-latest, session: "tests" }
-          # - { python: 3.7, os: ubuntu-latest, session: "tests" }
           - { python: "3.10", os: windows-latest, session: "tests" }
           - { python: "3.9", os: windows-latest, session: "tests" }
           - { python: "3.10", os: macos-latest, session: "tests" }
@@ -72,6 +70,7 @@ jobs:
         id: pre-commit-cache
         shell: python
         run: |
+          import os
           import hashlib
           import sys
 
@@ -80,10 +79,13 @@ jobs:
           digest = hashlib.sha256(payload).hexdigest()
           result = "${{ runner.os }}-{}-{}-pre-commit".format(python, digest[:8])
 
-          print("::set-output name=result::{}".format(result))
+          # print("::set-output name=result::{}".format(result))  # DEPRICATED
+          if "GITHUB_OUTPUT" in os.environ :
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f :
+                  print("{0}={1}".format("result", result), file=f)
 
       - name: Restore pre-commit cache
-        uses: actions/cache@v3.2.6
+        uses: actions/cache@v3.3.1
         if: matrix.session == 'pre-commit'
         with:
           path: ~/.cache/pre-commit
@@ -151,4 +153,4 @@ jobs:
           nox --force-color --session=coverage -- xml
 
       - name: Upload coverage report
-        uses: codecov/codecov-action@v3.1.1
+        uses: codecov/codecov-action@v3.1.4
