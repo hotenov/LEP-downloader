@@ -84,7 +84,6 @@ jobs:
               with open(os.environ["GITHUB_OUTPUT"], "a") as f :
                   print("{0}={1}".format("result", result), file=f)
 
-
       - name: Restore pre-commit cache
         uses: actions/cache@v3.3.1
         if: matrix.session == 'pre-commit'
