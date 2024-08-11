@@ -1,4 +1,5 @@
 """CLI main click group."""
+
 # MIT License
 #
 # Copyright (c) 2022 Artem Hotenov

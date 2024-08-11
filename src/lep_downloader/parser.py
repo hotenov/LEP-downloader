@@ -1,4 +1,5 @@
 """LEP module for parsing logic."""
+
 import json
 import re
 from datetime import datetime
@@ -537,7 +538,7 @@ class LepParser(Lep):
         self.is_url_ok: bool = False
 
     def get_url(self) -> None:
-        """Retrive target web page.
+        """Retrieve target web page.
 
         Method result are saved in attributes:
 

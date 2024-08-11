@@ -1,4 +1,5 @@
 """Parse command."""
+
 from pathlib import Path
 
 import click

@@ -1,4 +1,5 @@
 """Command-line interface."""
+
 import sys  # pragma: no cover
 
 from lep_downloader import cli  # pragma: no cover
