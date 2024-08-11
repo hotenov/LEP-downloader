@@ -20,13 +20,15 @@ Changelog = "https://github.com/hotenov/LEP-downloader/releases"
 
 
 [tool.poetry.dependencies]
-python = "^3.8.0"
-click = "^8.0.4"
-requests = "^2.31.0"
-beautifulsoup4 = "^4.9.3"
-lxml = "^4.9.1"
-single-source = "^0.2.0"
-loguru = "^0.6.0"
+python = "^3.11"
+click = "^8.1.7"
+requests = "^2.32.3"
+beautifulsoup4 = "^4.12.3"
+lxml = "^5.3.0"
+single-source = "^0.4.0"
+loguru = "^0.7.2"
+
+[tool.poetry.group.dev.dependencies]
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.1"
@@ -64,7 +66,6 @@ sphinx-click = "^4.4.0"
 Pygments = "^2.15.1"
 furo = ">=2023.5.20"
 
-[tool.poetry.group.dev.dependencies]
 
 
 [tool.poetry.scripts]
