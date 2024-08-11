@@ -37,8 +37,8 @@ EP_LINK_PATTERN = re.compile(conf.EPISODE_LINK_RE, re.IGNORECASE)
 duplicated_ep_links_re = r"^\[(website\scontent|video)\]$|episode\s522$"
 DUPLICATED_EP_PATTERN = re.compile(duplicated_ep_links_re, re.IGNORECASE)
 
-begining_digits_re = r"^\d{1,5}"
-BEGINING_DIGITS_PATTERN = re.compile(begining_digits_re)
+beginning_digits_re = r"^\d{1,5}"
+BEGINNING_DIGITS_PATTERN = re.compile(beginning_digits_re)
 
 audio_link_re = r"download\b|audio\s|click\s"
 AUDIO_LINK_PATTERN = re.compile(audio_link_re, re.IGNORECASE)
@@ -345,7 +345,7 @@ def parse_episode_number(post_title: str) -> int:
         int: Episode number. If number is not found,
         returns 0.
     """
-    match = BEGINING_DIGITS_PATTERN.match(post_title)
+    match = BEGINNING_DIGITS_PATTERN.match(post_title)
     if match:
         return int(match.group())
     else:
