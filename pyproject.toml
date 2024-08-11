@@ -52,12 +52,12 @@ darglint = "^1.8.1"
 pep8-naming = "^0.12.1"
 
 [tool.poetry.group.format.dependencies]
-black = "^22.8.0"
-yapf = "^0.31.0"
-pre-commit = "^3.3.2"
-pre-commit-hooks = "^4.4.0"
-reorder-python-imports = "^2.6.0"
-rope = "^0.20.1"
+black = "^24.8.0"
+yapf = "^0.40.2"
+pre-commit = "^3.8.0"
+pre-commit-hooks = "^4.6.0"
+reorder-python-imports = "^3.13.0"
+rope = "^1.13.0"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^7.0.1"
