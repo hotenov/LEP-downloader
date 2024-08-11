@@ -60,11 +60,11 @@ reorder-python-imports = "^3.13.0"
 rope = "^1.13.0"
 
 [tool.poetry.group.docs.dependencies]
-sphinx = "^7.0.1"
-sphinx-autobuild = ">=2021.3.14"
-sphinx-click = "^4.4.0"
-Pygments = "^2.15.1"
-furo = ">=2023.5.20"
+sphinx = "^8.0.2"
+sphinx-autobuild = ">=2024.4.16"
+sphinx-click = "^6.0.0"
+Pygments = "^2.18.0"
+furo = ">=2024.8.6"
 
 
 
