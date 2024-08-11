@@ -31,13 +31,13 @@ loguru = "^0.7.2"
 [tool.poetry.group.dev.dependencies]
 
 [tool.poetry.group.test.dependencies]
-pytest = "^7.2.1"
-pytest-mock = "^3.6.1"
-requests-mock = "^1.9.3"
-safety = "^2.3.5"
-coverage = {extras = ["toml"], version = "^6.1"}
+pytest = "^8.3.2"
+pytest-mock = "^3.14.0"
+requests-mock = "^1.12.1"
+safety = "^3.2.5"
+coverage = {extras = ["toml"], version = "^7.6.1"}
 typeguard = "^2.13.3"
-xdoctest = {extras = ["colors"], version = "^0.15.10"}
+xdoctest = {extras = ["colors"], version = "^1.1.6"}
 
 [tool.poetry.group.lint.dependencies]
 flake8 = "^7.1.1"
