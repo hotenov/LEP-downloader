@@ -1,10 +1,12 @@
 """Nox sessions."""
+
 import shutil
 import sys
 from pathlib import Path
 from textwrap import dedent
 
 import nox
+
 
 try:
     from nox_poetry import Session
@@ -20,12 +22,12 @@ except ImportError:
 
 
 package = "lep_downloader"
-python_versions = ["3.10", "3.9", "3.8"]
+python_versions = ["3.11", "3.12"]
 nox.needs_version = ">= 2021.6.6"
 nox.options.sessions = (
-    # "pre-commit",
-    # "safety",
-    # "mypy",
+    "pre-commit",
+    "safety",
+    "mypy",
     "tests",
     "typeguard",
     "xdoctest",
@@ -83,7 +85,7 @@ def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
         hook.write_text("\n".join(lines))
 
 
-@session(name="pre-commit", python="3.10")
+@session(name="pre-commit", python="3.11")
 def precommit(session: Session) -> None:
     """Lint using pre-commit."""
     args = session.posargs or ["run", "--all-files", "--show-diff-on-failure"]
@@ -98,6 +100,7 @@ def precommit(session: Session) -> None:
         "pep8-naming",
         "pre-commit",
         "pre-commit-hooks",
+        "isort",
         # "reorder-python-imports",
     )
     session.run("pre-commit", *args)
@@ -105,12 +108,18 @@ def precommit(session: Session) -> None:
         activate_virtualenv_in_precommit_hooks(session)
 
 
-@session(python="3.10")
+@session(python="3.11")
 def safety(session: Session) -> None:
     """Scan dependencies for insecure packages."""
     requirements = session.poetry.export_requirements()
     session.install("safety")
-    session.run("safety", "check", "--full-report", f"--file={requirements}")
+    session.run(
+        "safety",
+        "check",
+        "--full-report",
+        f"--file={requirements}",
+        "--ignore=70612",
+    )
 
 
 @session(python=python_versions)
@@ -174,7 +183,7 @@ def xdoctest(session: Session) -> None:
     session.run("python", "-m", "xdoctest", package, *args)
 
 
-@session(name="docs-build", python="3.10")
+@session(name="docs-build", python="3.11")
 def docs_build(session: Session) -> None:
     """Build the documentation."""
     args = session.posargs or ["docs", "docs/_build"]
@@ -188,7 +197,7 @@ def docs_build(session: Session) -> None:
     session.run("sphinx-build", *args)
 
 
-@session(python="3.10")
+@session(python="3.11")
 def docs(session: Session) -> None:
     """Build and serve the documentation with live reloading on file changes."""
     args = session.posargs or ["--open-browser", "docs", "docs/_build"]

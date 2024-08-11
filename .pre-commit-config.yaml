@@ -50,6 +50,11 @@ repos:
       #   language: system
       #   types: [python]
       #   args: [--application-directories=src]
+      - id: isort
+        name: Organize Python imports (via isort)
+        entry: isort
+        language: system
+        types: [python]
       - id: trailing-whitespace
         name: Trim Trailing Whitespace
         entry: trailing-whitespace-fixer
