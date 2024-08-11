@@ -1,10 +1,12 @@
 """Nox sessions."""
+
 import shutil
 import sys
 from pathlib import Path
 from textwrap import dedent
 
 import nox
+
 
 try:
     from nox_poetry import Session
@@ -23,9 +25,9 @@ package = "lep_downloader"
 python_versions = ["3.11", "3.12"]
 nox.needs_version = ">= 2021.6.6"
 nox.options.sessions = (
-    # "pre-commit",
+    "pre-commit",
     "safety",
-    # "mypy",
+    "mypy",
     "tests",
     "typeguard",
     "xdoctest",
@@ -98,6 +100,7 @@ def precommit(session: Session) -> None:
         "pep8-naming",
         "pre-commit",
         "pre-commit-hooks",
+        "isort",
         # "reorder-python-imports",
     )
     session.run("pre-commit", *args)
