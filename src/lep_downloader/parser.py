@@ -422,7 +422,7 @@ def parse_post_audio(soup: BeautifulSoup) -> List[List[str]]:
         parse_only=only_a_tags_with_mp3,
     )
 
-    if len(soup_a_only) > 1:
+    if len(soup_a_only.contents) > 1:
         tags_a_audio = soup_a_only.find_all(
             has_tag_a_appropriate_audio,
             recursive=False,
@@ -570,7 +570,7 @@ class LepParser(Lep):
             NotEpisodeURLError: If target page has now HTML's <article> tag.
         """
         self.soup = BeautifulSoup(self.content, "lxml", parse_only=only_article_content)
-        if len(self.soup) < 2:  # tag DOCTYPE always at [0] position
+        if len(self.soup.contents) < 1:  # only <article> tag should be in parsed soup
             self.lep_log.msg("No 'DOCTYPE' or 'article' tag", msg_lvl="CRITICAL")
             raise NotEpisodeURLError(
                 self.final_location,
@@ -634,7 +634,7 @@ class ArchiveParser(LepParser):
             features="lxml",
             parse_only=only_a_tags_with_ep_link,
         )
-        if len(soup_a_only) > 1:  # tag DOCTYPE always at [0] position
+        if len(soup_a_only.contents) > 1:
             # Remove all duplicated links
             tags_a_episodes = soup_a_only.find_all(is_tag_a_repeated, recursive=False)
 
