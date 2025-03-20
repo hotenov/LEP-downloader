@@ -762,9 +762,9 @@ def test_write_critical_logrecord_for_invalid_archive_page(
     run_cli_with_args: Callable[[List[str]], Result],
 ) -> None:
     """It records CRITICAL message into logfile for invalid archive html."""
-    # NOTE: No !DOCTYPE for html tag, but there is <article>
+    # NOTE: No <article> element, but there is <main>
     markup = """<html><head><title>The Dormouse'req_ses story</title></head>
-        <article>
+        <main>
             <p class="story">Once upon a time there were three little sisters; and their names were
                 <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
                 and they lived at the bottom of a well.
