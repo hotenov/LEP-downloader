@@ -422,7 +422,7 @@ def parse_post_audio(soup: BeautifulSoup) -> List[List[str]]:
         parse_only=only_a_tags_with_mp3,
     )
 
-    if len(soup_a_only.contents) > 1:
+    if len(soup_a_only.contents) > 0:
         tags_a_audio = soup_a_only.find_all(
             has_tag_a_appropriate_audio,
             recursive=False,
